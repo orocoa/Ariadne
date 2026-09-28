@@ -14,7 +14,7 @@
     const attachUpdates = () => {
       const script = root.document.createElement("script"); script.src = "/model-updates.js?v=1";
       root.document.head.append(script);
-      const entry = root.document.createElement("script"); entry.src = "/conversation-entry-consent.js?v=4";
+      const entry = root.document.createElement("script"); entry.src = "/conversation-entry-consent.js?v=5";
       root.document.head.append(entry);
     };
     if (root.document.readyState === "loading") root.document.addEventListener("DOMContentLoaded", attachUpdates, { once: true });
@@ -120,7 +120,7 @@
       fail("RUNTIME_SELECTION_CHANGED");
     }
   }
-  const consentFingerprint = (snapshot, operation) => JSON.stringify([operation === "job_overview" ? "job-personal-context-public-links-v2" : TRANSFER_DISCLOSURE_VERSION, Settings.identity(snapshot)]);
+  const consentFingerprint = (snapshot, operation) => JSON.stringify([operation === "job_overview" ? "job-personal-context-public-links-v2" : operation === "job_conversation" ? "job-workspace-followup-text-v2" : TRANSFER_DISCLOSURE_VERSION, Settings.identity(snapshot)]);
   function consentStore(storage = root.localStorage) {
     try {
       const value = read(TRANSFER_CONSENT_KEY, storage);

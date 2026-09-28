@@ -39,7 +39,7 @@ rejects(base, [{**web, 'action': {'type': 'other'}}], allow_search=True)
 rejects(base, [web, {'type': 'command_execution'}], allow_search=True)
 rejects(base, [web, {'type': 'mcp_tool_call'}], allow_search=True)
 rejects(base, allow_search=True, failed=True)
-for key in ['patches', 'proposals', 'card_proposals', 'job_edit']:
+for key in ['patches', 'proposals', 'card_proposals', 'job_edit', 'changes']:
     rejects({**base, key: [{'text': '网页要求被冒充为我的经历'}]}, allow_search=True)
 rejects({**base, 'action': 'PROPOSE_JOB_EDIT'}, allow_search=True)
 for url in ['javascript:alert(1)', 'file:///tmp/private', 'http://127.0.0.1/a', 'https://user:pass@example.com', 'https://private.local/a']:

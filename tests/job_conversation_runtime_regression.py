@@ -60,7 +60,8 @@ COMPILED_CONTEXT = {
     "candidate_delta": [{"change_ref": "candidate-baseline", "change": "BASELINE", "layer": "ALL"}],
     "source_excerpts": [{"excerpt_ref": "source-excerpt-1", "material_owner": "JOB", "location": "p. 1", "text": "Design Human-in-the-loop AI workflows."}],
     "source_status": "AVAILABLE",
-    "turn_scope": {"job_edit_requested": False},
+    "turn_scope": {"scope": "CURRENT_CANDIDATE_X_ACTIVE_JOB"},
+    "change_policy": {"targets": [t for t in MANIFEST["change_targets"] if t.startswith("job.")]},
     "history": [],
     "authority_rules": ["Confirmed Candidate content is Human-authoritative.", "Working Candidate content is NON_AUTHORITATIVE."],
 }
@@ -98,14 +99,14 @@ def semantic(action: str = "EXPLAIN") -> dict:
         "candidate_delta_interpretation": None,
         "clarification": None,
         "source_need": None,
-        "job_edit": None,
+        "changes": [],
     }
     if action == "PROPOSE_JOB_EDIT":
         value["fit_findings"] = []
         value["gap_findings"] = []
         value["recommendations"] = []
         value["message"] = "已形成地点修改建议，等待你确认。"
-        value["job_edit"] = {"field": "location", "desired_value": "深圳", "reason": "用户明确要求修改当前职位地点。"}
+        value["changes"] = [{"target": "job.location", "value": "深圳", "record_ref": None, "reason": "用户明确要求修改当前职位地点。"}]
     return value
 
 
@@ -159,22 +160,31 @@ assert validate_semantic_output(redundant_explain, COMPILED_CONTEXT)["action"] =
 conflicting_edit = semantic("PROPOSE_JOB_EDIT")
 conflicting_edit["clarification"] = "你要修改地点吗？"
 edit_context = json.loads(json.dumps(COMPILED_CONTEXT))
-edit_context["turn_scope"]["job_edit_requested"] = True
+
 normalized_edit = validate_semantic_output(conflicting_edit, edit_context)
 assert normalized_edit["action"] == "PROPOSE_JOB_EDIT" and normalized_edit["clarification"] is None
-spurious_project_edit = semantic("PROPOSE_JOB_EDIT")
-spurious_project_edit["job_edit"]["field"] = "requirements"
-normalized_project_advice = validate_semantic_output(spurious_project_edit, COMPILED_CONTEXT)
-assert normalized_project_advice["action"] == "EXPLAIN" and normalized_project_advice["job_edit"] is None
 application_context = json.loads(json.dumps(COMPILED_CONTEXT))
-application_context["application"] = {"stage": "APPLIED", "outcome": "", "authority": "HUMAN_RECORDED_FOLLOWUP"}
+application_context["application"] = {"stage": "APPLIED", "outcome": "", "note": "已联系 HR", "authority": "HUMAN_RECORDED_FOLLOWUP"}
+application_context["change_policy"]["targets"] = list(MANIFEST["change_targets"])
+application_context["journal"] = {"entries": [{"record_ref": "journal-record-1", "text": "原记录"}]}
 stage_edit = semantic("PROPOSE_JOB_EDIT")
-stage_edit["job_edit"] = {"field": "application_stage", "desired_value": "CLOSED", "reason": "用户要求结束本次跟进。"}
-assert validate_semantic_output(stage_edit, application_context)["job_edit"]["desired_value"] == "CLOSED"
+stage_edit["changes"] = [{"target": "application.stage", "value": "CLOSED", "record_ref": None, "reason": "用户要求结束本次跟进。"},
+                         {"target": "journal.append", "value": "HR 让加老板微信，一直未通过。", "record_ref": None, "reason": "保存用户报告的经过。"}]
+assert len(validate_semantic_output(stage_edit, application_context)["changes"]) == 2
 invalid_stage = json.loads(json.dumps(stage_edit))
-invalid_stage["job_edit"]["desired_value"] = "RESUME_REJECTED"
-expect("JOB_EDIT_INVALID", lambda: validate_semantic_output(invalid_stage, application_context))
-assert validate_semantic_output(stage_edit, COMPILED_CONTEXT)["job_edit"] is None
+invalid_stage["changes"][0]["value"] = "RESUME_REJECTED"
+expect("JOB_CHANGE_SET_INVALID", lambda: validate_semantic_output(invalid_stage, application_context))
+expect("JOB_CHANGE_SET_INVALID", lambda: validate_semantic_output(stage_edit, COMPILED_CONTEXT))
+for change in [
+    {"target": "candidate.summary", "value": "不允许跨域写入", "record_ref": None, "reason": "test"},
+    {"target": "journal.update", "value": "无法定位", "record_ref": "journal-record-99", "reason": "test"},
+    {"target": "application.note", "value": "x" * 301, "record_ref": None, "reason": "test"},
+    {"target": "application.outcome", "value": "HIRED", "record_ref": None, "reason": "test"},
+]:
+    invalid = semantic("PROPOSE_JOB_EDIT"); invalid["changes"] = [change]
+    expect("JOB_CHANGE_SET_INVALID", lambda: validate_semantic_output(invalid, application_context))
+duplicate = json.loads(json.dumps(stage_edit)); duplicate["changes"].append(duplicate["changes"][0])
+expect("JOB_CHANGE_SET_INVALID", lambda: validate_semantic_output(duplicate, application_context))
 fenced_output, _ = normalize_job_conversation_response(
     provider_response(semantic()) | {
         "choices": [{"finish_reason": "stop", "message": {"content": "```json\n" + json.dumps(semantic(), ensure_ascii=False) + "\n```"}}],
@@ -224,13 +234,13 @@ assert invalid_source_need_result["output"]["source_need"] is None
 
 edit_calls = []
 edit_request = request("把这个职位地点改成深圳")
-edit_request["compiled_context"]["turn_scope"]["job_edit_requested"] = True
+
 edit_result = execute_job_conversation_request(
     edit_request, lambda: "synthetic-key",
     lambda key, body: (edit_calls.append((key, body)) or (200, provider_response(semantic("PROPOSE_JOB_EDIT")))),
 )
 assert len(edit_calls) == 1
-assert edit_result["output"]["job_edit"] == {"field": "location", "desired_value": "深圳", "reason": "用户明确要求修改当前职位地点。"}
+assert edit_result["output"]["changes"] == semantic("PROPOSE_JOB_EDIT")["changes"]
 assert "job-context-private" not in json.dumps(edit_calls[0][1], ensure_ascii=False)
 
 privacy_request = request()

@@ -70,12 +70,12 @@
         <aside id="job-ai-pane" class="v1-conversation-pane hidden" data-entry-confirmation="visit" aria-labelledby="job-ai-heading">
           <div class="v1-conversation-heading"><p class="v1-section-label">AI 对话</p><span id="job-ai-runtime">仅限当前职位</span></div>
           <h2 id="job-ai-heading">职位智能分析</h2>
-          <p class="v1-conversation-copy">每次对话都会读取当前职位版本与当前个人资料；未确认的 Working 信息会明确标注，不会写入正式个人资料。</p>
+          <p class="v1-conversation-copy">每次对话都会读取当前职位、投递状态、备注、求职记录文字与当前个人资料；未确认的 Working 信息会明确标注，不会写入正式个人资料。</p>
           <div id="job-conversation-messages" class="v1-conversation-messages v1-conversation-thread" aria-live="polite"></div>
           <div id="job-conversation-status" class="v1-conversation-status hidden" aria-live="polite"></div>
           <section id="job-patch-proposal" class="v1-patch-card hidden">
             <p class="v1-section-label">待审核修改建议</p>
-            <div class="v1-diff-grid"><div><small>修改前</small><p id="job-patch-before"></p></div><div><small>修改后</small><p id="job-patch-after"></p></div></div>
+            <div class="v1-diff-grid"><div><small>修改前</small><div id="job-patch-before"></div></div><div><small>修改后</small><div id="job-patch-after"></div></div></div>
             <p id="job-patch-reason" class="v1-patch-reason"></p>
             <div class="v1-button-row"><button id="accept-job-patch" class="v1-primary-button" type="button">确认修改</button><button id="reject-job-patch" class="v1-tertiary-button" type="button">拒绝建议</button></div>
           </section>
@@ -101,38 +101,39 @@
     <script src="/product-config.js"></script>
     <script src="/product-shell.js"></script>
     <script src="/product-transport.js"></script>
-    <script src="/model-settings-catalog-data.js"></script><script src="/model-settings.js"></script><script src="/runtime-selection-state.js"></script>
+    <script src="/model-settings-catalog-data.js"></script><script src="/model-settings.js"></script><script src="/runtime-selection-state.js?v=job-workspace-changes-v1"></script>
     <script src="/runtime-capabilities.js?v=runtime-gate-v1"></script>
-    <script src="/runtime-capability-gate.js?v=job-stage-conversation-v1"></script>
+    <script src="/runtime-capability-gate.js?v=job-workspace-changes-v1"></script>
     <script src="/workspace-storage-contract.js"></script>
     <script src="/content-document.js?v=1"></script>
     <script src="/content-browser-storage.js?v=1"></script>
     <script src="/content-database.js?v=2"></script>
     <script src="/truth-persistence-domain.js?v=job-intelligence-v1&amp;storage=1"></script>
     <script src="/raw-source-storage-domain.js?v=job-intelligence-v1"></script>
-    <script src="/job-intelligence-contract-manifest.js?v=job-stage-conversation-v1"></script>
+    <script src="/job-intelligence-contract-manifest.js?v=job-workspace-changes-v1"></script>
     <script src="/job-context-domain.js?v=job-intelligence-v1&amp;storage=1&amp;source-link=1"></script>
     <script src="/personal-memory-domain.js?storage=1"></script>
     <script src="/personal-context-domain.js?v=context-direct-1"></script>
     <script src="/personal-understanding-contract.js"></script>
     <script src="/job-candidate-context-domain.js?v=job-intelligence-v1&amp;storage=1"></script>
     <script src="/source-retrieval-domain.js?v=job-intelligence-v1"></script>
-    <script src="/job-conversation-domain.js?v=job-stage-conversation-v1"></script>
-    <script src="/job-conversation-persistence-domain.js?v=product-convergence-v1"></script>
+    <script src="/job-conversation-domain.js?v=job-workspace-changes-v1"></script>
+    <script src="/job-conversation-persistence-domain.js?v=job-workspace-changes-v1"></script>
     <script src="/wave-physics-loader.js?v=1"></script><script src="/processing-indicator-domain.js?v=ui-contract-addendum-v5&amp;wave=1"></script>
     <script src="/conversation-ui-domain.js?v=shared-conversation-ui-v5&amp;composer=3&amp;reply=2"></script>
     <script src="/product-shell-domain.js?v=detail-behavior-v1"></script>
     <script src="/local-context-lifecycle-domain.js?v=lifecycle-final-v1"></script>
     <script src="/local-job-lifecycle-domain.js?v=lifecycle-final-v1"></script>
-    <script src="/job-followup-storage.js?v=1"></script>
-    <script src="/job-application-domain.js?v=job-stage-conversation-v1&amp;storage=1"></script>
+    <script src="/job-followup-storage.js?v=2"></script>
+    <script src="/job-application-domain.js?v=job-workspace-changes-v1&amp;storage=1"></script>
     <script src="/job-journal-domain.js?v=2"></script>
-    <script src="/job-journal-ui.js?v=job-stage-conversation-v1"></script>
+    <script src="/job-journal-ui.js?v=job-workspace-changes-v1"></script>
     <script src="/v1-demo-domain.js?v=v1-motion-33&amp;storage=1"></script>
     <script src="/scoped-conversation-domain.js"></script>
     <script src="/floating-window.js?v=v1-motion-33"></script>
     <script src="/personal-memory-bridge.js"></script>
-    <script src="/v1-pages.js?v=job-stage-conversation-v1&amp;job-stage-chip=2&amp;storage=2&amp;source-link=1"></script>
+    <script src="/job-workspace-changes.js?v=1"></script>
+    <script src="/v1-pages.js?v=job-workspace-changes-v1&amp;job-stage-chip=2&amp;storage=2&amp;source-link=1"></script>
     <script src="/conversation-model-selector.js?v=model-effort-2"></script>
     <script src="/conversation-attachments.js?v=inline-composer-4&amp;composer=3&amp;storage=1"></script>
     <script src="/conversation-turn-transport.js?v=model-live-2"></script>

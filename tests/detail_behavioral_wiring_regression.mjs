@@ -37,13 +37,14 @@ assert.doesNotMatch(pages, /byId\("job-conversation-form"\)\.addEventListener\("
 assert.doesNotMatch(pages, /byId\("open-(?:direct|job)-edit"\)\.addEventListener\("click", editShell\.toggle\)/);
 assert.doesNotMatch(pages, /byId\("cancel-(?:direct|job)-edit"\)\.addEventListener/);
 assert.doesNotMatch(pages, /byId\("back-to-(?:direct|job)-edit"\)\.addEventListener/);
-assert.match(jobConversation, /删除\|移除\|去掉\|删掉/);
+assert.doesNotMatch(jobConversation, /job_edit_requested/, "model interprets intent; code validates typed changes");
+assert.match(jobConversation, /Changes\.validate\(value\.changes, compiledContext\)/);
 
 for (const html of [candidateDetail, jobDetail]) {
   assert.match(html, /product-shell-domain\.js\?v=detail-behavior-v1/);
 }
 assert.match(candidateDetail, /v1-pages\.js\?v=computer-use-e2e-v3/);
-assert.match(jobDetail, /v1-pages\.js\?v=job-stage-conversation-v1/);
+assert.match(jobDetail, /v1-pages\.js\?v=job-workspace-changes-v1/);
 for (const dependency of ["model-import-lifecycle-domain", "candidate-context-domain", "candidate-model-runtime-domain"]) {
   assert.match(candidateDetail, new RegExp(`${dependency}\\.js\\?v=computer-use-e2e-v1`));
 }

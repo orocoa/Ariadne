@@ -19,6 +19,7 @@
   const LocalJob = window.AriadneLocalJobExtraction;
   const JobContext = window.AriadneJobContext;
   const JobApplications = window.AriadneJobApplications;
+  const JobWorkspaceChanges = window.AriadneJobWorkspaceChanges;
   const JobModel = window.AriadneJobModelRuntime;
   const JobCandidateContext = window.AriadneJobCandidateContext;
   const SourceRetrieval = window.AriadneSourceRetrieval;
@@ -3686,6 +3687,12 @@
     if (!panel) return;
     panel.classList.toggle("hidden", !proposal);
     if (!proposal) return;
+    if (proposal.contract_id === JobWorkspaceChanges.CONTRACT) {
+      byId("job-patch-before").innerHTML = proposal.preview.map(row => `<p><b>${escapeHtml(row.label)}</b><br>${escapeHtml(row.before).replace(/\n/g, "<br>")}</p>`).join("");
+      byId("job-patch-after").innerHTML = proposal.preview.map(row => `<p><b>${escapeHtml(row.label)}</b><br>${escapeHtml(row.after).replace(/\n/g, "<br>")}</p>`).join("");
+      byId("job-patch-reason").textContent = "确认后一起保存；任一内容已变化时整组不保存。";
+      return;
+    }
     const stage = proposal.contract_id === JobApplications.PROPOSAL_CONTRACT;
     const fieldLabels = { title: "职位名称", company: "公司", location: "地点", summary: "摘要" };
     const label = stage ? "投递状态" : fieldLabels[proposal.field] || proposal.field;
@@ -3705,7 +3712,7 @@
     ]);
     const decided = new Set(decisions.map((entry) => entry.job_change_proposal_id));
     const pending = proposals.filter((entry) => entry.job_context_id === jobContextId && !decided.has(entry.job_change_proposal_id)
-      && (entry.contract_id === JobApplications.PROPOSAL_CONTRACT || entry.contract_id === JobContext.CHANGE_PROPOSAL_CONTRACT))
+      && (entry.contract_id === JobWorkspaceChanges.CONTRACT || entry.contract_id === JobApplications.PROPOSAL_CONTRACT || entry.contract_id === JobContext.CHANGE_PROPOSAL_CONTRACT))
       .sort((left, right) => String(right.created_at).localeCompare(String(left.created_at)))[0] || null;
     renderJobConversationMessages(messages);
     showJobChangeProposal(pending);
@@ -3821,7 +3828,8 @@
       await Truth.persistRecord(database, "runtime_snapshots", runtimeSnapshot);
       const sourceManifest = await retrieveJobTurnSources(database, content, runtimeSnapshot, candidateSnapshot, previousAnalysis, jobSubject);
       const application = activeJobRevision ? (await JobApplications.all()).get(jobSubject.context_id) || JobApplications.initial(jobSubject.context_id) : null;
-      const compiledContext = JobConversation.compileContext({ job_subject: jobSubject, application, candidate_snapshot: candidateSnapshot, candidate_delta: candidateDelta, source_excerpt_manifest: sourceManifest, human_message: content, messages: restored.messages });
+      const journalEntries = application ? await window.AriadneJobJournal.list(jobSubject.context_id) : [];
+      const compiledContext = JobConversation.compileContext({ job_subject: jobSubject, application, journal_entries: journalEntries, candidate_snapshot: candidateSnapshot, candidate_delta: candidateDelta, source_excerpt_manifest: sourceManifest, human_message: content, messages: restored.messages });
       const observation = JobConversation.observationFor(jobSubject, candidateSnapshot);
       execution = JobConversation.createTurnExecution(session, observation, runtimeSnapshot, { candidate_snapshot: candidateSnapshot, candidate_delta: candidateDelta, source_excerpt_manifest: sourceManifest });
       const userMessage = JobConversation.createMessage(session, "USER", content);
@@ -3832,7 +3840,7 @@
       const rawResult = await callJobConversationRuntime(request);
       const result = JobConversation.validateRuntimeResult(rawResult, execution, session, runtimeSnapshot, compiledContext);
       form.dataset.ariadneResultType = result.output.action;
-      form.dataset.ariadneWorkingProposalCreated = result.output.job_edit ? "yes" : "no";
+      form.dataset.ariadneWorkingProposalCreated = result.output.changes.length ? "yes" : "no";
       form.dataset.ariadneConfirmedMutationBeforeSave = "no";
       const [currentSubject, currentCandidate] = await Promise.all([
         activeJobWorkingProposal ? Promise.resolve(currentJobConversationSubject()) : canonicalJobRevision(jobSubject.context_id, database),
@@ -3844,27 +3852,23 @@
         else status.textContent = "职位或个人资料已变化，请重试。";
         return;
       }
-      if (result.output.job_edit?.field === "application_stage") {
-        const currentApplication = (await JobApplications.all()).get(jobSubject.context_id) || JobApplications.initial(jobSubject.context_id);
-        if (!application || currentApplication.revision !== application.revision || currentApplication.stage !== application.stage) {
-          await JobConversationPersistence.persistExecution(database, JobConversationPersistence.transitionExecution(execution, "ANALYSIS_STALE", "APPLICATION_CHANGED"));
-          if (pageMessage) pageMessage.textContent = "投递状态已变化，这次建议未保存；请基于最新状态重试。";
-          else status.textContent = "投递状态已变化，请重试。";
+      if (application) {
+        const [currentApplications, currentEntries] = await Promise.all([JobApplications.all(), window.AriadneJobJournal.list(jobSubject.context_id)]);
+        const currentApplication = currentApplications.get(jobSubject.context_id) || JobApplications.initial(jobSubject.context_id);
+        if (currentApplication.revision !== application.revision || window.AriadneJobJournal.fingerprint(currentEntries) !== window.AriadneJobJournal.fingerprint(journalEntries)) {
+          await JobConversationPersistence.persistExecution(database, JobConversationPersistence.transitionExecution(execution, "ANALYSIS_STALE", "FOLLOWUP_CHANGED"));
+          (pageMessage || status).textContent = "职位跟进记录已变化，这次结果未保存；请基于最新内容重试。";
           return;
         }
       }
       const analysis = JobConversationPersistence.createAnalysis({ session, execution, job_subject: jobSubject, candidate_snapshot: candidateSnapshot, candidate_delta: candidateDelta, source_excerpt_manifest: sourceManifest, runtime_snapshot: runtimeSnapshot, output: result.output, previous_analysis_id: previousAnalysis?.analysis_id || null });
       const assistantMessage = { ...JobConversation.createMessage(session, "ASSISTANT", result.output.message), deliverable: globalThis.AriadneConversationOutput.fromResult(result), web_search: globalThis.AriadneConversationOutput.searchFromResult(result) };
-      await JobConversationPersistence.persistSuccessfulTurn(database, { execution, analysis, assistant_message: assistantMessage });
-      if (result.output.job_edit && activeJobRevision) {
-        const edit = result.output.job_edit;
-        const proposal = edit.field === "application_stage"
-          ? JobApplications.stageProposal(application, edit.desired_value, edit.reason, analysis.analysis_id)
-          : JobContext.createChangeProposal({ current_revision: activeJobRevision, field: edit.field, desired_value: edit.desired_value, reason: edit.reason, source_analysis_id: analysis.analysis_id });
-        if (edit.field === "application_stage") await JobApplications.persistStageProposal(database, proposal);
-        else await JobContext.persistChangeProposal(database, proposal);
-        showJobChangeProposal(proposal);
-      }
+      const proposal = result.output.changes.length && activeJobRevision ? JobWorkspaceChanges.create({
+        revision: activeJobRevision, application, entries: journalEntries, changes: result.output.changes,
+        analysisId: analysis.analysis_id, messageId: userMessage.message_id,
+      }) : null;
+      await JobConversationPersistence.persistSuccessfulTurn(database, { execution, analysis, assistant_message: assistantMessage, change_proposal: proposal });
+      if (proposal) showJobChangeProposal(proposal);
       renderJobConversationMessages(await JobConversationPersistence.messages(database, session.conversation_id));
       if (pageMessage) pageMessage.textContent = sourceManifest.status === "SOURCE_UNAVAILABLE" ? "分析已保存；所请求的原始来源不可用，结论已按缺失来源处理。" : "分析已保存；任何职位修改仍需你确认。";
       return true;
@@ -3994,13 +3998,33 @@
       finally { database.close(); }
     }
     if (activeJobRevision) {
+      let decidingProposal = false;
+      const proposalBusy = value => {
+        decidingProposal = value;
+        byId("accept-job-patch").disabled = value;
+        byId("reject-job-patch").disabled = value;
+      };
       byId("accept-job-patch").addEventListener("click", async () => {
-        if (!activeJobChangeProposal) return;
-        const database = await Truth.openDatabase();
+        if (!activeJobChangeProposal || decidingProposal) return;
+        if (document.body.classList.contains("v1-job-detail-editing")) {
+          byId("job-detail-message").textContent = "请先保存或取消正在编辑的内容，再确认这组建议。";
+          return;
+        }
+        proposalBusy(true);
+        let database;
         try {
+          database = await Truth.openDatabase();
           const head = await canonicalJobRevision(activeJobRevision.context_id, database);
           const stageProposal = activeJobChangeProposal.contract_id === JobApplications.PROPOSAL_CONTRACT;
-          if (stageProposal) {
+          const grouped = activeJobChangeProposal.contract_id === JobWorkspaceChanges.CONTRACT;
+          if (grouped) {
+            if (!head) throw new Error("职位已移除，这组建议不能保存。");
+            const saved = await JobWorkspaceChanges.accept(activeJobChangeProposal, head);
+            activeJobRevision = saved.revision;
+            renderJob(JobContext.recordForUi(activeJobRevision, activeJobSourceRecords));
+            await followupEditor.refresh();
+            followupEditor.announce();
+          } else if (stageProposal) {
             if (!head) throw new Error("职位已移除，这条状态建议不能保存。");
             const application = await JobApplications.decideStageProposal(database, activeJobChangeProposal, "CONFIRM");
             byId("job-application-stage").textContent = JobApplications.STAGES[application.stage] + (application.outcome ? ` · ${JobApplications.OUTCOMES[application.outcome]}` : "");
@@ -4015,21 +4039,28 @@
             window.parent.postMessage({ type: "job-radar-v1-detail-updated", library: "jd", sourceKey: `job:${activeJobRevision.context_id}` }, window.location.origin);
           }
           showJobChangeProposal(null);
-          byId("job-detail-message").textContent = stageProposal ? "投递状态已确认并保存，旧状态与备注仍保留。" : `建议已由你确认并保存为职位第 ${activeJobRevision.version} 版；旧版本与分析来源仍保留。`;
+          byId("job-detail-message").classList.remove("error");
+          byId("job-detail-message").textContent = grouped ? "整组修改已确认并保存，原内容与历史仍保留。" : stageProposal ? "投递状态已确认并保存，旧状态与备注仍保留。" : `建议已由你确认并保存为职位第 ${activeJobRevision.version} 版；旧版本与分析来源仍保留。`;
         } catch (error) {
           byId("job-detail-message").textContent = error.message === "ANALYSIS_STALE" ? "职位已经变化，这条建议已过期，未保存。" : `无法保存建议：${error.message}`;
           byId("job-detail-message").classList.add("error");
-        } finally { database.close(); }
+        } finally { database?.close(); proposalBusy(false); }
       });
       byId("reject-job-patch").addEventListener("click", async () => {
-        if (!activeJobChangeProposal) return;
-        const database = await Truth.openDatabase();
+        if (!activeJobChangeProposal || decidingProposal) return;
+        proposalBusy(true);
+        let database;
         try {
-          if (activeJobChangeProposal.contract_id === JobApplications.PROPOSAL_CONTRACT) await JobApplications.decideStageProposal(database, activeJobChangeProposal, "REJECT");
+          database = await Truth.openDatabase();
+          if (activeJobChangeProposal.contract_id === JobWorkspaceChanges.CONTRACT) await JobWorkspaceChanges.reject(database, activeJobChangeProposal);
+          else if (activeJobChangeProposal.contract_id === JobApplications.PROPOSAL_CONTRACT) await JobApplications.decideStageProposal(database, activeJobChangeProposal, "REJECT");
           else await JobContext.persistRejectedChange(database, activeJobChangeProposal);
           showJobChangeProposal(null);
-          byId("job-detail-message").textContent = "建议已拒绝；职位版本没有变化。";
-        } finally { database.close(); }
+          byId("job-detail-message").textContent = "建议已拒绝，已保存内容没有变化。";
+        } catch (error) {
+          byId("job-detail-message").textContent = `决定未保存：${error.message}`;
+          byId("job-detail-message").classList.add("error");
+        } finally { database?.close(); proposalBusy(false); }
       });
     }
     document.querySelectorAll("[data-job-delete-scope]").forEach((button) => button.addEventListener("click", async () => {

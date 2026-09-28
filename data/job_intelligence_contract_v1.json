@@ -10,7 +10,7 @@
   "conversation_session_version": "ariadne-job-conversation-session-v1",
   "conversation_message_version": "ariadne-job-conversation-message-v1",
   "turn_execution_version": "ariadne-job-turn-execution-v1",
-  "semantic_output_version": "ariadne-job-semantic-output-v1",
+  "semantic_output_version": "ariadne-job-semantic-output-v2",
   "job_model_import_source_preparation_version": "ariadne-job-model-source-preparation-v1",
   "job_model_import_proposal_version": "ariadne-job-model-proposal-v1",
   "job_model_import_runtime_contracts": {
@@ -22,11 +22,11 @@
     "delivery_method": "source_images_with_prepared_text"
   },
   "runtime_contracts": {
-    "request_contract_version": "ariadne-job-conversation-runtime-request-v3",
+    "request_contract_version": "ariadne-job-conversation-runtime-request-v4",
     "result_contract_version": "ariadne-job-conversation-runtime-result-v2",
-    "adapter_version": "deepseek-job-conversation-v12",
-    "prompt_version": "ariadne-job-intelligence-prompt-v11",
-    "request_config_version": "deepseek-job-conversation-request-v11"
+    "adapter_version": "deepseek-job-conversation-v13",
+    "prompt_version": "ariadne-job-intelligence-prompt-v12",
+    "request_config_version": "deepseek-job-conversation-request-v12"
   },
   "gap_types": [
     "CAPABILITY_GAP",
@@ -36,7 +36,12 @@
     "UNKNOWN",
     "NEEDS_CLARIFICATION"
   ],
-  "fit_assessments": ["SUPPORTED", "PARTIALLY_SUPPORTED", "UNSUPPORTED", "UNKNOWN"],
+  "fit_assessments": [
+    "SUPPORTED",
+    "PARTIALLY_SUPPORTED",
+    "UNSUPPORTED",
+    "UNKNOWN"
+  ],
   "recommendation_kinds": [
     "RESUME_POSITIONING",
     "PROJECT_POSITIONING",
@@ -44,11 +49,30 @@
     "LEARNING",
     "EVIDENCE_COLLECTION"
   ],
-  "semantic_actions": ["EXPLAIN", "PROPOSE_JOB_EDIT", "ASK_CLARIFICATION"],
-  "editable_job_fields": ["title", "company", "location", "summary"],
-  "editable_conversation_fields": ["title", "company", "location", "summary", "application_stage"],
-  "application_stages": ["NOT_APPLIED", "APPLIED", "IN_PROGRESS", "CLOSED"],
-  "candidate_delta_changes": ["BASELINE", "ADDED", "UPDATED", "REMOVED", "NEEDS_REVIEW"],
+  "semantic_actions": [
+    "EXPLAIN",
+    "PROPOSE_JOB_EDIT",
+    "ASK_CLARIFICATION"
+  ],
+  "editable_job_fields": [
+    "title",
+    "company",
+    "location",
+    "summary"
+  ],
+  "application_stages": [
+    "NOT_APPLIED",
+    "APPLIED",
+    "IN_PROGRESS",
+    "CLOSED"
+  ],
+  "candidate_delta_changes": [
+    "BASELINE",
+    "ADDED",
+    "UPDATED",
+    "REMOVED",
+    "NEEDS_REVIEW"
+  ],
   "source_availability": [
     "SOURCE_GROUNDED",
     "ORIGINAL_AVAILABLE",
@@ -60,7 +84,11 @@
   ],
   "source_retrieval": {
     "policy_version": "ariadne-bounded-source-retrieval-v1",
-    "allowed_purposes": ["JOB_REQUIREMENT_DETAIL", "CANDIDATE_EVIDENCE_DETAIL", "GROUNDING_VERIFICATION"],
+    "allowed_purposes": [
+      "JOB_REQUIREMENT_DETAIL",
+      "CANDIDATE_EVIDENCE_DETAIL",
+      "GROUNDING_VERIFICATION"
+    ],
     "max_excerpts": 12,
     "max_excerpt_characters": 1200,
     "max_total_characters": 6000
@@ -72,6 +100,79 @@
     "findings": 48,
     "recommendations": 24,
     "clarification": 4000,
-    "job_field_value": 8000
+    "job_field_value": 8000,
+    "changes": 20
+  },
+  "change_targets": {
+    "job.title": {
+      "label": "职位名称",
+      "max_length": 500,
+      "allow_empty": false
+    },
+    "job.company": {
+      "label": "公司",
+      "max_length": 8000,
+      "allow_empty": true
+    },
+    "job.location": {
+      "label": "地点",
+      "max_length": 8000,
+      "allow_empty": true
+    },
+    "job.summary": {
+      "label": "摘要",
+      "max_length": 8000,
+      "allow_empty": true
+    },
+    "job.requirements": {
+      "label": "任职要求",
+      "max_length": 8000,
+      "allow_empty": true
+    },
+    "application.stage": {
+      "label": "投递状态",
+      "max_length": 32,
+      "enum": [
+        "NOT_APPLIED",
+        "APPLIED",
+        "IN_PROGRESS",
+        "CLOSED"
+      ]
+    },
+    "application.outcome": {
+      "label": "结束结果",
+      "max_length": 32,
+      "enum": [
+        "",
+        "RESUME_REJECTED",
+        "INTERVIEW_REJECTED",
+        "HIRED",
+        "WITHDRAWN",
+        "POSITION_CLOSED",
+        "OTHER"
+      ]
+    },
+    "application.note": {
+      "label": "备注",
+      "max_length": 300,
+      "allow_empty": true
+    },
+    "journal.append": {
+      "label": "新增求职记录",
+      "max_length": 6000,
+      "allow_empty": false
+    },
+    "journal.update": {
+      "label": "修改求职记录",
+      "max_length": 6000,
+      "allow_empty": false,
+      "record_required": true
+    },
+    "journal.remove": {
+      "label": "移除求职记录",
+      "max_length": 0,
+      "allow_empty": true,
+      "record_required": true
+    }
   }
 }

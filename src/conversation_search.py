@@ -27,7 +27,7 @@ Never fill personal gaps from the web. Do not infer a current vacancy solely fro
 an old snippet. Prefer official recruiting pages, open them when available, and
 state access/date limitations. Do not claim search succeeded without tool results.
 If you use web search in this turn, return explanation ONLY: action EXPLAIN where
-present, patches/proposals/card_proposals empty, job_edit null. Do not output any
+present, patches/proposals/card_proposals/changes empty, job_edit null. Do not output any
 personal memory, Candidate or Job modification proposal. If changes are needed,
 ask for the Human's own factual statement in a separate turn for review.
 Use plain source URLs (not internal search citation markers) in the reply.
@@ -78,7 +78,7 @@ def receipt(output, calls):
     if not calls: return None
     # Enforce a read-only domain result, even if web content instructed mutations.
     if (output.get('action') not in (None, 'EXPLAIN', 'ASK_CLARIFICATION')
-            or any(output.get(key) for key in ('patches', 'proposals', 'card_proposals', 'job_edit'))):
+            or any(output.get(key) for key in ('patches', 'proposals', 'card_proposals', 'job_edit', 'changes'))):
         raise ValueError('SEARCH_TURN_MUTATION_FORBIDDEN')
     references = []
     for source in sources:

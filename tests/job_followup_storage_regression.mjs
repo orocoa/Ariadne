@@ -117,5 +117,63 @@ try {
   { const db=await Truth.openDatabase();try{await assert.rejects(A.decideStageProposal(db,stale,'CONFIRM'),/其他页面更新/);}finally{db.close();} }
   { const db=await Truth.openDatabase();try{await A.decideStageProposal(db,stale,'REJECT');}finally{db.close();} }
   assert.equal((await A.all()).get(canonical.context_id).stage,'APPLIED','rejecting an expired proposal does not modify the newer stage');
+  const W = require('../public/job-workspace-changes.js'); globalThis.AriadneJobWorkspaceChanges = W;
+  const change = (target, value, record_ref = null) => ({ target, value, record_ref, reason: '用户明确要求同步。' });
+  const make = async (changes, revision = canonicalResult.revision) => W.create({ revision,
+    application: (await A.all()).get(canonical.context_id), entries: await J.list(canonical.context_id), changes,
+    analysisId: 'synthetic-analysis-group', messageId: 'synthetic-user-message' });
+  const persist = async proposal => write(Truth.DB_NAME, ['job_change_proposals'], tx => tx.objectStore('job_change_proposals').add(proposal));
+  const combined = await make([change('application.stage', 'CLOSED'), change('journal.append', 'HR 让添加老板微信，一直未通过，因此结束跟进。')]);
+  await persist(combined);
+  assert.equal((await A.all()).get(canonical.context_id).stage, 'APPLIED', 'proposal alone does not save');
+  const beforeGroup = await fs.readFile(path.join(root,workspace,'HEAD.json'),'utf8');
+  globalThis.fetch=(url,options)=>options?.body && JSON.parse(options.body).action==='commit' ? Promise.resolve(new Response('{"error":"WORKSPACE_STORAGE_UNAVAILABLE"}',{status:503})) : http(url,options);
+  await assert.rejects(W.accept(combined, canonicalResult.revision));
+  assert.equal(await fs.readFile(path.join(root,workspace,'HEAD.json'),'utf8'),beforeGroup, 'stage, journal, decision roll back together');
+  globalThis.fetch=http;
+  await W.accept(combined, canonicalResult.revision);
+  assert.equal((await A.all()).get(canonical.context_id).stage, 'CLOSED');
+  assert.equal((await A.all()).get(canonical.context_id).outcome, '', 'silence never becomes a rejection result');
+  assert.equal((await J.list(canonical.context_id))[0].text, combined.changes[1].value);
+  assert.equal((await read(Truth.DB_NAME,'job_context_revisions')).length,2,'follow-up changes create no Job revision');
+  await assert.rejects(W.accept(combined, canonicalResult.revision));
+  const noteAndJob = await make([change('application.note', '招聘方建议联系负责人'), change('job.company', '新公司'), change('job.summary', ''), change('job.requirements', '负责用户调研\n负责上线验收')]);
+  await persist(noteAndJob);
+  const changedJob = await W.accept(noteAndJob, canonicalResult.revision);
+  assert.equal(changedJob.revision.version, 3); assert.equal(changedJob.revision.payload.summary, null);
+  assert.equal(changedJob.revision.payload.requirements.length, 2);
+  assert(changedJob.revision.payload.requirements.every(r => !r.grounding_refs.length && r.content_origin === 'HUMAN_EDITED'));
+  const appVersion = (await A.all()).get(canonical.context_id).revision;
+  const recordOnly = await make([change('journal.update', '更正：截至今天微信仍未通过。', 'journal-record-1')], changedJob.revision);
+  await persist(recordOnly); await W.accept(recordOnly, changedJob.revision);
+  assert.equal((await A.all()).get(canonical.context_id).revision, appVersion, 'record-only save avoids unrelated application versions');
+  assert.equal((await J.list(canonical.context_id))[0].history[0].text, combined.changes[1].value);
+  await assert.rejects(W.accept(recordOnly, changedJob.revision));
+  const journalStale = await make([change('application.note', 'stale must not save')], changedJob.revision);
+  await persist(journalStale);
+  await J.save({entry_id:'external-entry', job_context_id:canonical.context_id, text:'另一页面新增记录', feedback:'UPDATE', images:[], observed_on:'2026-09-28', created_at:'2026-09-28T02:00:00Z'});
+  await assert.rejects(W.accept(journalStale,changedJob.revision), /过期/);
+  { const db=await Truth.openDatabase(); try {await W.reject(db,journalStale);} finally {db.close();} }
+  const remove = await make([change('journal.remove', '', 'journal-record-1')], changedJob.revision); await persist(remove);
+  const journalCount = (await J.list(canonical.context_id)).length;
+  await W.accept(remove,changedJob.revision);
+  assert.equal((await J.list(canonical.context_id)).length,journalCount-1);
+  assert((await read(Truth.DB_NAME,J.STORE)).some(e=>e.job_context_id===canonical.context_id && e.deleted_at), 'removal retains stored history');
+  // Same-page stale record and injected proposal identity cannot overwrite state.
+  const staleHead = await make([change('journal.append','旧版本不能保存')], canonicalResult.revision); await persist(staleHead);
+  await assert.rejects(W.accept(staleHead, canonicalResult.revision), /职位内容已更新/);
+  assert.equal((await read(Truth.DB_NAME,'candidate_context_revisions')).length,0);
+  const coverage=W.journalContext(Array.from({length:45},(_,i)=>({text:`entry ${i}`,images:[],observed_on:'2026-09-28',feedback:'UPDATE'})));
+  assert.equal(coverage.coverage.complete,false); assert.equal(coverage.entries.length,40);
+  assert(!coverage.entries.some(e=>e.record_ref==='journal-record-1'), 'omitted records cannot be addressed');
+  const currentApp = (await A.all()).get(canonical.context_id);
+  await A.save(canonical.context_id,{stage:'CLOSED',outcome:'WITHDRAWN',note:currentApp.note},currentApp.revision);
+  const reopen=await make([change('application.stage','IN_PROGRESS')],changedJob.revision);await persist(reopen);
+  assert(reopen.preview.some(row=>row.label==='结束结果'&&row.after==='暂不填写'),'dependent outcome clearing is reviewable');
+  await W.accept(reopen,changedJob.revision);
+  assert.equal((await A.all()).get(canonical.context_id).outcome,'');
+  const removedJob=await make([change('journal.append','不应保存到已移除职位')],changedJob.revision);await persist(removedJob);
+  { const db=await Truth.openDatabase();try{await C.persistRemoval(db,changedJob.revision);}finally{db.close();} }
+  await assert.rejects(W.accept(removedJob,changedJob.revision),/职位已移除/);
   console.log('PASS unified save: legacy migration, original bytes, atomic failure/retry, cancellation boundary, edits/deletion history, ordering, conflicts, canonical revision and Candidate isolation');
 } finally { globalThis.fetch=originalFetch;child.kill('SIGTERM');await fs.writeFile(path.join(root,'server.log'),log); }

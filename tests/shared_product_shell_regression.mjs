@@ -42,7 +42,7 @@ for (const symbol of ["bindImportShell", "dispatchRuntimeImport", "setFeedback",
 for (const html of [candidateImport, jobImport]) assert.match(html, /product-shell-domain\.js\?v=shared-product-shell-v4/);
 for (const html of [candidateDetail, jobDetail]) assert.match(html, /product-shell-domain\.js\?v=detail-behavior-v1/);
 assert.match(candidateDetail, /v1-pages\.js\?v=computer-use-e2e-v3/);
-assert.match(jobDetail, /v1-pages\.js\?v=job-stage-conversation-v1/);
+assert.match(jobDetail, /v1-pages\.js\?v=job-workspace-changes-v1/);
 for (const html of [candidateImport, jobImport]) {
   assert.match(html, /class="v1-page-shell v1-import-shell"/);
   assert.match(html, /class="v1-workspace-layer hidden"/);

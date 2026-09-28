@@ -131,10 +131,11 @@
       .sort((left, right) => String(left.created_at).localeCompare(String(right.created_at)));
   }
 
-  async function persistSuccessfulTurn(database, { execution, analysis, assistant_message: assistantMessage }) {
+  async function persistSuccessfulTurn(database, { execution, analysis, assistant_message: assistantMessage, change_proposal: changeProposal = null }) {
     const completed = transitionExecution(execution, "SUCCEEDED");
     return new Promise((resolve, reject) => {
-      const transaction = database.transaction(["job_turn_executions", "job_analyses", "job_conversation_messages"], "readwrite");
+      const transaction = database.transaction(["job_turn_executions", "job_analyses", "job_conversation_messages", ...(changeProposal ? ["job_change_proposals"] : [])], "readwrite");
+      if (changeProposal) transaction.objectStore("job_change_proposals").add(clone(changeProposal));
       transaction.objectStore("job_turn_executions").put(clone(completed));
       transaction.objectStore("job_analyses").add(clone(analysis));
       transaction.objectStore("job_conversation_messages").add({ ...clone(assistantMessage), candidate_fingerprint: analysis.candidate_observation.aggregate_fingerprint, runtime_snapshot_id: analysis.runtime.runtime_snapshot_id });

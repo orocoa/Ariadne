@@ -230,31 +230,9 @@ const removedMemoryDelta = { ...candidateDelta, provider_view: [{ change_ref: "c
 assert(!JSON.stringify(memoryCompile([], removedMemoryDelta)).includes("removed private preference"));
 assert.equal(memoryCompile([], removedMemoryDelta).candidate_delta_coverage.complete, false);
 assert.equal(compiled.turn_scope.scope, "CURRENT_CANDIDATE_X_ACTIVE_JOB");
-assert.equal(compiled.turn_scope.referent, "CANDIDATE_GAPS_RELATIVE_TO_ACTIVE_JOB");
-assert.equal(compiled.turn_scope.ambiguity, "RESOLVED_BY_ACTIVE_JOB_SCOPE");
-assert.equal(compiled.turn_scope.job_edit_requested, false);
-assert.equal(Conversation.resolveJobDetailReferent("把这个职位地点改成深圳", candidateA).job_edit_requested, true);
-assert.equal(Conversation.resolveJobDetailReferent("摘要里删除任职要求", candidateA).job_edit_requested, true);
-for (const message of [
-  "请用一句话概括这份职位最核心的要求，不修改任何内容。",
-  "请不要修改职位摘要，只解释现有要求。",
-  "先讨论职位，不需要更新摘要。",
-  "无需编辑岗位标题。",
-  "别删除职位要求。",
-  "禁止调整公司名称。",
-  "不要把职位地点改成深圳。",
-  "不要对职位摘要进行修改。",
-  "职位摘要不需要做任何修改。",
-  "概括职位要求，保持内容不变。",
-]) assert.equal(Conversation.resolveJobDetailReferent(message, candidateA).job_edit_requested, false, message);
-for (const message of [
-  "不要修改公司，但把职位地点改成深圳。",
-  "把职位地点改成深圳，不要修改摘要。",
-  "不更新摘要，只修改公司名称。",
-  "标题改成不修改任何内容。",
-  "分别修改职位标题和摘要。",
-  "请特别修改职位摘要。",
-]) assert.equal(Conversation.resolveJobDetailReferent(message, candidateA).job_edit_requested, true, message);
+assert.equal(compiled.turn_scope.referent, "ACTIVE_JOB_WITH_CURRENT_CANDIDATE");
+assert.equal(compiled.turn_scope.job_edit_requested, undefined, "intent is not classified by local keywords");
+assert.deepEqual(compiled.change_policy.targets, [], "Working/read-only contexts have no write targets");
 const serializedProviderContext = JSON.stringify(compiled);
 for (const privateValue of [sourceDocument.source_document_id, modelAccepted.revision.revision_id, candidateA.aggregate_fingerprint, "indexeddb://", "/Users/"]) assert(!serializedProviderContext.includes(privateValue));
 assert(serializedProviderContext.includes("confirmed-candidate-1"));
@@ -278,11 +256,11 @@ assert.equal(Conversation.observationMatches(observation, modelAccepted.revision
 await Persistence.ensureSession(database, session);
 await Persistence.persistExecution(database, execution);
 const output = Conversation.validateSemanticOutput({
-  contract_id: "ariadne-job-semantic-output-v1", action: "EXPLAIN", message: "现有项目能支持部分要求；另有证据需要补充。",
+  contract_id: "ariadne-job-semantic-output-v2", action: "EXPLAIN", message: "现有项目能支持部分要求；另有证据需要补充。",
   fit_findings: [{ requirement_ref: "job-requirement-1", candidate_refs: ["confirmed-candidate-1"], assessment: "PARTIALLY_SUPPORTED", explanation: "项目展示了相关方法。", uncertainty: null }],
   gap_findings: [{ requirement_ref: "job-requirement-2", candidate_refs: [], gap_type: "EVIDENCE_GAP", explanation: "当前资料没有足够证据，不能推断缺少能力。", uncertainty: "需要更多案例。", clarification_needed: true }],
   recommendations: [{ kind: "PROJECT_POSITIONING", text: "突出 Human-in-the-loop 的取舍与验证。", evidence_state: "EXISTING_EVIDENCE" }],
-  candidate_delta_interpretation: null, clarification: null, source_need: null, job_edit: null,
+  candidate_delta_interpretation: null, clarification: null, source_need: null, changes: [],
 }, compiled);
 const normalizedExplain = Conversation.validateSemanticOutput({ ...output, action: "ASK_CLARIFICATION" }, compiled);
 assert.equal(normalizedExplain.action, "EXPLAIN");
@@ -292,25 +270,22 @@ leakyHumanCopy.message = "最相关的是 AI evaluation project（confirmed-cand
 assert.throws(() => Conversation.validateSemanticOutput(leakyHumanCopy, compiled), /HUMAN_COPY_INTERNAL_ID_FORBIDDEN/);
 const normalizedClarification = Conversation.validateSemanticOutput({ ...output, clarification: "你指的是已确认项目还是 Working 项目？" }, compiled);
 assert.equal(normalizedClarification.action, "ASK_CLARIFICATION");
-const editCompiled = structuredClone(compiled);
-editCompiled.turn_scope.job_edit_requested = true;
-const normalizedEditClarification = Conversation.validateSemanticOutput({ ...output, action: "PROPOSE_JOB_EDIT", clarification: "请确认。", job_edit: { field: "summary", desired_value: "更新后的摘要", reason: "按用户要求删除指定片段。" } }, editCompiled);
-assert.equal(normalizedEditClarification.action, "PROPOSE_JOB_EDIT");
-assert.equal(normalizedEditClarification.clarification, null);
-const normalizedProjectAdvice = Conversation.validateSemanticOutput({ ...output, action: "PROPOSE_JOB_EDIT", job_edit: { field: "requirements", desired_value: "x", reason: "x" } }, compiled);
-assert.equal(normalizedProjectAdvice.action, "EXPLAIN");
-assert.equal(normalizedProjectAdvice.job_edit, null);
 const applicationContext = Conversation.compileContext({ job_revision: modelAccepted.revision,
-  application: { stage: "APPLIED", outcome: "" }, candidate_snapshot: candidateA, candidate_delta: candidateDelta,
-  source_excerpt_manifest: fromArtifact, human_message: "把这张卡片的投递状态改为已结束", messages: [] });
-assert.equal(applicationContext.application.stage, "APPLIED");
-const stageEdit = Conversation.validateSemanticOutput({ ...output, action: "PROPOSE_JOB_EDIT",
-  job_edit: { field: "application_stage", desired_value: "CLOSED", reason: "用户明确要求结束本次跟进。" } }, applicationContext);
-assert.equal(stageEdit.job_edit.desired_value, "CLOSED");
-assert.throws(() => Conversation.validateSemanticOutput({ ...output, action: "PROPOSE_JOB_EDIT",
-  job_edit: { field: "application_stage", desired_value: "RESUME_REJECTED", reason: "不能推断结果。" } }, applicationContext), /application_stage_invalid/);
-assert.equal(Conversation.validateSemanticOutput({ ...output, action: "PROPOSE_JOB_EDIT",
-  job_edit: { field: "application_stage", desired_value: "CLOSED", reason: "不在范围内。" } }, compiled).job_edit, null);
+  application: { stage: "APPLIED", outcome: "", note: "已有备注" }, candidate_snapshot: candidateA, candidate_delta: candidateDelta,
+  source_excerpt_manifest: fromArtifact, human_message: "同步状态和经过", messages: [] });
+assert.equal(applicationContext.application.note, "已有备注");
+const changes = [
+  { target: "application.stage", value: "CLOSED", record_ref: null, reason: "用户明确要求结束本次跟进。" },
+  { target: "journal.append", value: "HR 让加老板微信，一直未通过。", record_ref: null, reason: "保存用户描述的投递经过。" },
+  { target: "job.location", value: "深圳", record_ref: null, reason: "用户要求更正地点。" },
+];
+const edit = Conversation.validateSemanticOutput({ ...output, action: "PROPOSE_JOB_EDIT", changes, clarification: "请确认。" }, applicationContext);
+assert.equal(edit.clarification, null);
+assert.deepEqual(edit.changes, changes);
+assert.throws(() => Conversation.validateSemanticOutput({ ...output, action: "PROPOSE_JOB_EDIT", changes }, compiled), /JOB_CHANGE_SET_INVALID/);
+assert.throws(() => Conversation.validateSemanticOutput({ ...output, action: "PROPOSE_JOB_EDIT", changes: [{ ...changes[0], value: "RESUME_REJECTED" }] }, applicationContext), /JOB_CHANGE_SET_INVALID/);
+assert.throws(() => Conversation.validateSemanticOutput({ ...output, action: "EXPLAIN", changes }, applicationContext), /job_edit_action_mismatch/);
+assert.throws(() => Conversation.validateSemanticOutput({ ...output, action: "PROPOSE_JOB_EDIT", changes: [{ ...changes[0], target: "candidate.summary" }] }, applicationContext), /JOB_CHANGE_SET_INVALID/);
 const analysis = Persistence.createAnalysis({ session, execution, job_revision: modelAccepted.revision, candidate_snapshot: candidateA, candidate_delta: candidateDelta, source_excerpt_manifest: fromArtifact, runtime_snapshot: runtimeSnapshot, output });
 assert.deepEqual(analysis.candidate_observation.provider_view, candidateA.provider_view);
 const assistant = Conversation.createMessage(session, "ASSISTANT", output.message, "2026-09-04T02:00:03Z");

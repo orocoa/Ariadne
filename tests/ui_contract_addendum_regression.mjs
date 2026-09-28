@@ -57,7 +57,7 @@ for (const html of productSurfaces) {
 for (const html of [candidateImport, jobImport]) assert.match(html, /product-shell-domain\.js\?v=shared-product-shell-v4/);
 for (const html of [candidateDetail, jobDetail]) assert.match(html, /product-shell-domain\.js\?v=detail-behavior-v1/);
 assert.match(candidateDetail, /v1-pages\.js\?v=computer-use-e2e-v3/);
-assert.match(jobDetail, /v1-pages\.js\?v=job-stage-conversation-v1/);
+assert.match(jobDetail, /v1-pages\.js\?v=job-workspace-changes-v1/);
 assert.equal((styles.match(/^\.v1-composer-field \{/gm) || []).length, 1);
 assert.match(styles, /\.has-integrated-composer \.v1-composer-field > textarea \{[^}]*min-height: 64px/);
 assert.match(styles, /\.has-integrated-composer \.v1-composer-field > button\[type="submit"\] \{[^}]*grid-column: 3;[^}]*grid-row: 3/);
