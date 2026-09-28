@@ -1,6 +1,8 @@
 # Ariadne：免费托管与腾讯域名部署
 
-更新：2026-09-25。正式入口 **https://ariadne.kai-nex.com** 已同步当前个人上下文、统一求职记录与对话体验。Pages 为 `47227fc3`，绑定 API Worker `0070f6ad-1107-4aee-9e55-b37baa112350`，源码 `b4f995f`；公开包为 [skill-20260925-context-journal-ui](https://github.com/orocoa/Ariadne/releases/tag/skill-20260925-context-journal-ui)，2,879,841 bytes，SHA-256 `80eb91046f6883dcdbe4ef7c0201bf22559c84f9c4f7775e4a06f7baa076be8a`。GitHub、官网和本机 Skill 安装内容已核对；用户资料各自保存，不自动同步。线上检查及本地 128 项回归通过，GitHub 自动回归两组启动超时（126/128），不视为全绿验收；详见 [发布回执](../../PROJECT_STATUS.md)。旧版本保留。本机旧版升级需在独立 Ariadne Codex 目录完成官方登录，不复制日常 Codex 凭据。
+更新：2026-09-28。官网 **https://ariadne.kai-nex.com**、API 与完整 Skill 已同步到源码 `126c775150370c25bbdbd9cf8ad1fe9209936f21`。Pages `eaf6467c`，API Worker `a97ce0f0-a935-436e-9f3e-63f586c91ec8`；[完整 Skill 下载](https://github.com/orocoa/Ariadne/releases/tag/skill-20260928-workspace-changes)：2,893,474 bytes，SHA-256 `4a61ed3cbd4fb4fe63b5f197df66af6174a33c77890d68a05d9f42e68a4839cf`。新增职位完整变更集、Codex 模型/强度分别选择、六入口每次确认，以及不依赖反向 DNS 的本机启动。GitHub 129/129 回归、VI、公开文件与全历史凭据扫描均通过；线上 27 个路径及两处 ZIP 下载核验通过。详见[本次发布回执](../../PROJECT_STATUS.md)和[更新记录](../../CHANGELOG.md)。
+
+上一版（2026-09-25）：正式入口 **https://ariadne.kai-nex.com** 已同步当前个人上下文、统一求职记录与对话体验。Pages 为 `47227fc3`，绑定 API Worker `0070f6ad-1107-4aee-9e55-b37baa112350`，源码 `b4f995f`；公开包为 [skill-20260925-context-journal-ui](https://github.com/orocoa/Ariadne/releases/tag/skill-20260925-context-journal-ui)，2,879,841 bytes，SHA-256 `80eb91046f6883dcdbe4ef7c0201bf22559c84f9c4f7775e4a06f7baa076be8a`。GitHub、官网和本机 Skill 安装内容已核对；用户资料各自保存，不自动同步。线上检查及本地 128 项回归通过，GitHub 自动回归两组启动超时（126/128），不视为全绿验收；详见 [发布回执](../../PROJECT_STATUS.md)。旧版本保留。本机旧版升级需在独立 Ariadne Codex 目录完成官方登录，不复制日常 Codex 凭据。
 
 当前部署：Pages 项目 `ariadne`，实际默认域名 `ariadne-7pc.pages.dev`；通过 `ARIADNE_API` 绑定 Python Worker `ariadne-api`。腾讯 DNSPod 已添加 `ariadne` CNAME 指向上述 Pages 域名，Cloudflare 自定义域名显示 Active / SSL enabled。未购买 VPS、迁移整个 DNS 或修改原有邮箱记录。以下步骤供后续更新与重新部署使用。
 

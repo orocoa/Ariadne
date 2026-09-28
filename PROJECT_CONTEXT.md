@@ -1,5 +1,9 @@
 # Ariadne 项目上下文
 
+## 2026-09-28：GitHub、官网与完整 Skill 已同步发布
+
+当前完整版本为 [skill-20260928-workspace-changes](https://github.com/orocoa/Ariadne/releases/tag/skill-20260928-workspace-changes)，产品源码 `126c775`；网页、API 与 Skill 来自同一干净源码。包含职位完整变更集、Codex 型号/强度分别选择、六入口每次确认与无反向 DNS 的本机启动。发布源码 GitHub CI 全绿；中英文 README 说明具体变化、完整包及升级边界。官网安装指令绑定本次 tag 与 SHA-256；用户资料不自动跨端同步。部署与检验回执见项目状态。
+
 ## 2026-09-28：统一发布前消除本机启动的 DNS 依赖
 
 本机 Skill、原生监督进程与开发服务共用固定回环 HTTP server，绑定 127.0.0.1 时不再调用反向 DNS。保留 Host/Origin 校验、就绪时间与进程所有权边界；公开下载统一发布工作继续，最终回执见项目状态。

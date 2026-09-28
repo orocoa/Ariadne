@@ -1,5 +1,15 @@
 # AI Job Radar｜Phase 4 Status
 
+## 2026-09-28 — GitHub、网页、完整 Skill 统一公开发布
+
+- 按用户明确授权提交、推送并发布。先前五个本地提交已进入 GitHub；`f954c71` 更新中英文 README、CHANGELOG 与 Skill 升级指南，`126c775` 修复固定回环服务启动的反向 DNS 依赖。公开产品源码固定 `126c775150370c25bbdbd9cf8ad1fe9209936f21`，后续回执提交仅更新文档。
+- 发布 [skill-20260928-workspace-changes](https://github.com/orocoa/Ariadne/releases/tag/skill-20260928-workspace-changes)，tag 直接指向上述源码。完整 `Ariadne-Skill.zip`：2,893,474 bytes，SHA-256 `4a61ed3cbd4fb4fe63b5f197df66af6174a33c77890d68a05d9f42e68a4839cf`，232 个运行文件，`includes_working_changes=false`。无凭据或用户资料；原 Release 保留。
+- 同源 Cloudflare Pages `eaf6467c`，API Worker `a97ce0f0-a935-436e-9f3e-63f586c91ec8`，正式入口 https://ariadne.kai-nex.com。共用 154 个静态文件、72 个服务/契约文件逐个 hash 一致；图标、本机启动器、旧 SQLite 和产品模式配置保持必要差异。
+- [GitHub CI 36440876205](https://github.com/orocoa/Ariadne/actions/runs/36440876205) 全部通过：129/129 发布源码回归、公开文件检查、VI 与全历史 Gitleaks。旧失败 `36439793318` 保留；修复后远端两组启动验收恢复，不放宽超时或跳过断言。工作目录另有未跟踪旧测试，130/130 通过；不把其混入完整发布包。
+- 公网实取 GitHub 与同源 ZIP、大小、SHA-256、内部 manifest 与 clean build 标记一致。27 个 HTTPS 路径包含全部变化静态文件、安装元数据、healthz、Web runtime 与 Job runtime signature；线上 Job adapter v13 / prompt v12，哈希匹配构建产物。egolite 验证安装指令绑定本次 tag/hash，1280×900 与 390×844 无溢出；截图已检查，测试空间已关闭。证据保留 `.cache/release-20260928/`。
+- 对话语义与保存的真实合成执行/浏览器证据沿用本轮变更集阶段记录；本次发布没有传输私人资料或额外调用付费模型。未新增所有 BYOK Provider、独立新机器、压力或所有模型强度的验收。本机已安装产品功能此前已生效；本次公网包另含启动修复，不在用户当前窗口运行时替换代码。
+- 原始资料、旧包、QA 与无关未提交文件保留。只提交本阶段源码/测试/说明及此回执，未纳入私人工作区、历史 Mac 启动器草稿或临时产物。
+
 ## 2026-09-28 — 发布准备与本机启动修复
 
 - 用户授权同步 GitHub、网页和完整 Skill；已推送此前五个功能/记录提交及中英文 README、CHANGELOG、升级说明（`f954c71`）。从干净源码构建，129/129 离线回归、VI、公开文件检查通过。
