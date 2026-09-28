@@ -4,6 +4,19 @@
 
 用户确认：首页简化模型名称，例如「GPT Sol」；对话框左下提供轻量切换入口，模型和推理强度在内部调整；后续其他模型复用同一架构。不自动更换当前模型，不因新增目录记录而授予执行资格。
 
+## 2026-09-28 本机 Codex 多模型与独立强度选择
+
+本修订取代下方固定 GPT Sol 三档及组合列表的历史描述。Skill 通过 Codex App Server `model/list` 读取账号可见型号与各型号支持的强度，菜单将型号、强度分组，点击「应用」统一保存当前对话 scope；取消或 Escape 不保存。名称保留完整代际；原默认 `gpt-5.6-sol / medium` 和既有偏好不自动迁移。Codex 桌面组件不能直接嵌入本应用，此处复用其官方协议元数据与交互方式。
+
+- 发现只表示可用性。`data/codex_model_qualifications.json` 保存经真实合成图片、完整两页 PDF 转图、结构化结果及隔离策略核验的型号资格；仍由现有 operation capability/domain adapter 门禁控制执行。未知型号、文本模型、未完成验证型号不可执行。
+- 2026-09-28 已验证 GPT-6 Astra/Sol/Luna、GPT-5.6 Sol/Terra/Luna、GPT-5.5，共 7 款。前六款开放 low/medium/high/xhigh/max，GPT-5.5 到 xhigh；最终菜单取资格与账号 metadata 的交集。Ultra 含自动委派，当前 bounded adapter 禁用 multi_agent，故不开放。
+- 成功发现结果最多缓存 5 分钟；发现失败明确报错，保留选择。当前型号从列表消失时不替用户挑第一款，须明确重新选择。新型号/新增强度调用前再检查缓存有效的账号可用性；旧 Sol 三档保留原兼容执行路径，失败也不切换其他型号。
+- `thread/start`、策略回执检查、`turn/start`、返回模型身份全部使用当前冻结快照。六领域继续独立校验，模型/强度变化使既有同意与旧请求失效，不修改资料、历史消息、Provider 或登录。
+- 全部 7 款以 low 执行真实视觉与结构化验收，GPT-6-Luna/max 另经公开 `call_codex` 执行链路验证；其余强度基于该型号实际 metadata 及参数/领域回归，未声称逐档完成真实质量评价。合成收据、图片/PDF hash、浏览器证据位于 `.cache/codex-models-20260928/`，公开资格记录不包含个人正文或凭据。
+- 本轮只更新本机 Skill 和项目源码；公开 Web Provider 目录与旧配对连接器不扩展。未来新型号仍须先验证再维护资格，不能仅凭列表出现就自动进入可执行菜单。
+
+协议参考：[官方 App Server Models](https://learn.chatgpt.com/docs/app-server#models)。
+
 ## 2026-09-11 DeepSeek 迁移与单次确认更新
 
 - 用户本次明确批准迁移：当前 DeepSeek 执行型号改为 `deepseek-flash`（V4.1 Flash），旧实验型号的首页/对话偏好在读取时映射到新型号；原始偏好、历史快照、消息与资料不批量重写。新请求重新建立模型/descriptor 指纹，旧请求不改派。Codex 与 Local 不变。

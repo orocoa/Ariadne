@@ -48,7 +48,9 @@ def valid_binding(snapshot, domain_adapter):
             return False
         identity = ("deepseek-flash", "OPENAI_CHAT_COMPLETIONS", snapshot.credential_ref)
     elif snapshot.provider == "codex" and codex_enabled():
-        identity = (CODEX_MODEL, CODEX_PROTOCOL, CODEX_CREDENTIAL)
+        from src.codex_models import qualified
+        if not qualified(snapshot.model): return False
+        identity = (snapshot.model, CODEX_PROTOCOL, CODEX_CREDENTIAL)
     elif snapshot.provider in PROVIDERS:
         identity = (PROVIDERS[snapshot.provider]["model"], "OPENAI_CHAT_COMPLETIONS", f"browser-key://{snapshot.provider}/request")
     else:

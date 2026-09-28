@@ -6,6 +6,15 @@
   root.AriadneModelSettings = api;
 }(globalThis, function (catalog) {
   const descriptor = (provider, model) => [...(catalog?.models || []), ...(catalog?.retired_models || [])].find(item => item.provider === provider && item.model === model);
+  function refreshCodex(entries) {
+    if (!Array.isArray(entries) || entries.some(item => item.provider !== "codex" || !item.qualification || !item.parameters?.reasoning_effort?.options?.length)) throw Error("codex_catalog_invalid");
+    // Keep absent entries for historical labels; availability is checked separately.
+    for (const entry of entries) {
+      const index = catalog.models.findIndex(item => item.provider === "codex" && item.model === entry.model);
+      const copy = JSON.parse(JSON.stringify(entry));
+      if (index < 0) catalog.models.push(copy); else catalog.models[index] = copy;
+    }
+  }
   const currentModel = (provider, model) => catalog?.migrations?.[provider]?.[model] || model;
   function envelope(runtime, settings, revision = "default", scope = null) {
     const item = descriptor(runtime.provider, runtime.model);
@@ -36,5 +45,5 @@
     const suffix = item?.parameters.reasoning_effort?.options.find(option => option.value === effort)?.label;
     return `${item?.[compact ? "compact_label" : "short_label"] || runtime.model}${compact && suffix ? ` · ${suffix}` : ""}`;
   }
-  return Object.freeze({ catalog, descriptor, currentModel, envelope, validate, identity, label });
+  return Object.freeze({ catalog, descriptor, refreshCodex, currentModel, envelope, validate, identity, label });
 }));

@@ -21,6 +21,7 @@ from copy import deepcopy
 from src.runtime_binding import CODEX_MODEL, CODEX_CREDENTIAL, codex_enabled
 from src.conversation_events import SINK, Preview, emit
 from src import conversation_search as Search
+from src.codex_models import qualified
 
 MAX_OUTPUT = 8_000_000
 BASE_TIMEOUT_SECONDS = 180
@@ -169,7 +170,7 @@ def check_item(item, allow_search):
     raise ValueError("CODEX_UNEXPECTED_TOOL_ACTIVITY")
 
 
-def parse_events(raw, function_name, output_schema=None, allow_search=False):
+def parse_events(raw, function_name, output_schema=None, allow_search=False, model=CODEX_MODEL):
     final, usage, completed, thread_id = None, {}, False, None
     searches = {}
     for line in raw.splitlines():
@@ -201,17 +202,22 @@ def parse_events(raw, function_name, output_schema=None, allow_search=False):
     message = {"content": content}
     if function_name:
         message = {"content": None, "tool_calls": [{"type": "function", "function": {"name": function_name, "arguments": content}}]}
-    return {"id": thread_id, "model": CODEX_MODEL, "web_search": search_receipt,
+    return {"id": thread_id, "model": model, "web_search": search_receipt,
             "usage": {"prompt_tokens": usage.get("input_tokens", 0), "completion_tokens": usage.get("output_tokens", 0),
                       "total_tokens": usage.get("input_tokens", 0) + usage.get("output_tokens", 0)},
             "choices": [{"finish_reason": "tool_calls" if function_name else "stop", "message": message}]}
 
 
 def call_codex(credential, payload, *, timeout=None):
-    if not codex_enabled() or credential != CODEX_CREDENTIAL or payload.get("model") != CODEX_MODEL:
+    if not codex_enabled() or credential != CODEX_CREDENTIAL or not qualified(payload.get("model")):
         raise ValueError("CODEX_RUNTIME_NOT_ELIGIBLE")
-    if payload.get("reasoning_effort") not in {"low", "medium", "high"}:
+    from src.model_settings import descriptor
+    item = descriptor("codex", payload["model"])
+    if payload.get("reasoning_effort") not in [x["value"] for x in item["parameters"]["reasoning_effort"]["options"]]:
         raise ValueError("CODEX_REASONING_EFFORT_INVALID")
+    if payload["model"] != CODEX_MODEL or payload["reasoning_effort"] not in {"low", "medium", "high"}:
+        from src.codex_models import assert_available
+        assert_available(payload["model"], payload["reasoning_effort"])
     if not EXECUTION_SLOTS.acquire(blocking=False):
         raise ValueError("CODEX_BUSY")
     try:

@@ -1,0 +1,186 @@
+{
+  "check_version": "image-complete-pdf-json-isolation-20260928",
+  "models": {
+    "gpt-6-astra": {
+      "status": "VERIFIED",
+      "adapter": "codex-bounded-app-server-v1",
+      "display_name": "GPT-6-Astra",
+      "default_effort": "low",
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "verification": {
+        "input_image_sha256": "90dba131699e0fad64d08651f78a48f90d9c993b3d016c50851a4fa757475def",
+        "pdf_sha256": "7a2cbf5d63efd85ae7b640d90a62a6c1fb061957f95ab68fbbc84a1802a8f58e",
+        "checks": [
+          "image",
+          "complete_pdf_pages",
+          "structured_output",
+          "exact_model",
+          "isolation_policy"
+        ],
+        "date": "2026-09-28",
+        "effort": "low"
+      }
+    },
+    "gpt-6-sol": {
+      "status": "VERIFIED",
+      "adapter": "codex-bounded-app-server-v1",
+      "display_name": "GPT-6-Sol",
+      "default_effort": "medium",
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "verification": {
+        "input_image_sha256": "90dba131699e0fad64d08651f78a48f90d9c993b3d016c50851a4fa757475def",
+        "pdf_sha256": "7a2cbf5d63efd85ae7b640d90a62a6c1fb061957f95ab68fbbc84a1802a8f58e",
+        "checks": [
+          "image",
+          "complete_pdf_pages",
+          "structured_output",
+          "exact_model",
+          "isolation_policy"
+        ],
+        "date": "2026-09-28",
+        "effort": "low"
+      }
+    },
+    "gpt-6-luna": {
+      "status": "VERIFIED",
+      "adapter": "codex-bounded-app-server-v1",
+      "display_name": "GPT-6-Luna",
+      "default_effort": "medium",
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "verification": {
+        "input_image_sha256": "90dba131699e0fad64d08651f78a48f90d9c993b3d016c50851a4fa757475def",
+        "pdf_sha256": "7a2cbf5d63efd85ae7b640d90a62a6c1fb061957f95ab68fbbc84a1802a8f58e",
+        "checks": [
+          "image",
+          "complete_pdf_pages",
+          "structured_output",
+          "exact_model",
+          "isolation_policy"
+        ],
+        "date": "2026-09-28",
+        "effort": "low"
+      }
+    },
+    "gpt-5.6-sol": {
+      "status": "VERIFIED",
+      "adapter": "codex-bounded-app-server-v1",
+      "display_name": "GPT-5.6-Sol",
+      "default_effort": "low",
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "verification": {
+        "input_image_sha256": "90dba131699e0fad64d08651f78a48f90d9c993b3d016c50851a4fa757475def",
+        "pdf_sha256": "7a2cbf5d63efd85ae7b640d90a62a6c1fb061957f95ab68fbbc84a1802a8f58e",
+        "checks": [
+          "image",
+          "complete_pdf_pages",
+          "structured_output",
+          "exact_model",
+          "isolation_policy"
+        ],
+        "date": "2026-09-28",
+        "effort": "low"
+      }
+    },
+    "gpt-5.6-terra": {
+      "status": "VERIFIED",
+      "adapter": "codex-bounded-app-server-v1",
+      "display_name": "GPT-5.6-Terra",
+      "default_effort": "medium",
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "verification": {
+        "input_image_sha256": "90dba131699e0fad64d08651f78a48f90d9c993b3d016c50851a4fa757475def",
+        "pdf_sha256": "7a2cbf5d63efd85ae7b640d90a62a6c1fb061957f95ab68fbbc84a1802a8f58e",
+        "checks": [
+          "image",
+          "complete_pdf_pages",
+          "structured_output",
+          "exact_model",
+          "isolation_policy"
+        ],
+        "date": "2026-09-28",
+        "effort": "low"
+      }
+    },
+    "gpt-5.6-luna": {
+      "status": "VERIFIED",
+      "adapter": "codex-bounded-app-server-v1",
+      "display_name": "GPT-5.6-Luna",
+      "default_effort": "medium",
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "verification": {
+        "input_image_sha256": "90dba131699e0fad64d08651f78a48f90d9c993b3d016c50851a4fa757475def",
+        "pdf_sha256": "7a2cbf5d63efd85ae7b640d90a62a6c1fb061957f95ab68fbbc84a1802a8f58e",
+        "checks": [
+          "image",
+          "complete_pdf_pages",
+          "structured_output",
+          "exact_model",
+          "isolation_policy"
+        ],
+        "date": "2026-09-28",
+        "effort": "low"
+      }
+    },
+    "gpt-5.5": {
+      "status": "VERIFIED",
+      "adapter": "codex-bounded-app-server-v1",
+      "display_name": "GPT-5.5",
+      "default_effort": "medium",
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ],
+      "verification": {
+        "input_image_sha256": "90dba131699e0fad64d08651f78a48f90d9c993b3d016c50851a4fa757475def",
+        "pdf_sha256": "7a2cbf5d63efd85ae7b640d90a62a6c1fb061957f95ab68fbbc84a1802a8f58e",
+        "checks": [
+          "image",
+          "complete_pdf_pages",
+          "structured_output",
+          "exact_model",
+          "isolation_policy"
+        ],
+        "date": "2026-09-28",
+        "effort": "low"
+      }
+    }
+  }
+}

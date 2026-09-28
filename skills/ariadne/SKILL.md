@@ -28,6 +28,8 @@ description: 打开 Ariadne 独立 Mac 窗口，显示个人资料与职位工�
 
 流式通道使用 Codex App Server，每轮独立临时会话。Ariadne 专用 Codex 登录目录为 macOS `~/Library/Application Support/Ariadne Codex`、其他 POSIX `~/.local/share/Ariadne Codex`，与资料目录及日常 Codex 配置分开；不要复制日常 Codex 的认证或配置进去。`login` 不改变日常 Codex 登录；旧版升级需要在此目录单独登录。实际公开文字分批呈现，隐藏推理不显示；最终校验通过前不是可保存结果。
 
+对话输入区可分别选择模型和推理强度，点击「应用」统一保存当前对话设置。可执行项取本机 Codex `model/list` 与 Ariadne 图片、完整视觉 PDF 和领域适配资格的交集；新型号不会自动替换已选型号。Ultra 含自动委派，当前受限资料对话暂不启用。菜单发现不发送个人材料，也不调用推理；真实对话仍需页面传输确认。
+
 资料属于 Ariadne 工作区，独立于 Skill 安装和 Agent。磁盘根目录下的 `workspaces/<workspace-id>/` 保存内容；当前页面的 `ariadne-content-workspace-v1` 映射决定具体工作区。因此同一台电脑换 Agent 时应复用既有目录与已确认的工作区身份，不复制多份资料，也不按目录新旧猜测身份。跨电脑需要显式传输资料，指定路径本身不构成同步。其他 Agent 的页面连接仍需 adapter 与能力验证；直接改写 Markdown 不能替代来源、版本和人工保存流程。
 
 仅当用户明确要求把一个已经核实身份的本机工作区交给 Skill 时，运行 `python3 scripts/ariadne.py import-workspace --source-root <workspaces-root> --workspace <workspace-id>`。该操作在源库锁内校验所有索引、Markdown、状态和原件 hash，复制到 Skill 数据目录并写入显式窗口绑定；不合并、覆盖或删除源工作区，也不复制 API Key、Cookie 等浏览器状态。目标已有不同资料或映射时拒绝。导入后必须重新打开 Skill，核对页面对象数量和至少一份原件可读，再处理浏览器中的旧副本。

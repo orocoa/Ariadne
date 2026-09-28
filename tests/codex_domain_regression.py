@@ -18,12 +18,12 @@ from src.candidate_conversation_runtime import candidate_conversation_tool
 def fixture(file):
     with contextlib.redirect_stdout(io.StringIO()):return runpy.run_path(str(ROOT/'tests'/file))
 
-def convert(request):
+def convert(request, model=CODEX_MODEL):
     value=copy.deepcopy(request);runtime=value['runtime_snapshot']
-    runtime.update(provider='codex',model=CODEX_MODEL,protocol=CODEX_PROTOCOL,credential_ref=CODEX_CREDENTIAL,adapter_version=adapter_for('codex',runtime['adapter_version']))
+    runtime.update(provider='codex',model=model,protocol=CODEX_PROTOCOL,credential_ref=CODEX_CREDENTIAL,adapter_version=adapter_for('codex',runtime['adapter_version']))
     from src.model_settings import envelope
-    runtime['execution_settings'] = envelope('codex', CODEX_MODEL)
-    if 'consent' in value:value['consent'].update(provider='codex',model=CODEX_MODEL)
+    runtime['execution_settings'] = envelope('codex', model)
+    if 'consent' in value:value['consent'].update(provider='codex',model=model)
     identity=value.get('operation_identity')
     if identity:
         fp=runtime_fingerprint(runtime);identity['runtime_fingerprint']=fp
@@ -54,6 +54,10 @@ with patch.dict(os.environ,{'ARIADNE_CODEX_ENABLED':'1'}):
             try:validate(invalid)
             except ValueError:pass
             else:raise AssertionError((name,key,'unsafe runtime accepted'))
+    from src.codex_models import settings_entries
+    for entry in settings_entries():
+        for name, value, validate in cases:
+            validate(convert(value, entry['model']))
     assert resolve_runtime_credential(CODEX_CREDENTIAL,'unused',lambda:(_ for _ in ()).throw(AssertionError('credential read')))==CODEX_CREDENTIAL
 # Every domain transports each accepted effort, before response handling.
 from src.candidate_model_runtime import execute_candidate_model_request

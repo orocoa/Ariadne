@@ -185,17 +185,17 @@ def execute(directory, prompt, images, schema, payload, timeout, runtime):
         settings.update({f'mcp_servers.{json.dumps(name)}.enabled': False for name in config.get("mcp_servers", {})})
         skills = channel.request("skills/list", {"cwds": [str(directory)], "forceReload": True})
         settings["skills.config"] = [{"path": item["path"], "enabled": False} for group in skills.get("data", []) for item in group.get("skills", [])]
-        started = channel.request("thread/start", {"model": runtime.CODEX_MODEL, "modelProvider": "ariadne-openai",
+        started = channel.request("thread/start", {"model": payload["model"], "modelProvider": "ariadne-openai",
             "cwd": str(directory), "runtimeWorkspaceRoots": [str(directory)], "approvalPolicy": "never", "sandbox": "read-only",
             "ephemeral": True, "allowProviderModelFallback": False, "baseInstructions": base,
             "developerInstructions": "", "config": settings, "dynamicTools": [], "environments": [], "selectedCapabilityRoots": []})
-        check_policy(started, runtime.CODEX_MODEL, directory, effort)
+        check_policy(started, payload["model"], directory, effort)
         servers = channel.request("mcpServerStatus/list", {"limit": 100})
         if servers.get("data") or servers.get("nextCursor"):
             raise ValueError("CODEX_MCP_ISOLATION_NOT_CONFIRMED")
         thread = started["thread"]["id"]
         inputs = [{"type": "text", "text": prompt}] + [{"type": "localImage", "path": str(path)} for path in images]
-        params = {"threadId": thread, "input": inputs, "model": runtime.CODEX_MODEL, "effort": effort,
+        params = {"threadId": thread, "input": inputs, "model": payload["model"], "effort": effort,
                   "approvalPolicy": "never", "sandboxPolicy": {"type": "readOnly"}}
         if schema: params["outputSchema"] = json.loads(schema.read_text())
         emit("model_started")  # Isolation has passed; the next request starts the model.
@@ -206,7 +206,7 @@ def execute(directory, prompt, images, schema, payload, timeout, runtime):
         emit("checking")
         output_schema = payload["tools"][0]["function"]["parameters"] if schema else None
         name = payload["tools"][0]["function"]["name"] if schema else None
-        return 200, runtime.parse_events(events.result_events(), name, output_schema, allow_search=search)
+        return 200, runtime.parse_events(events.result_events(), name, output_schema, allow_search=search, model=payload["model"])
     except TimeoutError:
         raise runtime.CodexTimeoutError(timeout, len(images)) from None
     finally:

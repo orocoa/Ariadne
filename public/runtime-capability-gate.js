@@ -141,10 +141,11 @@
         discovery_source: "official_contract_and_shared_adapter_2026-09-18",
         adapter_version: domain.adapter_version?.replace(/^deepseek-/, `${normalized.provider}-`) ?? null });
     }
-    if (normalized.provider === "codex" && normalized.model === "gpt-5.6-sol") {
+    if (normalized.provider === "codex" && (normalized.model === "gpt-5.6-sol"
+      || (globalThis.AriadneProduct?.kind === "skill" && globalThis.AriadneModelSettings?.descriptor("codex", normalized.model)?.qualification))) {
       const domain = modelDescriptorForRuntime({ mode: "model", provider: "deepseek", model: "deepseek-flash" }, operation);
-      return Object.freeze({ ...domain, provider_id: "codex", model_id: "gpt-5.6-sol", protocol: "CODEX_APP_SERVER",
-        discovery_source: "ariadne_codex_qualification_2026-09-09", adapter_version: domain.adapter_version?.replace(/^deepseek-/, "codex-") ?? null });
+      return Object.freeze({ ...domain, provider_id: "codex", model_id: normalized.model, protocol: "CODEX_APP_SERVER",
+        discovery_source: "ariadne_codex_visual_qualification", adapter_version: domain.adapter_version?.replace(/^deepseek-/, "codex-") ?? null });
     }
     if (normalized.provider === CANDIDATE_PDF_MODEL_ADAPTER.provider_id && normalized.model === CANDIDATE_PDF_MODEL_ADAPTER.model_id) {
       if (operation === "job_conversation") return JOB_CONVERSATION_MODEL_ADAPTER;

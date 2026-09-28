@@ -8,7 +8,9 @@
     // Re-read on each open so newly qualified models (and removals) are reflected.
     const response = await (root.AriadneTransport || root).fetch("/api/runtime-options", { cache: "no-store" });
     if (!response.ok) throw Error("无法读取可用模型，请检查本地服务或连接。");
-    return Selection.eligibleModels((await response.json()).models, operation);
+    const result = await response.json();
+    if (root.AriadneProduct?.kind === "skill" && result.settings_catalog) Settings.refreshCodex(result.settings_catalog);
+    return { entries: Selection.eligibleModels(result.models, operation), unavailable: result.unavailable_models || [], note: result.effort_note || "" };
   }
   function mount(form, operation) {
     const field = form.querySelector(".v1-composer-field");
@@ -51,38 +53,55 @@
       if (panel.matches(":popover-open")) { panel.hidePopover(); return; }
       const ticket = ++opening;
       openedRevision = Selection.version(); openedScope = scope(); original = Selection.resolve(operation, openedScope);
-      error.textContent = ""; choices.replaceChildren();
+      error.textContent = "正在读取可用模型…"; choices.replaceChildren();
       panel.showPopover(); trigger.setAttribute("aria-expanded", "true"); position();
       try {
         if (original.mode !== "model") throw Error("当前处于 Local 模式。请先在连接设置选择模型。");
         if (!openedScope) throw Error("请先打开一份资料或职位。");
-        const entries = await models(operation);
+        const { entries, unavailable, note } = await models(operation);
         if (ticket !== opening || !panel.matches(":popover-open") || busy()) return;
-        for (const entry of entries) {
-          const item = Settings.descriptor(entry.provider_id, entry.model_id);
-          // Generate only catalog-authorized combinations; no inferred model capabilities.
-          let variants = [{ settings: {}, labels: [] }];
-          for (const [key, spec] of Object.entries(item.parameters)) {
-            variants = variants.flatMap(variant => spec.options.map(option => ({
-              settings: { ...variant.settings, [key]: option.value }, labels: [...variant.labels, option.label]
-            })));
+        error.textContent = "";
+        let selected = entries.find(entry => entry.model_id === original.model);
+        if (!entries.length) throw Error("当前没有通过验证且可用的模型。");
+        let effort = selected?.model_id === original.model ? original.execution_settings?.effective_settings?.reasoning_effort : null;
+        const draw = () => {
+          choices.replaceChildren();
+          error.textContent = selected ? "" : "当前模型不可用，请重新选择。";
+          const heading = text => { const node = document.createElement("h3"); node.textContent = text; choices.append(node); };
+          const option = (text, checked, choose, data = {}, parent = choices) => {
+            const button = document.createElement("button"); button.type = "button"; button.dataset.modelChoice = "";
+            Object.assign(button.dataset, data); button.setAttribute("role", "menuitemradio"); button.setAttribute("aria-checked", String(checked));
+            button.textContent = text; button.onclick = choose; parent.append(button); return button;
+          };
+          const modelGroup = document.createElement("div"); modelGroup.setAttribute("role", "group"); modelGroup.setAttribute("aria-label", "模型"); choices.append(modelGroup);
+          for (const entry of entries) {
+            option(Settings.descriptor(entry.provider_id, entry.model_id).short_label, entry === selected, () => {
+              selected = entry; draw(); choices.querySelector(`[data-model-id="${CSS.escape(entry.model_id)}"]`)?.focus(); position();
+            }, { modelId: entry.model_id }, modelGroup);
           }
-          for (const variant of variants) {
-            const runtime = { mode: "model", provider: item.provider, model: item.model };
-            runtime.execution_settings = Settings.envelope(runtime, variant.settings);
-            const button = document.createElement("button");
-            button.type = "button"; button.setAttribute("role", "menuitemradio");
-            button.dataset.modelChoice = `${item.provider}/${item.model}`;
-            button.dataset.effort = variant.settings.reasoning_effort || "";
-            button.textContent = [item.short_label, ...variant.labels].join(" · ");
-            button.setAttribute("aria-checked", String(Settings.identity(runtime) === Settings.identity(original)));
-            button.onclick = () => save(runtime);
-            choices.append(button);
+          const item = selected && Settings.descriptor(selected.provider_id, selected.model_id), spec = item?.parameters.reasoning_effort;
+          if (spec) {
+            if (!spec.options.some(option => option.value === effort)) effort = spec.default;
+            heading("推理强度");
+            const effortGroup = document.createElement("div"); effortGroup.className = "v1-model-efforts"; effortGroup.setAttribute("role", "group"); effortGroup.setAttribute("aria-label", "推理强度"); choices.append(effortGroup);
+            for (const value of spec.options) option(value.label, value.value === effort, () => {
+              effort = value.value; draw(); choices.querySelector(`[data-effort="${CSS.escape(effort)}"]`)?.focus();
+            }, { effort: value.value }, effortGroup);
           }
-        }
-        if (!entries.length) throw Error("暂无可用模型，请检查连接。");
-        position();
-        (choices.querySelector('[aria-checked="true"]') || choices.querySelector("button")).focus();
+          if (note) { const hint = document.createElement("p"); hint.textContent = note; choices.append(hint); }
+          if (unavailable.length) {
+            heading("其他模型");
+            for (const entry of unavailable) { const hint = document.createElement("p"); hint.textContent = `${entry.display_name} · ${entry.reason}`; choices.append(hint); }
+          }
+          const apply = document.createElement("button"); apply.type = "button"; apply.className = "v1-model-apply";
+          apply.textContent = "应用"; apply.disabled = !selected; apply.onclick = () => {
+            const runtime = { mode: "model", provider: selected.provider_id, model: selected.model_id };
+            runtime.execution_settings = Settings.envelope(runtime, spec ? { reasoning_effort: effort } : {});
+            save(runtime);
+          }; choices.append(apply);
+        };
+        draw(); position();
+        (choices.querySelector('[aria-checked="true"]') || choices.querySelector("button"))?.focus({ preventScroll: true });
       } catch (err) {
         if (ticket === opening && panel.matches(":popover-open")) { error.textContent = err.message; position(); panel.focus(); }
       }
@@ -124,7 +143,7 @@
     Gate.subscribe(render); render();
   }
   document.addEventListener("DOMContentLoaded", () => {
-    const link = document.createElement("link"); link.rel = "stylesheet"; link.href = "/conversation-model-selector.css?v=compact-menu-1"; document.head.append(link);
+    const link = document.createElement("link"); link.rel = "stylesheet"; link.href = "/conversation-model-selector.css?v=model-effort-2"; document.head.append(link);
     for (const [id, operation] of Object.entries(FORMS)) { const form = document.getElementById(id); if (form) mount(form, operation); }
   }, { once: true });
 }(globalThis));
