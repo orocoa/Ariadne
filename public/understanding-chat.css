@@ -1,6 +1,4 @@
 /* Library title entries share the Workspace wordmark; chat starts with suggestions. */
-/* Avoid exposing history/composer before the per-visit entry gate is mounted. */
-.personal-dialogue[data-entry-confirmation="visit"]:not([data-entry-ready]) > * { visibility: hidden; }
 .v1-library-topbar:has(.understanding-title-entry) {
   grid-template-columns: minmax(36px, 1fr) auto minmax(36px, 1fr);
 }

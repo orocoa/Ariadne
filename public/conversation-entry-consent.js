@@ -95,10 +95,10 @@
       const state = selection.entryConsent(operation);
       // Existing checkbox stays as the domain guard, not a second visible consent.
       entry.pane.querySelectorAll(".personal-consent, .job-overview-consent").forEach(label => { if (!label.hidden) label.hidden = true; });
-      // Library-wide conversations start with a fresh entry screen on every visit,
-      // even when the exact recipient/settings disclosure was accepted before.
-      const visitEntry = entry.pane.dataset.entryConfirmation === "visit";
-      const locked = Boolean(state.scope && state.fingerprint && (!state.accepted || (visitEntry && entry.enteredToken !== state.token)));
+      // Every conversation requires acceptance for this visit and current settings.
+      // Returning to a previously accepted model must not revive an older entry.
+      if (entry.token !== state.token) entry.enteredToken = null;
+      const locked = Boolean(state.scope && state.fingerprint && (!state.accepted || entry.enteredToken !== state.token));
       if (entry.transition && (entry.transition.token !== state.token || locked)) cancelTransition(entry);
       entry.token = state.token;
       const recipient = state.runtime.provider === "codex" ? "Codex / OpenAI" : state.runtime.provider;
@@ -120,19 +120,16 @@
   }
   let queued = false;
   const schedule = () => { if (queued) return; queued = true; root.requestAnimationFrame(() => { queued = false; refresh(); }); };
-  root.AriadneConversationEntry = Object.freeze({ refresh, requiresConfirmation: operation => [...entries.values()].some(entry => entry.operation === operation && entry.locked) });
-  root.addEventListener("pagehide", () => {
+  function resetVisit() {
     for (const entry of entries.values()) {
       cancelTransition(entry);
-      if (entry.pane.dataset.entryConfirmation === "visit") entry.enteredToken = null;
+      entry.enteredToken = null;
     }
     refresh();
-  });
-  root.addEventListener("pageshow", event => {
-    if (!event.persisted) return;
-    for (const entry of entries.values()) if (entry.pane.dataset.entryConfirmation === "visit") entry.enteredToken = null;
-    refresh();
-  });
+  }
+  root.AriadneConversationEntry = Object.freeze({ refresh, resetVisit, requiresConfirmation: operation => [...entries.values()].some(entry => entry.operation === operation && entry.locked) });
+  root.addEventListener("pagehide", resetVisit);
+  root.addEventListener("pageshow", event => { if (event.persisted) resetVisit(); });
   root.addEventListener("ariadne-runtime-selection", schedule);
   root.addEventListener("storage", schedule);
   root.JobRadarRuntimeGate?.subscribe(schedule);

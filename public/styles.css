@@ -1123,3 +1123,6 @@ button.danger { background: #9c2525; border-color: #9c2525; }
 @media (max-width: 700px) {
   .ariadne-language-switch { bottom: max(var(--vi-space-12), env(safe-area-inset-bottom)); }
 }
+
+/* Keep every conversation private until its per-visit entry gate is ready. */
+[data-entry-confirmation="visit"]:not([data-entry-ready]) > * { visibility: hidden; }

@@ -2,6 +2,12 @@
 
 更新：2026-09-25。适用：Web API 与本机 Skill 的六个对话入口。不是模型内部推理展示，也不是新的 Agent 权限层。
 
+## 2026-09-28 所有卡片每次进入确认
+
+个人卡片、职位卡片及两个导入工作区与「了解我／了解职位概况」统一：每次进入先显示发送范围、当前模型和费用说明，点击同意才呈现历史及输入框。持久化同意只保留审阅记录，不能跳过本次进入；重新打开、浏览器缓存恢复、范围或模型/强度变化、切回以前确认过的模型均须重新确认。普通重渲染不打断已确认的本次对话。
+
+正在接收结果的详情 iframe 仍可保留，重开时同步重置本次进入状态，避免复用窗口绕过确认；不取消已经发出的请求，不清空输入或历史。六页在入口脚本就绪前隐藏对话内容，请求前继续检查入口门禁。确认本身零模型请求；确认后的连续过渡和附件单轮同意保持不变。本修订取代下方「其他四个入口沿用同意记忆」的历史规则。
+
 ## 2026-09-25 资料库对话入口
 
 「了解我」和「了解职位概况」每次打开先显示发送范围、动态 Provider/model 与费用说明。确认后进入对话并聚焦输入框，确认动作不发送资料；已保存的精确运行设置同意仍保留，但不能跳过这两个入口的本次确认。其他四个对话入口继续沿用原有同意记忆。
@@ -40,7 +46,7 @@
 
 `src/conversation_events.py` 使用请求局部 ContextVar。事件严格递增 seq，类型白名单为 received、input_ready、model_started、update、activity、commentary、preview、preview_delta、checking、result；commentary 使用有界 item ID 更新同一段，不为每个 delta 新建一行。终态携带实际业务 status 与原领域结果。浏览器拒绝乱序、缺终态、额外终态、未知类型、过大响应或损坏 UTF-8。局部预览只作纯文字渲染，不执行 Markdown HTML 或工具。
 
-App Server 每次请求启动独立 stdio 子进程、临时目录与 ephemeral thread；模型固定 `gpt-5.6-sol`，强度沿用请求，不接受 fallback。只读/never approval、禁用 shell/apps/plugins/memory/多代理等工具，逐项核对有效策略、空 instructionSources 与空 MCP 列表，任何不符在 turn/start 前失败。普通对话的公开搜索沿用既有开关和搜索-修改互斥；不是新增通用 Agent 权限。进程成功、失败、超时均回收，不复用会话；服务崩溃或浏览器断开不承诺取消已计费请求。
+App Server 每次请求启动独立 stdio 子进程、临时目录与 ephemeral thread；模型与强度沿用当前冻结请求中的已验证选择，不接受 fallback。只读/never approval、禁用 shell/apps/plugins/memory/多代理等工具，逐项核对有效策略、空 instructionSources 与空 MCP 列表，任何不符在 turn/start 前失败。普通对话的公开搜索沿用既有开关和搜索-修改互斥；不是新增通用 Agent 权限。进程成功、失败、超时均回收，不复用会话；服务崩溃或浏览器断开不承诺取消已计费请求。
 
 实测 App Server 没有 exec 的 ignore-user-config / ignore-rules 选项，`project_doc_max_bytes=0` 仍会载入日常 Codex 的全局 AGENTS.md。因此用户批准使用独立 `Ariadne Codex` 目录并重新登录。只由官方 CLI 处理认证；Ariadne 不读取/复制凭据，不修改日常 Codex 配置。登录目录与资料库、临时请求、Skill 安装分开。协议依据 [OpenAI App Server 文档](https://developers.openai.com/codex/app-server) 和本机 CLI 生成的 schema；不输出隐藏推理。
 

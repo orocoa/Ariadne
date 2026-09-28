@@ -839,6 +839,8 @@
       if (aboutWorkspace) {
         overlay.classList.add("is-content-ready");
       } else if (reuseRetainedFrame) {
+        // An in-flight conversation keeps its frame, but re-entry still needs consent.
+        frame.contentWindow?.AriadneConversationEntry?.resetVisit();
         overlay.classList.add("is-content-ready");
       } else {
         retainedFrameUrl = detailUrl.href;

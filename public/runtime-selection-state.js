@@ -14,7 +14,7 @@
     const attachUpdates = () => {
       const script = root.document.createElement("script"); script.src = "/model-updates.js?v=1";
       root.document.head.append(script);
-      const entry = root.document.createElement("script"); entry.src = "/conversation-entry-consent.js?v=3";
+      const entry = root.document.createElement("script"); entry.src = "/conversation-entry-consent.js?v=4";
       root.document.head.append(entry);
     };
     if (root.document.readyState === "loading") root.document.addEventListener("DOMContentLoaded", attachUpdates, { once: true });
