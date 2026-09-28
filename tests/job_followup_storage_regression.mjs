@@ -97,5 +97,25 @@ try {
   await assert.rejects(F.save({...canonicalInput,application:{...canonicalResult.application,draftNote:'stale head',draftOutcome:''}}),/职位内容已更新/);
   assert.equal((await read(Truth.DB_NAME,'job_context_revisions')).length,2);
   assert.equal((await read(Truth.DB_NAME,'candidate_context_revisions')).length,0);
+  const beforeStage=(await A.all()).get(canonical.context_id);
+  const stageProposal=A.stageProposal(beforeStage,'CLOSED','用户要求将此卡片标为已结束','synthetic-analysis');
+  { const db=await Truth.openDatabase();try{await A.persistStageProposal(db,stageProposal);}finally{db.close();} }
+  const beforeStageCommit=await fs.readFile(path.join(root,workspace,'HEAD.json'),'utf8');
+  globalThis.fetch=(url,options)=>options?.body && JSON.parse(options.body).action==='commit' ? Promise.resolve(new Response('{"error":"WORKSPACE_STORAGE_UNAVAILABLE"}',{status:503})) : http(url,options);
+  { const db=await Truth.openDatabase();try{await assert.rejects(A.decideStageProposal(db,stageProposal,'CONFIRM'));}finally{db.close();} }
+  assert.equal(await fs.readFile(path.join(root,workspace,'HEAD.json'),'utf8'),beforeStageCommit,'failed approval rolls back status and decision');
+  globalThis.fetch=http;
+  { const db=await Truth.openDatabase();try{await A.decideStageProposal(db,stageProposal,'CONFIRM');}finally{db.close();} }
+  const closed=(await A.all()).get(canonical.context_id);
+  assert.equal(closed.stage,'CLOSED');assert.equal(closed.outcome,'');assert.equal(closed.note,beforeStage.note);
+  assert.equal(closed.revision,beforeStage.revision+1);assert.equal(closed.history.at(-1).stage,'CLOSED');
+  assert.equal((await read(Truth.DB_NAME,'job_context_revisions')).length,2,'stage approval creates no Job content revision');
+  { const db=await Truth.openDatabase();try{await assert.rejects(A.decideStageProposal(db,stageProposal,'CONFIRM'),/已处理/);}finally{db.close();} }
+  const stale=A.stageProposal(closed,'IN_PROGRESS','用户要求重开','synthetic-analysis-2');
+  { const db=await Truth.openDatabase();try{await A.persistStageProposal(db,stale);}finally{db.close();} }
+  await A.save(canonical.context_id,{stage:'APPLIED',outcome:'',note:closed.note},closed.revision);
+  { const db=await Truth.openDatabase();try{await assert.rejects(A.decideStageProposal(db,stale,'CONFIRM'),/其他页面更新/);}finally{db.close();} }
+  { const db=await Truth.openDatabase();try{await A.decideStageProposal(db,stale,'REJECT');}finally{db.close();} }
+  assert.equal((await A.all()).get(canonical.context_id).stage,'APPLIED','rejecting an expired proposal does not modify the newer stage');
   console.log('PASS unified save: legacy migration, original bytes, atomic failure/retry, cancellation boundary, edits/deletion history, ordering, conflicts, canonical revision and Candidate isolation');
 } finally { globalThis.fetch=originalFetch;child.kill('SIGTERM');await fs.writeFile(path.join(root,'server.log'),log); }

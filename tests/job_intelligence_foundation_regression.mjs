@@ -300,6 +300,17 @@ assert.equal(normalizedEditClarification.clarification, null);
 const normalizedProjectAdvice = Conversation.validateSemanticOutput({ ...output, action: "PROPOSE_JOB_EDIT", job_edit: { field: "requirements", desired_value: "x", reason: "x" } }, compiled);
 assert.equal(normalizedProjectAdvice.action, "EXPLAIN");
 assert.equal(normalizedProjectAdvice.job_edit, null);
+const applicationContext = Conversation.compileContext({ job_revision: modelAccepted.revision,
+  application: { stage: "APPLIED", outcome: "" }, candidate_snapshot: candidateA, candidate_delta: candidateDelta,
+  source_excerpt_manifest: fromArtifact, human_message: "把这张卡片的投递状态改为已结束", messages: [] });
+assert.equal(applicationContext.application.stage, "APPLIED");
+const stageEdit = Conversation.validateSemanticOutput({ ...output, action: "PROPOSE_JOB_EDIT",
+  job_edit: { field: "application_stage", desired_value: "CLOSED", reason: "用户明确要求结束本次跟进。" } }, applicationContext);
+assert.equal(stageEdit.job_edit.desired_value, "CLOSED");
+assert.throws(() => Conversation.validateSemanticOutput({ ...output, action: "PROPOSE_JOB_EDIT",
+  job_edit: { field: "application_stage", desired_value: "RESUME_REJECTED", reason: "不能推断结果。" } }, applicationContext), /application_stage_invalid/);
+assert.equal(Conversation.validateSemanticOutput({ ...output, action: "PROPOSE_JOB_EDIT",
+  job_edit: { field: "application_stage", desired_value: "CLOSED", reason: "不在范围内。" } }, compiled).job_edit, null);
 const analysis = Persistence.createAnalysis({ session, execution, job_revision: modelAccepted.revision, candidate_snapshot: candidateA, candidate_delta: candidateDelta, source_excerpt_manifest: fromArtifact, runtime_snapshot: runtimeSnapshot, output });
 assert.deepEqual(analysis.candidate_observation.provider_view, candidateA.provider_view);
 const assistant = Conversation.createMessage(session, "ASSISTANT", output.message, "2026-09-04T02:00:03Z");

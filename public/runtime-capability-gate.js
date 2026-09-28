@@ -72,7 +72,7 @@
   });
   const JOB_CONVERSATION_MODEL_ADAPTER = Object.freeze({
     ...CANDIDATE_CONVERSATION_MODEL_ADAPTER,
-    adapter_version: "deepseek-job-conversation-v11",
+    adapter_version: "deepseek-job-conversation-v12",
   });
   const PERSONAL_UNDERSTANDING_MODEL_ADAPTER = Object.freeze({
     ...CANDIDATE_CONVERSATION_MODEL_ADAPTER,

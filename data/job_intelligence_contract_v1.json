@@ -24,9 +24,9 @@
   "runtime_contracts": {
     "request_contract_version": "ariadne-job-conversation-runtime-request-v3",
     "result_contract_version": "ariadne-job-conversation-runtime-result-v2",
-    "adapter_version": "deepseek-job-conversation-v11",
-    "prompt_version": "ariadne-job-intelligence-prompt-v10",
-    "request_config_version": "deepseek-job-conversation-request-v10"
+    "adapter_version": "deepseek-job-conversation-v12",
+    "prompt_version": "ariadne-job-intelligence-prompt-v11",
+    "request_config_version": "deepseek-job-conversation-request-v11"
   },
   "gap_types": [
     "CAPABILITY_GAP",
@@ -46,6 +46,8 @@
   ],
   "semantic_actions": ["EXPLAIN", "PROPOSE_JOB_EDIT", "ASK_CLARIFICATION"],
   "editable_job_fields": ["title", "company", "location", "summary"],
+  "editable_conversation_fields": ["title", "company", "location", "summary", "application_stage"],
+  "application_stages": ["NOT_APPLIED", "APPLIED", "IN_PROGRESS", "CLOSED"],
   "candidate_delta_changes": ["BASELINE", "ADDED", "UPDATED", "REMOVED", "NEEDS_REVIEW"],
   "source_availability": [
     "SOURCE_GROUNDED",

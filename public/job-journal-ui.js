@@ -169,6 +169,8 @@ globalThis.AriadneJobJournalUI = { async mount(jobId) {
   window.addEventListener("pageshow", event => { if (event.persisted) { connect(); if (editing) renderEditor(); else refresh(); } });
   connect(); await load();
   return {
+    refresh,
+    announce() { channel?.postMessage({ changed: true }); },
     begin() {
       editing = true; generation++;
       drafts = entries.map(entry => ({ ...entry, images: entry.images.map(image => ({ ...image })) }));

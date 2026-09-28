@@ -8,6 +8,8 @@
   const DB_NAME = "ariadne-job-applications-v1";
   const STAGES = Object.freeze({ NOT_APPLIED: "未投递", APPLIED: "已投递", IN_PROGRESS: "推进中", CLOSED: "已结束" });
   const OUTCOMES = Object.freeze({ "": "暂不填写", RESUME_REJECTED: "简历未通过", INTERVIEW_REJECTED: "面试未通过", HIRED: "已入职", WITHDRAWN: "主动放弃", POSITION_CLOSED: "岗位关闭", OTHER: "其他结果" });
+  const PROPOSAL_CONTRACT = "ariadne-job-application-stage-proposal-v1";
+  const DECISION_CONTRACT = "ariadne-job-change-decision-v1";
   function initial(jobId) {
     if (typeof jobId !== "string" || !jobId.trim() || jobId.length > 300) throw Error("职位标识无效。");
     return { job_context_id: jobId, stage: "NOT_APPLIED", outcome: "", note: "", revision: 0, updated_at: null, history: [] };
@@ -85,5 +87,74 @@
       tx.onerror = tx.onabort = () => reject(failure || Error("阶段保存失败，原记录仍保留。请重试。"));
     }); } finally { db.close(); }
   }
-  return Object.freeze({ DB_NAME, STAGES, OUTCOMES, initial, validate, next, matches, orderJobs, sourceLink, all, save });
+  function stageProposal(application, desiredStage, reason, analysisId) {
+    validate(application);
+    if (typeof desiredStage !== "string" || !Object.hasOwn(STAGES, desiredStage) || typeof reason !== "string" || !reason.trim() || reason.length > 4000) throw Error("投递状态建议无效。");
+    return Object.freeze({
+      contract_id: PROPOSAL_CONTRACT,
+      job_change_proposal_id: `job-stage-proposal-${crypto.randomUUID()}`,
+      job_context_id: application.job_context_id,
+      base_application_revision: application.revision,
+      before_value: application.stage,
+      desired_value: desiredStage,
+      reason: reason.trim(),
+      source_analysis_id: analysisId,
+      created_at: new Date().toISOString(),
+      authority: "NON_AUTHORITATIVE_JOB_PROPOSAL",
+    });
+  }
+  function validateStageProposal(proposal) {
+    if (proposal?.contract_id !== PROPOSAL_CONTRACT || proposal.authority !== "NON_AUTHORITATIVE_JOB_PROPOSAL"
+      || typeof proposal.job_change_proposal_id !== "string" || typeof proposal.job_context_id !== "string"
+      || !Number.isSafeInteger(proposal.base_application_revision) || proposal.base_application_revision < 0
+      || typeof proposal.before_value !== "string" || typeof proposal.desired_value !== "string"
+      || !Object.hasOwn(STAGES, proposal.before_value) || !Object.hasOwn(STAGES, proposal.desired_value)
+      || typeof proposal.reason !== "string" || !proposal.reason.trim()) throw Error("投递状态建议无效。");
+    return proposal;
+  }
+  async function persistStageProposal(database, proposal) {
+    validateStageProposal(proposal);
+    return new Promise((resolve, reject) => {
+      const tx = database.transaction("job_change_proposals", "readwrite");
+      tx.objectStore("job_change_proposals").add(proposal);
+      tx.oncomplete = () => resolve(proposal);
+      tx.onerror = tx.onabort = () => reject(tx.error || Error("投递状态建议未保存。"));
+    });
+  }
+  async function decideStageProposal(database, proposal, decision) {
+    validateStageProposal(proposal);
+    if (!["CONFIRM", "REJECT"].includes(decision)) throw Error("投递状态决定无效。");
+    return new Promise((resolve, reject) => {
+      const tx = database.transaction(["applications", "job_change_proposals", "job_change_decisions"], "readwrite");
+      let failure, application = null;
+      const abort = error => { failure = error; tx.abort(); };
+      const storedProposal = tx.objectStore("job_change_proposals").get(proposal.job_change_proposal_id);
+      storedProposal.onsuccess = () => {
+        if (JSON.stringify(storedProposal.result) !== JSON.stringify(proposal)) { abort(Error("建议已变化，请重新打开。")); return; }
+        const decisions = tx.objectStore("job_change_decisions").getAll();
+        decisions.onsuccess = () => {
+          if (decisions.result.some(entry => entry.job_change_proposal_id === proposal.job_change_proposal_id)) { abort(Error("这条建议已处理，请重新打开。")); return; }
+          const applicationRead = tx.objectStore("applications").get(proposal.job_context_id);
+          applicationRead.onsuccess = () => {
+            try {
+              const current = validate(applicationRead.result || initial(proposal.job_context_id));
+              if (decision === "CONFIRM" && (current.revision !== proposal.base_application_revision || current.stage !== proposal.before_value)) throw Error("投递状态已在其他页面更新，这条建议已过期。");
+              application = decision === "CONFIRM" && current.stage !== proposal.desired_value
+                ? next(current, { stage: proposal.desired_value, outcome: "", note: current.note }, current.revision)
+                : current;
+              if (decision === "CONFIRM" && application !== current) tx.objectStore("applications").put(application);
+              tx.objectStore("job_change_decisions").add({ contract_id: DECISION_CONTRACT,
+                job_change_decision_id: `job-stage-decision-${crypto.randomUUID()}`,
+                job_change_proposal_id: proposal.job_change_proposal_id, decision,
+                decided_at: new Date().toISOString(), authority: "AUTHORITATIVE_USER_DECISION" });
+            } catch (error) { abort(error); }
+          };
+        };
+      };
+      tx.oncomplete = () => resolve(application);
+      tx.onerror = tx.onabort = () => reject(failure || tx.error || Error("投递状态未保存。"));
+    });
+  }
+  return Object.freeze({ DB_NAME, STAGES, OUTCOMES, initial, validate, next, matches, orderJobs, sourceLink, all, save,
+    PROPOSAL_CONTRACT, stageProposal, validateStageProposal, persistStageProposal, decideStageProposal });
 }));

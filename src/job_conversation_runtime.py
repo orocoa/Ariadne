@@ -153,6 +153,9 @@ def validate_job_conversation_request(payload: Any) -> JobConversationRequest:
     compiled_context = dict(_mapping(value["compiled_context"], "CONTEXT_INVALID"))
     if compiled_context.get("contract_id") != "ariadne-job-provider-context-v1":
         raise JobConversationRuntimeError("CONTEXT_INVALID", "contract_validation")
+    application = compiled_context.get("application")
+    if application is not None and (not isinstance(application, Mapping) or application.get("stage") not in MANIFEST["application_stages"] or application.get("authority") != "HUMAN_RECORDED_FOLLOWUP" or not isinstance(application.get("outcome"), str)):
+        raise JobConversationRuntimeError("CONTEXT_INVALID", "contract_validation")
     _assert_provider_safe(compiled_context)
     candidate_context = _mapping(compiled_context.get("candidate"), "CANDIDATE_SNAPSHOT_REQUIRED")
     confirmed = candidate_context.get("confirmed")
@@ -208,7 +211,8 @@ def semantic_output_schema() -> str:
         "fit_assessments": MANIFEST["fit_assessments"],
         "gap_types": MANIFEST["gap_types"],
         "recommendation_kinds": MANIFEST["recommendation_kinds"],
-        "editable_job_fields": MANIFEST["editable_job_fields"],
+        "editable_conversation_fields": MANIFEST["editable_conversation_fields"],
+        "application_stages": MANIFEST["application_stages"],
         "source_need_purposes": MANIFEST["source_retrieval"]["allowed_purposes"],
         "shape": {
             "contract_id": "string", "action": "string", "message": "string",
@@ -236,7 +240,7 @@ candidate_context_coverage describes the selected detailed evidence, not all sto
 Missing evidence is not proof of a capability gap. Prefer EVIDENCE_GAP, UNKNOWN or NEEDS_CLARIFICATION unless reliable evidence supports CAPABILITY_GAP.
 Interpret “我还需要补充什么？” in the active Job context as asking which capability evidence, presentation, relevance, or project information is missing relative to this Job. Use the supplied real Candidate context and the approved gap taxonomy.
 Honor context.turn_scope. When its ambiguity is RESOLVED_BY_ACTIVE_JOB_SCOPE, do not ask whether the Human means Candidate evidence or Job details; analyze the current Candidate relative to the active Job.
-Only populate job_edit when context.turn_scope.job_edit_requested is true. Project improvement and resume advice are not Job edits; keep job_edit null for those turns.
+Only populate a Job-content job_edit when context.turn_scope.job_edit_requested is true. Project improvement and resume advice are not Job edits. The separate application_stage may be proposed when the latest Human message explicitly asks to change this active card's application status and context.application is present. Do not infer a rejection or final outcome from an unanswered contact request.
 When context.candidate_delta includes current_candidate or changed_fields, treat those exact records as the change. Do not substitute another Candidate record with the same or a similar title, and do not claim that unchanged fields were newly added.
 References must use only the turn-local requirement_ref, candidate_ref and excerpt_ref values supplied in context.
 Turn-local references are only for structured fields. Never print requirement_ref, candidate_ref or excerpt_ref values in Human-visible message, explanations, uncertainties, recommendations, clarification or edit reasons; name the actual Job requirement or Candidate Material instead.
@@ -244,8 +248,8 @@ For ordinary conversation use action exactly EXPLAIN. The only other valid actio
 If auxiliary findings are not essential, return empty fit_findings, gap_findings and recommendations. If you include them, copy every requirement_ref and candidate_ref byte-for-byte from active_context; never substitute a title, label, index or newly invented reference.
 Valid fit assessments are SUPPORTED, PARTIALLY_SUPPORTED, UNSUPPORTED and UNKNOWN. Valid gap types are CAPABILITY_GAP, EVIDENCE_GAP, PRESENTATION_GAP, RELEVANCE_GAP, UNKNOWN and NEEDS_CLARIFICATION. Valid recommendation kinds are RESUME_POSITIONING, PROJECT_POSITIONING, PROJECT_IMPROVEMENT, LEARNING and EVIDENCE_COLLECTION.
 When no clarification, source retrieval or Job edit is required, set clarification, source_need and job_edit to null.
-For a Human request to edit the active Job, emit PROPOSE_JOB_EDIT with semantic field and desired value. Never emit IDs, storage targets, revision values, source identities or fingerprints.
-An explicit delete, remove, or replace request naming one editable Job field is complete mutation intent. Compute the full desired field value, emit PROPOSE_JOB_EDIT immediately, and set clarification to null. Do not ask the Human to confirm the wording: the visible Working proposal and Human Save are the confirmation boundary. In the Human-facing message say that a reviewable Working change was created and that Confirmed remains unchanged until Save; never claim that Confirmed was already updated.
+For a Human request to edit the active Job or its application stage, emit PROPOSE_JOB_EDIT with semantic field and desired value. For application_stage use exactly NOT_APPLIED, APPLIED, IN_PROGRESS or CLOSED. Closing clears the current outcome; the Human can record a verified outcome separately. Never emit IDs, storage targets, revision values, source identities or fingerprints.
+An explicit delete, remove, or replace request naming one editable Job field, or an explicit request to set the current card's application stage, is complete mutation intent. Compute the full desired field value, emit PROPOSE_JOB_EDIT immediately, and set clarification to null. Do not ask the Human to confirm the wording: the visible Working proposal and Human Save are the confirmation boundary. In the Human-facing message say that a reviewable Working change was created and that the saved record remains unchanged until Save; never claim that it was already updated.
 For ambiguity emit ASK_CLARIFICATION. Set source_need to null when supplied context is enough. Otherwise source needs are explicit future-turn requests; do not assume a hidden retry.
 Analysis and recommendations are non-authoritative. Do not produce match percentages."""
 
@@ -288,7 +292,7 @@ def job_conversation_tool() -> dict[str, Any]:
                     "candidate_delta_interpretation": nullable_string,
                     "clarification": nullable_string,
                     "source_need": {"anyOf": [{"type": "null"}, {"type": "object", "additionalProperties": False, "required": ["purpose", "reason"], "properties": {"purpose": {"type": "string", "enum": MANIFEST["source_retrieval"]["allowed_purposes"]}, "reason": {"type": "string"}}}]},
-                    "job_edit": {"anyOf": [{"type": "null"}, {"type": "object", "additionalProperties": False, "required": ["field", "desired_value", "reason"], "properties": {"field": {"type": "string", "enum": MANIFEST["editable_job_fields"]}, "desired_value": {"type": "string"}, "reason": {"type": "string"}}}]},
+                    "job_edit": {"anyOf": [{"type": "null"}, {"type": "object", "additionalProperties": False, "required": ["field", "desired_value", "reason"], "properties": {"field": {"type": "string", "enum": MANIFEST["editable_conversation_fields"]}, "desired_value": {"type": "string"}, "reason": {"type": "string"}}}]},
                 },
             },
         },
@@ -370,14 +374,18 @@ def validate_semantic_output(value: Any, compiled_context: Mapping[str, Any]) ->
     clarification = None if output["clarification"] is None else _human_copy(output["clarification"], "CLARIFICATION_INVALID", MANIFEST["limits"]["clarification"])
     turn_scope = compiled_context.get("turn_scope")
     job_edit_requested = isinstance(turn_scope, Mapping) and turn_scope.get("job_edit_requested") is True
-    job_edit = output["job_edit"] if job_edit_requested else None
+    application_edit_requested = isinstance(compiled_context.get("application"), Mapping) and isinstance(output["job_edit"], Mapping) and output["job_edit"].get("field") == "application_stage"
+    job_edit = output["job_edit"] if job_edit_requested or application_edit_requested else None
     if job_edit is not None:
         job_edit = dict(_mapping(job_edit, "JOB_EDIT_INVALID"))
-        if set(job_edit) != {"field", "desired_value", "reason"} or job_edit.get("field") not in MANIFEST["editable_job_fields"]:
+        if set(job_edit) != {"field", "desired_value", "reason"} or job_edit.get("field") not in MANIFEST["editable_conversation_fields"]:
             raise JobConversationRuntimeError("JOB_EDIT_INVALID", "semantic")
-        job_edit = {"field": job_edit["field"], "desired_value": _human_copy(job_edit["desired_value"], "JOB_EDIT_INVALID", MANIFEST["limits"]["job_field_value"]), "reason": _human_copy(job_edit["reason"], "JOB_EDIT_INVALID", 4000)}
+        desired_value = _human_copy(job_edit["desired_value"], "JOB_EDIT_INVALID", MANIFEST["limits"]["job_field_value"])
+        if job_edit["field"] == "application_stage" and desired_value not in MANIFEST["application_stages"]:
+            raise JobConversationRuntimeError("JOB_EDIT_INVALID", "semantic")
+        job_edit = {"field": job_edit["field"], "desired_value": desired_value, "reason": _human_copy(job_edit["reason"], "JOB_EDIT_INVALID", 4000)}
     action = output["action"]
-    if job_edit_requested and (action == "PROPOSE_JOB_EDIT") != bool(job_edit):
+    if (job_edit_requested or application_edit_requested) and (action == "PROPOSE_JOB_EDIT") != bool(job_edit):
         raise JobConversationRuntimeError("JOB_EDIT_ACTION_MISMATCH", "semantic")
     if job_edit:
         # The editable field and complete desired value are the semantic action.

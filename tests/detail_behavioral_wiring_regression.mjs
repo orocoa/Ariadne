@@ -41,8 +41,9 @@ assert.match(jobConversation, /删除\|移除\|去掉\|删掉/);
 
 for (const html of [candidateDetail, jobDetail]) {
   assert.match(html, /product-shell-domain\.js\?v=detail-behavior-v1/);
-  assert.match(html, /v1-pages\.js\?v=computer-use-e2e-v3/);
 }
+assert.match(candidateDetail, /v1-pages\.js\?v=computer-use-e2e-v3/);
+assert.match(jobDetail, /v1-pages\.js\?v=job-stage-conversation-v1/);
 for (const dependency of ["model-import-lifecycle-domain", "candidate-context-domain", "candidate-model-runtime-domain"]) {
   assert.match(candidateDetail, new RegExp(`${dependency}\\.js\\?v=computer-use-e2e-v1`));
 }

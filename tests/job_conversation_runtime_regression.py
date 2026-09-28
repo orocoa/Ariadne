@@ -166,6 +166,15 @@ spurious_project_edit = semantic("PROPOSE_JOB_EDIT")
 spurious_project_edit["job_edit"]["field"] = "requirements"
 normalized_project_advice = validate_semantic_output(spurious_project_edit, COMPILED_CONTEXT)
 assert normalized_project_advice["action"] == "EXPLAIN" and normalized_project_advice["job_edit"] is None
+application_context = json.loads(json.dumps(COMPILED_CONTEXT))
+application_context["application"] = {"stage": "APPLIED", "outcome": "", "authority": "HUMAN_RECORDED_FOLLOWUP"}
+stage_edit = semantic("PROPOSE_JOB_EDIT")
+stage_edit["job_edit"] = {"field": "application_stage", "desired_value": "CLOSED", "reason": "用户要求结束本次跟进。"}
+assert validate_semantic_output(stage_edit, application_context)["job_edit"]["desired_value"] == "CLOSED"
+invalid_stage = json.loads(json.dumps(stage_edit))
+invalid_stage["job_edit"]["desired_value"] = "RESUME_REJECTED"
+expect("JOB_EDIT_INVALID", lambda: validate_semantic_output(invalid_stage, application_context))
+assert validate_semantic_output(stage_edit, COMPILED_CONTEXT)["job_edit"] is None
 fenced_output, _ = normalize_job_conversation_response(
     provider_response(semantic()) | {
         "choices": [{"finish_reason": "stop", "message": {"content": "```json\n" + json.dumps(semantic(), ensure_ascii=False) + "\n```"}}],

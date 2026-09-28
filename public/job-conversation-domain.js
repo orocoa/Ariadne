@@ -152,7 +152,7 @@
     });
   }
 
-  function compileContext({ job_revision: jobRevision, job_subject: jobSubject, candidate_snapshot: candidateSnapshot, candidate_delta: candidateDelta, source_excerpt_manifest: sourceManifest, human_message: humanMessage, messages = [] }) {
+  function compileContext({ job_revision: jobRevision, job_subject: jobSubject, application, candidate_snapshot: candidateSnapshot, candidate_delta: candidateDelta, source_excerpt_manifest: sourceManifest, human_message: humanMessage, messages = [] }) {
     const Delivery = globalThis.AriadneConversationOutput || (typeof module === "object" ? require("./conversation-output.js") : null);
     const subject = normalizedJobSubject(jobSubject || jobRevision);
     const payload = subject.payload;
@@ -192,6 +192,11 @@
         source_availability: payload.source_availability,
         authority: subject.authority,
       },
+      application: application ? {
+        stage: Manifest.application_stages.includes(application.stage) ? application.stage : (() => { throw new JobConversationError("application_stage_invalid"); })(),
+        outcome: typeof application.outcome === "string" ? application.outcome : "",
+        authority: "HUMAN_RECORDED_FOLLOWUP",
+      } : null,
       candidate: clone(selected.provider_view),
       candidate_context_status: clone(selected.structural_counts),
       candidate_context_coverage: clone(selected.context_coverage),
@@ -354,14 +359,17 @@
     });
     if (recommendations.length > Manifest.limits.recommendations) throw new JobConversationError("job_recommendations_limit_invalid");
     const jobEditRequested = compiledContext.turn_scope?.job_edit_requested === true;
-    const edit = value.job_edit === null || !jobEditRequested ? null : {
-      field: Manifest.editable_job_fields.includes(value.job_edit?.field) ? value.job_edit.field : (() => { throw new JobConversationError("job_edit_field_invalid"); })(),
-      desired_value: requiredText(value.job_edit?.desired_value, "job_edit_value_invalid", Manifest.limits.job_field_value),
+    const applicationEdit = value.job_edit?.field === "application_stage" && Boolean(compiledContext.application);
+    const edit = value.job_edit === null || (!jobEditRequested && !applicationEdit) ? null : {
+      field: Manifest.editable_conversation_fields.includes(value.job_edit?.field) ? value.job_edit.field : (() => { throw new JobConversationError("job_edit_field_invalid"); })(),
+      desired_value: value.job_edit?.field === "application_stage"
+        ? (Manifest.application_stages.includes(value.job_edit?.desired_value) ? value.job_edit.desired_value : (() => { throw new JobConversationError("application_stage_invalid"); })())
+        : requiredText(value.job_edit?.desired_value, "job_edit_value_invalid", Manifest.limits.job_field_value),
       reason: requiredText(value.job_edit?.reason, "job_edit_reason_invalid", 4000),
     };
     let clarification = value.clarification === null ? null : requiredText(value.clarification, "job_clarification_invalid", Manifest.limits.clarification);
     let action = value.action;
-    if (jobEditRequested && (action === "PROPOSE_JOB_EDIT") !== Boolean(edit)) throw new JobConversationError("job_edit_action_mismatch");
+    if ((jobEditRequested || applicationEdit) && (action === "PROPOSE_JOB_EDIT") !== Boolean(edit)) throw new JobConversationError("job_edit_action_mismatch");
     if (edit) {
       clarification = null;
     } else {
