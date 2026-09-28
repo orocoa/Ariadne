@@ -1,6 +1,6 @@
 # Ariadne · 衡
 
-2026-09-20: Ariadne has two product paths: Web (your API, browser storage) and Skill (local Codex, local files). The Skill opens the workspace directly. The website’s local Agent entry provides installation guidance; website pairing is retired. See [current architecture](docs/current/TWO_PRODUCT_ARCHITECTURE.md).
+2026-09-28: Web and the complete Skill package share the latest job workspace changes. Web uses your API and browser storage; Skill uses local Codex and local files. [Release notes](CHANGELOG.md) · [Download this release](https://github.com/orocoa/Ariadne/releases/tag/skill-20260928-workspace-changes).
 
 
 > **Understand your experience. Make sense of your next role.**
@@ -28,6 +28,17 @@ The product question is whether people can understand the relationship between t
 Ariadne helps you understand your experience in relation to a job you care about. Add your résumé, portfolio, or project notes, then add the job description separately. With a connected model, you can discuss which requirements your materials support, what needs more evidence or clarification, and how to describe your work more clearly.
 
 You can keep the original documents, review suggestions, and save the changes you agree with as new versions. The model does not decide your career goal or automatically submit applications.
+
+## September 28 update
+
+- **Synchronize a whole request.** A Job conversation can propose changes to title, company, location, summary, requirements, application stage/outcome, notes, and journal entries together. For example, “HR asked me to add the founder on WeChat, but the request was never accepted; close this application and record what happened” produces a reviewable group containing both the status and the event. No response is not treated as a confirmed rejection.
+- **Review and save once.** Compare all changes before accepting. They save together or fail together; concurrent edits invalidate stale proposals. Original sources and history remain. Journal text is in context; attached journal images are counted, not read by this feature. Job conversations cannot change personal records.
+- **Choose the local model and reasoning separately.** Skill discovers available Codex models and shows only those with verified image/PDF support. Current qualifications cover GPT-6 Astra/Sol/Luna, GPT-5.6 Sol/Terra/Luna and GPT-5.5, subject to your account's actual availability. Your existing choice is preserved.
+- **Confirm each conversation entry.** All six conversation entry points show the current scope/model before entry. Changing the model or reasoning requires a fresh confirmation.
+
+The [website](https://ariadne.kai-nex.com/) and [full Skill ZIP](https://github.com/orocoa/Ariadne/releases/tag/skill-20260928-workspace-changes) are built from the same release source. The ZIP includes the launcher, pages, runtime, contracts, and file hash manifest; the repository's `skills/ariadne` folder alone is not an installable full package. To upgrade, quit Ariadne, copy the current instructions from [the installation dialog](https://ariadne.kai-nex.com/#skill) into Codex, and retain the existing data directory. Web/Skill data do not automatically synchronize.
+
+[Change-set architecture and verification](docs/current/JOB_WORKSPACE_CHANGE_SETS.md) · [Model selection contract](docs/current/MODEL_SELECTION_AND_TUNING_ARCHITECTURE.md)
 
 ## Your first session
 
@@ -71,7 +82,7 @@ I first focused on how materials could be understood and saved reliably, then on
 | Standalone package / Mac App | Bundling the UI, backend, Python, Codex and PDF tools provided a dedicated window and service shutdown when the last window closed, without requiring a terminal or developer environment. | Bundled runtimes, platform compatibility and distribution needed maintenance. Web use, local APIs and Codex also crowded the same entry flow. |
 | Web + local Skill | Codex was already my local entry point. I wanted to install, check dependencies and launch Ariadne from that conversation while keeping the full document and review interface. Web now focuses on APIs; Skill focuses on the local Agent and opens the workspace directly. | The Skill bundle is smaller, but depends on local Python, Codex, PDF tools and the window build environment. Data does not synchronize automatically. Only Codex has been verified; another Agent still needs an adapter, capability checks and compatible save boundaries. |
 
-The Skill is an installation and invocation entry with complete runtime code. Materials belong to an independent local workspace, not to a particular Agent conversation; ordinary discussion cannot silently change confirmed records. A future Agent can reuse the same file store only with a verified workspace identity and compatible execution and write contracts. Cross-product synchronization and feedback-update features are not implemented in this change.
+The Skill is an installation and invocation entry with complete runtime code. Materials belong to an independent local workspace, not to a particular Agent conversation; ordinary discussion cannot silently change confirmed records. A future Agent can reuse the same file store only with a verified workspace identity and compatible execution and write contracts. Cross-product synchronization is not implemented. Job follow-up changes are now supported through the reviewed change-set workflow described above.
 
 Evidence: [installer history](docs/current/LOCAL_DISTRIBUTION.md), [Skill and data boundaries](docs/current/ARIADNE_SKILL.md), and [stage validation records](PROJECT_STATUS.md). These are implementation and delivery decisions, not evidence that independent users save time or achieve better hiring outcomes.
 
@@ -137,7 +148,7 @@ Ariadne can sit before any of these workflows: it prepares a reviewed, source-gr
 - Attach materials to a conversation turn with an explicit transmission confirmation. Attachments stay separate from confirmed Candidate and Job data.
 - Use local Codex through the Skill. The website’s local Agent entry explains installation and invocation; it does not connect to the local machine.
 
-The verified Codex combination is `codex-cli 0.153.4` with `gpt-5.6-sol`. The Skill service runs on loopback and preserves Ariadne’s domain and save boundaries. Current setup is in the [Skill guide](docs/current/ARIADNE_SKILL.md); the [connector guide](docs/current/CODEX_RUNTIME_CONNECTOR.md) records the retired pairing design.
+The verified Codex CLI is `codex-cli 0.153.4`; qualified models are intersected with the account’s live model list. See the [model qualification scope](docs/current/MODEL_SELECTION_AND_TUNING_ARCHITECTURE.md). The Skill service runs on loopback and preserves Ariadne’s domain and save boundaries. Current setup is in the [Skill guide](docs/current/ARIADNE_SKILL.md); the [connector guide](docs/current/CODEX_RUNTIME_CONNECTOR.md) records the retired pairing design.
 
 Content now uses a [shared Markdown repository](docs/current/MARKDOWN_CONTENT_STORAGE.md): real files for the local app, the same document format in browser storage for the web app. Cards are views of those documents; original files, review states, and history remain separate and traceable. Existing browser data migrates on first access, with the old database retained as a backup.
 

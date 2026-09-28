@@ -1,6 +1,6 @@
 # Ariadne · 衡
 
-2026-09-20：Ariadne 分为网页版（自带 API、浏览器资料库）与本地 Skill（Codex、本地文件库）。Skill 直接进入工作空间，不再经过模型选择页；网页的本地 Agent 入口只提供安装说明。旧网页配对停止使用。参见 [当前双端架构](docs/current/TWO_PRODUCT_ARCHITECTURE.md)。
+2026-09-28：网页版与完整 Skill 包同步最新职位工作空间变更能力。网页版使用自己的 API、浏览器资料库；Skill 使用本机 Codex、本地文件库。[更新记录](CHANGELOG.md) · [下载本次版本](https://github.com/orocoa/Ariadne/releases/tag/skill-20260928-workspace-changes)。
 
 
 > **看懂自己的经历，理解想去的岗位。**
@@ -28,6 +28,17 @@
 Ariadne 帮你结合自己的经历，理解一个真正关心的岗位。你可以加入简历、作品集或项目记录，再单独加入职位描述。连接模型后，围绕这个职位讨论：哪些要求已有资料支持，哪些还需要补充证据或澄清，以及怎样更清楚地表达做过的事。
 
 原始材料会保留；模型提出的内容先供你审阅，只有你明确保存后才生成新的确认版本。目标岗位和下一步行动由你决定，Ariadne 不会自动替你投递。
+
+## 9 月 28 日更新内容
+
+- **一次同步完整信息。** 职位对话可以成组修改标题、公司、地点、简介、要求、投递阶段/结果、备注，以及新增、纠正、移除求职记录。例如“HR 让我加老板微信但一直没通过，结束这次投递并记下经过”，会同时提出状态和经过两项变化；未回应不会被自动认定为明确拒绝。
+- **统一审阅、一次保存。** 展示全部修改前后值，接受后整组保存，失败则整组不写入。期间数据变化会使旧建议失效；原件与历史保留。当前读取求职记录文字，记录附件图片仅提供数量，不解析图片内容；职位对话不能修改个人资料。
+- **本机模型与思考强度分别选择。** Skill 读取实际 Codex 模型列表，仅展示已验证图片/视觉 PDF 能力的型号。目前资格覆盖 GPT-6 Astra/Sol/Luna、GPT-5.6 Sol/Terra/Luna 与 GPT-5.5，最终以使用者账号可用型号为准；已有选择不会自动替换。
+- **每次进入对话先确认。** 六个对话入口统一显示本次范围和模型；切换模型或强度后重新确认。
+
+[网页](https://ariadne.kai-nex.com/)与[完整 Skill ZIP](https://github.com/orocoa/Ariadne/releases/tag/skill-20260928-workspace-changes)从同一发布源码构建。ZIP 包含启动器、页面、运行代码、契约和文件哈希清单；仓库中的 `skills/ariadne` 子目录本身不是完整安装包。升级时退出 Ariadne，将[安装窗口](https://ariadne.kai-nex.com/#skill)的最新指令粘贴到 Codex，保留既有资料目录。网页和 Skill 的用户资料不自动同步。
+
+[整组变更架构与验收范围](docs/current/JOB_WORKSPACE_CHANGE_SETS.md) · [模型选择契约](docs/current/MODEL_SELECTION_AND_TUNING_ARCHITECTURE.md)
 
 ## 第一次怎么用
 
@@ -71,7 +82,7 @@ Mac 默认由 Skill 打开独立窗口，关闭最后窗口即停止服务，保
 | 独立安装包 / Mac App | 把页面、后端、Python、Codex 和 PDF 工具一起打包，提供独立窗口与随关随停，让使用者不必手动维持终端和开发环境。 | 需要随包维护运行时、平台适配与分发；网页、本地 API 和 Codex 的选择又集中在一个入口。 |
 | 网页 + 本地 Skill | 我的本机使用入口已经是 Codex，希望在对话中安装、检查依赖和唤起 Ariadne，同时保留适合浏览资料和审阅的完整窗口。因此网页版专注 API，Skill 专注本机 Agent，打开后直接进入工作空间。 | Skill 包更轻，但重新依赖本机 Python、Codex、PDF 工具和窗口编译环境。两端资料不自动同步；目前只验收了 Codex，其他 Agent 还需 adapter、能力与保存边界适配。 |
 
-Skill 是带完整运行代码的安装与调用入口。资料属于独立的本地工作区，不属于某次 Agent 对话；普通讨论也不会直接改写确认资料。未来换 Agent 可以复用已核对身份的同一份文件库，但还必须适配连接协议和读写契约。当前没有实现跨端同步，也没有扩展反馈更新功能。
+Skill 是带完整运行代码的安装与调用入口。资料属于独立的本地工作区，不属于某次 Agent 对话；普通讨论也不会直接改写确认资料。未来换 Agent 可以复用已核对身份的同一份文件库，但还必须适配连接协议和读写契约。当前没有实现跨端同步；职位跟进信息已可通过上述整组提案流程审阅更新。
 
 依据：[本地安装包历史](docs/current/LOCAL_DISTRIBUTION.md)、[Skill 使用与数据边界](docs/current/ARIADNE_SKILL.md)、[阶段验收记录](PROJECT_STATUS.md)。这些是实现与交付上的取舍，尚不能证明独立用户使用更省时或求职效果更好。
 
@@ -139,7 +150,7 @@ Ariadne 可以成为这些工作流的前置层：先形成经本人审阅、有
 
 内容现已接入[统一 Markdown 内容库](docs/current/MARKDOWN_CONTENT_STORAGE.md)：本机保存真实文件，网页端在浏览器内保存同格式文档；卡片从同一文档生成视图，原件、审阅状态和历史保留。既有浏览器数据在首次访问时迁移，旧数据库原地留作备份。
 
-当前已验证的 Codex 组合为 `codex-cli 0.153.4` / `gpt-5.6-sol`。Skill 服务只监听 loopback，保留领域与人工保存边界；当前步骤见 [Skill 指南](docs/current/ARIADNE_SKILL.md)，[旧 Codex 连接器指南](docs/current/CODEX_RUNTIME_CONNECTOR.md) 仅作历史参考。
+当前已验证 `codex-cli 0.153.4`；模型资格与账号实际可用列表取交集，具体[模型验收范围](docs/current/MODEL_SELECTION_AND_TUNING_ARCHITECTURE.md)单独记录。Skill 服务只监听 loopback，保留领域与人工保存边界；当前步骤见 [Skill 指南](docs/current/ARIADNE_SKILL.md)，[旧 Codex 连接器指南](docs/current/CODEX_RUNTIME_CONNECTOR.md) 仅作历史参考。
 
 ## 明确不做什么
 

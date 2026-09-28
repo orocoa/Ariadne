@@ -13,6 +13,10 @@
 
 2026-09-24 流式升级：首次使用或旧版升级，在安装的 Skill 目录运行 `python3 scripts/ariadne.py login`，由本人完成官方登录。Ariadne 使用独立 `~/Library/Application Support/Ariadne Codex` 目录（其他 POSIX 为 `~/.local/share/Ariadne Codex`），不再继承日常 Codex 的认证/配置/AGENTS.md；不要手动复制认证文件。日常 Codex 和个人资料不受影响。`doctor` 只检查依赖与登录，不代表模型质量认证。
 
+## 2026-09-28 更新与升级
+
+本次完整包同步职位整组变更、Codex 多模型与独立强度选择、六入口每次确认。详见[更新记录](../../CHANGELOG.md)与[职位变更契约](JOB_WORKSPACE_CHANGE_SETS.md)。先退出 Ariadne，再从官网重新复制安装指令；升级前保留旧 Skill 备份，校验具体 GitHub Release ZIP 的大小和 SHA-256，替换完整运行代码，保留原资料目录和工作区绑定。重新打开后执行依赖检查并核对原资料；不把仓库中的 Skill 子目录当完整包。
+
 ## 数据和维护
 
 默认地址 `http://127.0.0.1:8766`，资料位于 `~/Library/Application Support/Ariadne Skill/workspaces/<workspace-id>/`。页面的 `ariadne-content-workspace-v1` 映射决定具体工作区；保持既有目录与身份，不按最新目录猜测。Skill 安装目录不保存个人资料，更新运行代码不迁移旧 App 或浏览器的数据。
