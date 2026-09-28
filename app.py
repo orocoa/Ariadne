@@ -20,7 +20,8 @@ import tempfile
 import uuid
 from datetime import datetime, timezone
 from http import HTTPStatus
-from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from http.server import SimpleHTTPRequestHandler
+from src.loopback_server import LoopbackHTTPServer as ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlparse
 from urllib.error import HTTPError, URLError

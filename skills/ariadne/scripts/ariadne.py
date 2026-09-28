@@ -11,7 +11,6 @@ import signal
 import subprocess
 import sys
 import uuid
-from http.server import ThreadingHTTPServer
 
 SKILL = Path(__file__).resolve().parents[1]
 WORKSPACE_BINDING_CONTRACT = "ariadne-desktop-workspace-binding-v1"
@@ -186,7 +185,8 @@ def connect(origin):
     os.environ["ARIADNE_CODEX_ENABLED"] = "1"
     os.environ["ARIADNE_CODEX_BINARY"] = executable("codex", os.environ.get("ARIADNE_CODEX_BINARY"))
     try:
-        server = ThreadingHTTPServer(("127.0.0.1", 8765), connector_handler(JobRadarHandler))
+        from src.loopback_server import LoopbackHTTPServer
+        server = LoopbackHTTPServer(("127.0.0.1", 8765), connector_handler(JobRadarHandler))
     except OSError:
         print(json.dumps({"error": "CONNECTOR_PORT_UNAVAILABLE", "port": 8765,
                           "action": "Stop your existing connector yourself; no process was replaced."}))
@@ -230,7 +230,8 @@ def open_local(port=8766, data_dir=None):
             pass
 
     try:
-        server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+        from src.loopback_server import LoopbackHTTPServer
+        server = LoopbackHTTPServer(("127.0.0.1", port), Handler)
     except OSError:
         print(json.dumps({"error": "SKILL_PORT_UNAVAILABLE", "port": port,
                           "action": "Use your already-running Skill terminal or stop it yourself; no process was replaced."}))

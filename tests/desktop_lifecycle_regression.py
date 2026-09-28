@@ -11,8 +11,14 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest.mock import patch
+from http.server import BaseHTTPRequestHandler
+import http.client
+import threading
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from src.loopback_server import LoopbackHTTPServer
 spec = importlib.util.spec_from_file_location('local_package', ROOT / 'scripts/local_package.py')
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
@@ -26,6 +32,8 @@ class LifecycleTests(unittest.TestCase):
         self.root = Path(tempfile.mkdtemp(prefix='case-', dir=output))
         self.bundle = self.root / '下载 含空格'
         (self.bundle / 'app/data').mkdir(parents=True)
+        (self.bundle / 'app/src').mkdir()
+        (self.bundle / 'app/src/loopback_server.py').write_bytes((ROOT / 'src/loopback_server.py').read_bytes())
         (self.bundle / 'python/bin').mkdir(parents=True)
         (self.bundle / 'python/bin/python3').symlink_to(sys.executable)
         (self.bundle / 'release.json').write_text('{"release":"desktop-fixture"}')
@@ -69,6 +77,30 @@ def initialize_database():
     def assert_closed(self):
         with socket.socket() as sock:
             self.assertNotEqual(sock.connect_ex(('127.0.0.1', self.port)), 0)
+
+    def test_loopback_http_works_without_reverse_dns(self):
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b"local workspace")
+            def log_message(self, *args): pass
+        with patch("socket.getfqdn", side_effect=AssertionError("DNS must not be used")):
+            server = LoopbackHTTPServer(("127.0.0.1", 0), Handler)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                connection = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=2)
+                connection.request("GET", "/")
+                response = connection.getresponse()
+                self.assertEqual(response.status, 200)
+                self.assertEqual(response.read(), b"local workspace")
+                connection.close()
+                self.assertEqual(server.server_name, "127.0.0.1")
+            finally:
+                server.shutdown(); server.server_close(); thread.join(timeout=2)
+        with self.assertRaises(ValueError):
+            LoopbackHTTPServer(("0.0.0.0", 0), Handler)
 
     def test_eof_stops_service_reopen_preserves_data(self):
         first = self.start(); self.ready(first)

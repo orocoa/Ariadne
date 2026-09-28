@@ -77,7 +77,7 @@ def serve(target, port, open_browser, exclusive=False):
 
     sys.path.insert(0, str(target / "app"))
     import app
-    from http.server import ThreadingHTTPServer
+    from src.loopback_server import LoopbackHTTPServer as ThreadingHTTPServer
 
     class Handler(app.JobRadarHandler):
         def do_GET(self):
