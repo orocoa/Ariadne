@@ -1,5 +1,11 @@
 # AI Job Radar｜Phase 4 Status
 
+## 2026-09-30 — README 顶部突出“众神指导”
+
+- 按作者要求，中英文 README 在主标题下直接展示“众神指导 / Guided by the Gods”提示块，明确 GPT-6 Astra 的 Ultra 思考强度与多个 Astra agent 协作完成本轮最终架构、代码实现及交叉审核。
+- 将“可以不相信我的 coding 能力，但是不能否定 Astra 的。”作为作者原话加粗展示，并提供英文对应表述；保留后文的开发致谢和项目责任说明。
+- 本次仅调整文档。检查 Markdown diff、文内链接及公开文件；此前优化与 PDF 测试隔离修复提交 `261fe9c` 的 [CI](https://github.com/orocoa/Ariadne/actions/runs/36596390618) 已全部通过，包含 141/141 套回归、浏览器验收、VI 与 Gitleaks。
+
 ## 2026-09-30 — GitHub 同步与 PDF 回归环境隔离
 
 - 已通过项目现有 GitHub CLI 的 Git Data API 将 `8b77d26` 和 `ee1370a` 同步到 `orocoa/Ariadne/main`，两个树与提交 SHA 均与本地完全一致，使用 `force: false` 更新分支。普通 Git HTTPS 连接出现 HTTP2 framing / 443 超时；没有改写提交、提取凭据或降低 TLS 验证。远端 README、架构 HTML/PNG 的 blob 已独立核对。

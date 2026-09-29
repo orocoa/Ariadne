@@ -1,5 +1,12 @@
 # Ariadne · 衡
 
+> [!NOTE]
+> **众神指导 · GPT-6 Astra / Ultra × 多个 Astra agent**
+>
+> 本轮最终架构、代码实现与交叉审核，调用了 **GPT-6 Astra 的 Ultra 思考强度**，并由 **多个 Astra agent 协作完成**。
+>
+> **作者的话：“可以不相信我的 coding 能力，但是不能否定 Astra 的。”**
+
 2026-09-29：源码已加入架构审核后的可靠性与负载优化，本轮尚未部署；官网与公开 Skill 安装包仍为 9 月 28 日版本。[源码更新记录](CHANGELOG.md) · [下载已发布的 9 月 28 日版本](https://github.com/orocoa/Ariadne/releases/tag/skill-20260928-workspace-changes)。
 
 

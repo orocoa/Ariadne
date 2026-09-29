@@ -1,5 +1,12 @@
 # Ariadne · 衡
 
+> [!NOTE]
+> **众神指导 · Guided by the Gods · GPT-6 Astra / Ultra × Multiple Astra Agents**
+>
+> This round’s final architecture, implementation, and cross-review used **GPT-6 Astra at Ultra reasoning effort**, with **multiple Astra agents collaborating**.
+>
+> **From the author: “You can doubt my coding skills, but you can’t dismiss Astra’s.”**
+
 2026-09-29: The source includes reliability and load optimizations following an architecture review. These changes have not been deployed: the website and published Skill package remain on the September 28 release. [Source changes](CHANGELOG.md) · [Download the published September 28 release](https://github.com/orocoa/Ariadne/releases/tag/skill-20260928-workspace-changes).
 
 
