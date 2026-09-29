@@ -1,18 +1,10 @@
 # Ariadne · 衡
 
-> [!NOTE]
-> **众神指导 · Guided by the Gods · GPT-6 Astra / Ultra × Multiple Astra Agents**
->
-> This round’s final architecture, implementation, and cross-review used **GPT-6 Astra at Ultra reasoning effort**, with **multiple Astra agents collaborating**.
->
-> **From the author: “You can doubt my coding skills, but you can’t dismiss Astra’s.”**
-
-2026-09-29: The source includes reliability and load optimizations following an architecture review. These changes have not been deployed: the website and published Skill package remain on the September 28 release. [Source changes](CHANGELOG.md) · [Download the published September 28 release](https://github.com/orocoa/Ariadne/releases/tag/skill-20260928-workspace-changes).
-
-
 > **Understand your experience. Make sense of your next role.**
 >
-> An open-source AI workspace for exploring your experience and target jobs, with original sources, reviewable suggestions, and changes you explicitly save.
+> Ariadne is an open-source AI career workspace for organizing personal materials, understanding target roles, and discussing both with reference to original sources. It preserves sources and version history; AI-proposed changes require your review and explicit save.
+
+2026-09-29: The source includes reliability and load optimizations following an architecture review. These changes have not been deployed: the website and published Skill package remain on the September 28 release. [Source changes](CHANGELOG.md) · [Download the published September 28 release](https://github.com/orocoa/Ariadne/releases/tag/skill-20260928-workspace-changes).
 
 [中文说明](README.zh-CN.md) · [Current architecture map (Chinese)](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.html) · [Architecture evolution](docs/architecture/archify/2026-09-12-project-evolution/07-architecture-evolution-six-stages.en.html) · [Project history](PROJECT_HISTORY.md) · [Runtime contract](docs/current/ARIADNE_RUNTIME_EXECUTION_CONTRACT.md) · [Skill guide](docs/current/ARIADNE_SKILL.md)
 
@@ -29,10 +21,6 @@ The product question is whether people can understand the relationship between t
 **Delivered:** a web app and macOS preview, source-preserving workflows, model integration, and documented failure/iteration cases. **Next to validate:** whether independent target users complete career-evidence tasks more accurately or with less effort than their existing workflow. Internal tests and a public release are not evidence of adoption or hiring outcomes.
 
 [Read the product case / 产品案例与个人贡献](docs/product/PRODUCT_CASE_STUDY.md) · [User-validation protocol / 用户验证方案](docs/product/USER_VALIDATION_PLAN.md)
-
-### 众神指导 · Development acknowledgments
-
-The September 29 architecture review, implementation, and cross-verification used **GPT-6 Astra at Ultra reasoning effort, with multiple Astra agents collaborating on separate responsibilities**. KAI remains responsible for product direction, architecture decisions, design, acceptance, and release; project ownership and the MIT license are unchanged. This acknowledges the development workflow: no new model was trained, and Ultra is not a fixed Ariadne runtime setting. Product model and reasoning choices remain governed by available capabilities and the user's selection and confirmation.
 
 ## What you can do
 

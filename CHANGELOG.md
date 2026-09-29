@@ -1,5 +1,9 @@
 # 发布记录
 
+## 2026-09-30 — 项目介绍整理
+
+- 中英文 README 以产品定位、核心工作流和数据保存规则开篇；移除模型宣传口号与个人评价引文，相关架构说明保持客观表述。
+
 ## 2026-09-30 — PDF 契约回归的环境隔离
 
 - GitHub 首轮优化 CI 为 140/141：Job PDF 合约测试模拟了转图，但预检仍依赖 runner 未安装的 `pdfinfo`。现在同时注入合成元数据，保留完整两页、缺页拒绝及原件完整性断言；另增加两种 Poppler 工具缺失时明确失败的回归。不跳过测试、不降低生产校验、不修改运行代码；本次仍仅更新 GitHub 源码与说明，未部署官网或替换安装包。
@@ -17,7 +21,6 @@
 - 离线回归、桌面／手机 Chrome 行为、真实本地 Workerd/Pyodide 启动、经 Durable Object／WSGI 拒绝的无效合成请求，以及 Pages 实际缓存头完成验证；候选 Skill／Web／Cloudflare 包核验模块、哈希和公开文件范围。产品验收未调用真实付费 Provider，未验证生产负载或新机器安装。
 - 新增 8 个语义评测情景及人工回执校验器：完整性检查不认证真实执行，人工失败与无效回执非零退出；缺少真实模型输出与人工审阅时仍为 NOT_RUN。结构、浏览器及运行时验证不冒充语义质量评估。
 - 更新[中文交互架构图](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.html)、[架构分析](docs/current/ARCHITECTURE_REVIEW_20260929.md)与中英文 README；旧架构图保留为历史。细节见[优化记录](docs/current/RUNTIME_OPTIMIZATION_20260929.md)与 [PROJECT_STATUS.md](PROJECT_STATUS.md)。
-- **众神指导：** 本轮架构审核、实现与交叉验证使用 GPT-6 Astra / Ultra，由多个 Astra agent 分工协作。KAI 继续承担产品、架构、设计、验收和发布责任；项目所有权与 MIT 许可不变。这是开发致谢，没有训练新模型，也不把产品运行时固定为 Ultra。
 
 ## 2026-09-28 — 完整职位变更集与本机模型选择
 

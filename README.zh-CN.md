@@ -1,18 +1,10 @@
 # Ariadne · 衡
 
-> [!NOTE]
-> **众神指导 · GPT-6 Astra / Ultra × 多个 Astra agent**
->
-> 本轮最终架构、代码实现与交叉审核，调用了 **GPT-6 Astra 的 Ultra 思考强度**，并由 **多个 Astra agent 协作完成**。
->
-> **作者的话：“可以不相信我的 coding 能力，但是不能否定 Astra 的。”**
-
-2026-09-29：源码已加入架构审核后的可靠性与负载优化，本轮尚未部署；官网与公开 Skill 安装包仍为 9 月 28 日版本。[源码更新记录](CHANGELOG.md) · [下载已发布的 9 月 28 日版本](https://github.com/orocoa/Ariadne/releases/tag/skill-20260928-workspace-changes)。
-
-
 > **看懂自己的经历，理解想去的岗位。**
 >
-> 一个开源 AI 工作空间：结合你的资料与目标职位讨论已有支持、未知和下一步，保留原件，由你审阅并保存变化。
+> Ariadne · 衡是一个开源 AI 职业工作空间，用于整理个人资料、理解目标职位，并基于原始材料开展分析与讨论。项目保留来源与历史版本；AI 提出的修改须经用户审阅并明确保存。
+
+2026-09-29：源码已加入架构审核后的可靠性与负载优化，本轮尚未部署；官网与公开 Skill 安装包仍为 9 月 28 日版本。[源码更新记录](CHANGELOG.md) · [下载已发布的 9 月 28 日版本](https://github.com/orocoa/Ariadne/releases/tag/skill-20260928-workspace-changes)。
 
 [English README](README.md) · [当前架构图](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.html) · [架构演进图](docs/architecture/archify/2026-09-12-project-evolution/07-architecture-evolution-six-stages.html) · [完整项目经历](PROJECT_HISTORY.md) · [运行时契约](docs/current/ARIADNE_RUNTIME_EXECUTION_CONTRACT.md) · [Skill 使用指南](docs/current/ARIADNE_SKILL.md)
 
@@ -29,10 +21,6 @@
 **已经交付：** 网页和 macOS 预览版、保留原件的工作流、模型接入，以及可追溯的失败与迭代记录。**下一步验证：** 独立目标用户是否比原有工作方式更准确、更省力地完成职业证据判断。内部测试和公开发布不等于用户采用或求职效果。
 
 [阅读产品案例与个人贡献](docs/product/PRODUCT_CASE_STUDY.md) · [查看真实用户验证方案](docs/product/USER_VALIDATION_PLAN.md)
-
-### 众神指导 · 开发致谢
-
-9 月 29 日的架构审核、实现与交叉验证，使用 **GPT-6 Astra / Ultra，并由多个 Astra agent 分工协作完成**。KAI 继续负责产品方向、架构取舍、设计、验收与发布，项目所有权及 MIT 许可证保持不变。这是开发过程的致谢：本轮没有训练新模型，Ultra 也不是 Ariadne 产品运行时的固定配置；产品仍依据实际能力、用户选择和传输确认使用模型及思考强度。
 
 ## 可以用它做什么
 
