@@ -21,7 +21,10 @@ def pdf_request(blob=(ROOT/'public/provider-visual-check.pdf').read_bytes(),prov
     fp=runtime_fingerprint(snapshot);op=job_model_operation_id(identity,fp,consent['consent_id']);value['operation_identity'].update(source_document_id=identity,runtime_fingerprint=fp,operation_id=op);value['processing_run_id']='run-'+op
     return value
 
-with patch.dict(os.environ,{'ARIADNE_CODEX_ENABLED':'1'}):
+# This suite checks the Job delivery contract. Poppler admission/render behavior
+# is covered separately in web_pdf_delivery/runtime_efficiency regressions.
+with patch.dict(os.environ,{'ARIADNE_CODEX_ENABLED':'1'}), \
+     patch('src.pdf_delivery._inspect_path',return_value={'pages':2,'pixels':2_800_000}):
     for provider in ['codex','deepseek']:
         request=pdf_request(provider=provider);validated=validate_job_model_request(request)
         with patch('src.job_model_runtime.render_complete_pdf_pages',return_value=[('1',b'image-one'),('2',b'image-two')]):

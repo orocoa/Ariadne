@@ -21,6 +21,18 @@ class PublicPDFTests(unittest.TestCase):
             PUBLIC_PDF_LIMITS.reset(token)
         self.assertFalse(PUBLIC_PDF_LIMITS.get())
 
+    def test_missing_pdf_tools_fail_explicitly_without_partial_delivery(self):
+        with patch('src.pdf_delivery.subprocess.run', side_effect=FileNotFoundError('pdfinfo')), \
+             patch('src.pdf_delivery.subprocess.Popen') as renderer:
+            with self.assertRaisesRegex(AICareerIngestionError, '^pdf_preflight_failed$'):
+                render_complete_pdf_pages(b'%PDF-synthetic')
+            renderer.assert_not_called()
+        info = subprocess.CompletedProcess([], 0, b'Pages: 1\nPage 1 size: 595 x 842 pts\n')
+        with patch('src.pdf_delivery.subprocess.run', return_value=info), \
+             patch('src.pdf_delivery.subprocess.Popen', side_effect=FileNotFoundError('pdftoppm')):
+            with self.assertRaisesRegex(AICareerIngestionError, '^pdf_page_render_failed$'):
+                render_complete_pdf_pages(b'%PDF-synthetic')
+
     def test_complete_render_and_partial_rejection(self):
         actual_pages = [2]
         def command(argv, **kwargs):

@@ -1,5 +1,14 @@
 # AI Job Radar｜Phase 4 Status
 
+## 2026-09-30 — GitHub 同步与 PDF 回归环境隔离
+
+- 已通过项目现有 GitHub CLI 的 Git Data API 将 `8b77d26` 和 `ee1370a` 同步到 `orocoa/Ariadne/main`，两个树与提交 SHA 均与本地完全一致，使用 `force: false` 更新分支。普通 Git HTTPS 连接出现 HTTP2 framing / 443 超时；没有改写提交、提取凭据或降低 TLS 验证。远端 README、架构 HTML/PNG 的 blob 已独立核对。
+- 用户提到的旧 [#50 / 36439793318](https://github.com/orocoa/Ariadne/actions/runs/36439793318) 属于 `f954c71`：127/129 回归通过，两组本机启动测试在 10 秒内没有收到 READY。去除启动反向 DNS 依赖的 `126c775` 已在[后续运行](https://github.com/orocoa/Ariadne/actions/runs/36440876205)达到 129/129、全部步骤成功；旧失败记录保留，不因后续成功自动改变结论。旧日志不足以证明 DNS 是唯一根因。
+- 本次 `ee1370a` 的[新 CI](https://github.com/orocoa/Ariadne/actions/runs/36595156652)为 140/141，唯一失败 `codex_job_pdf_regression.py`。其转图已用替身，但新增预检依赖真实 `pdfinfo`，runner 未安装该命令；后续浏览器/VI/Gitleaks 当次被跳过，不能宣称该轮通过。
+- 修复限定在测试：Job PDF 合约测试同时模拟元数据预检与转图，保留完整两页、缺页拒绝、原件 hash 和零 Provider 调用断言；另补 `pdfinfo` / `pdftoppm` 缺失时明确失败且不交付部分结果的覆盖。运行代码保持 `8b77d26`，架构图的源码绑定仍有效。后续远端结论以对应新提交的 GitHub Actions 为准。
+- 本机使用 `PATH=/usr/bin:/bin` 确认两种 Poppler 工具均不可发现：先复现修改前错误，修正后的目标测试、3 项 Web PDF 和 10 项 runtime 测试通过；材料/connector 回归通过。Cloudflare PDF 保留原有的 1 项缺少 pypdf 跳过，未新增 skip，也未通过安装额外依赖掩盖测试隔离问题。
+- 官网、公开 Skill Release 和本机安装未变；旧原件、失败日志与无关未提交内容保留。
+
 ## 2026-09-29 — 优化源码、Archify 架构与 GitHub 说明
 
 - 用户明确要求分析优化后的最终架构并同步 GitHub。运行实现绑定 `8b77d26`；本阶段补双语 README、CHANGELOG、[架构分析](docs/current/ARCHITECTURE_REVIEW_20260929.md)与 [Archify 交互图](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.html)，旧图与下载链接保留。
