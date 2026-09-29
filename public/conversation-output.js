@@ -132,10 +132,9 @@
       lines.slice(page * perPage, (page + 1) * perPage).forEach((line, index) => ctx.fillText(line, 94, 244 + index * 44));
       ctx.fillStyle = token("--vi-text-secondary"); ctx.font = `23px ${font}`;
       ctx.fillText(`第 ${page + 1} / ${count} 页`, 94, 1655);
-      const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
       const jpeg = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", .94));
-      if (!blob || !jpeg) throw new Error("图片生成失败，请重试");
-      pages.push({ png: blob, bytes: new Uint8Array(await jpeg.arrayBuffer()), width: canvas.width, height: canvas.height });
+      if (!jpeg) throw new Error("图片生成失败，请重试");
+      pages.push({ bytes: new Uint8Array(await jpeg.arrayBuffer()), width: canvas.width, height: canvas.height });
     }
     return pages;
   }
@@ -199,23 +198,46 @@
     return blob;
   }
 
-  function release(state) { state.urls.forEach(url => root.URL.revokeObjectURL(url)); state.urls.length = 0; }
+  function release(record) { record.urls.forEach(url => root.URL.revokeObjectURL(url)); record.urls.length = 0; }
+  function dispose(target) {
+    const state = exports.get(target); if (!state) return;
+    exports.delete(target); state.observer?.disconnect();
+    target.ownerDocument.defaultView.removeEventListener("pagehide", state.pagehide);
+    state.items.forEach(record => { release(record); record.nodes.forEach(node => node.remove()); });
+    state.items.clear();
+  }
   function decorate(target, messages, textFor) {
     if (!target?.isConnected) return;
     const doc = target.ownerDocument;
     const bubbles = [...target.querySelectorAll(".v1-conversation-message")];
-    const old = exports.get(target);
-    if (old && old.bubbles.length === bubbles.length && bubbles.every((node, i) => old.bubbles[i] === node)) return;
-    if (old) { release(old); old.observer?.disconnect(); }
-    const state = { urls: [], bubbles, observer: null, queue: Promise.resolve() }; exports.set(target, state);
-    state.observer = new doc.defaultView.MutationObserver(() => {
-      if (!target.isConnected) { release(state); state.observer.disconnect(); exports.delete(target); }
-    });
-    state.observer.observe(doc.body, { childList: true, subtree: true });
+    let state = exports.get(target);
+    if (!state) {
+      state = { items: new Map(), queue: Promise.resolve(), observer: null };
+      exports.set(target, state);
+      state.observer = new doc.defaultView.MutationObserver(() => { if (!target.isConnected) dispose(target); });
+      state.observer.observe(doc.body, { childList: true, subtree: true });
+      state.pagehide = event => { if (!event.persisted) dispose(target); };
+      doc.defaultView.addEventListener("pagehide", state.pagehide);
+    }
+    const used = new Set();
     messages.forEach((message, index) => {
-      if (message.role !== "ASSISTANT") return;
-      const searchBubble = bubbles[index];
-      if (searchBubble && message.web_search) {
+      const bubble = bubbles[index];
+      if (message.role !== "ASSISTANT" || !bubble || !message.deliverable && !message.web_search) return;
+      const key = bubble.dataset.messageKey || message.message_id || message.id || `reply:${index}`;
+      // Content and renderer version, rather than DOM identity, own the export.
+      const signature = JSON.stringify([VERSION, "render-v2", message.deliverable ?? null, message.web_search ?? null]);
+      used.add(key);
+      let record = state.items.get(key);
+      if (record?.signature === signature) {
+        record.bubble = bubble;
+        record.nodes.forEach(node => { if (node.parentElement !== bubble) bubble.append(node); });
+        return;
+      }
+      if (record) { release(record); record.nodes.forEach(node => node.remove()); }
+      record = { signature, bubble, urls: [], nodes: [] };
+      state.items.set(key, record);
+      const live = () => exports.get(target) === state && state.items.get(key) === record && record.bubble.isConnected;
+      if (message.web_search) {
         const area = doc.createElement("span"); area.className = "v1-reply-exports v1-web-search";
         try {
           const search = searchFromResult(message);
@@ -228,52 +250,52 @@
           }
           area.append(label, links);
         } catch (_) { area.textContent = "搜索来源信息无效 · 请勿据此确认个人经历"; }
-        searchBubble.append(area);
+        record.nodes.push(area); bubble.append(area);
       }
       if (!message.deliverable) return;
-      const bubble = bubbles[index]; if (!bubble || bubble.querySelector(".v1-reply-exports:not(.v1-web-search)")) return;
       const area = doc.createElement("span"); area.className = "v1-reply-exports";
       const actions = doc.createElement("span"); actions.className = "v1-reply-export-actions";
       const status = doc.createElement("span"); status.className = "v1-reply-export-status"; status.setAttribute("role", "status");
       const files = doc.createElement("span"); files.className = "v1-reply-export-files";
-      area.append(actions, status, files); bubble.append(area);
+      area.append(actions, status, files); bubble.append(area); record.nodes.push(area);
       const generate = async () => {
-          actions.replaceChildren(); files.replaceChildren(); status.textContent = "正在生成文件…";
-          try {
-            const value = validate(message.deliverable);
-            if (value.kind === "UNSUPPORTED") { status.textContent = value.body; return; }
-            const format = value.kind;
-            const name = value.title.replace(/[\\/:*?"<>|\u0000-\u001f]/g, "-").slice(0, 80);
-            const pages = format === "PDF" ? await renderPages(documentText(value), doc) : null;
-            const blob = format === "PDF" ? new Blob([pdfFromJpegs(pages)], { type: "application/pdf" }) : await renderDiagram(value, doc);
-            if (!bubble.isConnected || exports.get(target) !== state) return;
-            const entries = [{ blob, name: `${name}.${format === "PDF" ? "pdf" : "png"}` }];
-            entries.forEach(entry => {
-              const item = doc.createElement("span"); item.dataset.format = format;
-              const url = root.URL.createObjectURL(entry.blob); state.urls.push(url);
-              if (format === "DIAGRAM") {
-                const image = doc.createElement("img"); image.src = url; image.alt = value.body;
-                const preview = doc.createElement("a"); preview.href = url; preview.target = "_blank"; preview.rel = "noopener";
-                preview.setAttribute("aria-label", `查看${value.title}`); preview.append(image); item.append(preview);
-                const description = doc.createElement("span");
-                description.textContent = [value.body, ...value.edges.map((edge, i) => `${i + 1}. ${value.nodes[edge.from]} → ${value.nodes[edge.to]}${edge.label ? `：${edge.label}` : ""}`)].join("\n");
-                item.append(description);
-              }
-              const link = doc.createElement("a"); link.href = url; link.download = entry.name; link.textContent = `下载 ${entry.name}`; item.append(link); files.append(item);
-            });
-            status.textContent = format === "PDF" ? `已生成 ${pages.length} 页 PDF · 文字不可选取` : "图解已生成";
-          } catch (error) {
-            if (!bubble.isConnected || exports.get(target) !== state) return;
-            status.textContent = error.message || "生成失败，请重试";
-            const retry = doc.createElement("button"); retry.type = "button"; retry.textContent = "重试生成文件";
-            retry.addEventListener("click", generate); actions.append(retry);
+        if (!live() || record.generating) return;
+        record.generating = true;
+        actions.replaceChildren(); files.replaceChildren(); status.textContent = "正在生成文件…";
+        try {
+          const value = validate(message.deliverable);
+          if (value.kind === "UNSUPPORTED") { status.textContent = value.body; return; }
+          const format = value.kind;
+          const name = value.title.replace(/[\\/:*?"<>|\u0000-\u001f]/g, "-").slice(0, 80);
+          const pages = format === "PDF" ? await renderPages(documentText(value), doc) : null;
+          const blob = format === "PDF" ? new Blob([pdfFromJpegs(pages)], { type: "application/pdf" }) : await renderDiagram(value, doc);
+          if (!live()) return;
+          const item = doc.createElement("span"); item.dataset.format = format;
+          const url = root.URL.createObjectURL(blob); record.urls.push(url);
+          if (format === "DIAGRAM") {
+            const image = doc.createElement("img"); image.src = url; image.alt = value.body;
+            const preview = doc.createElement("a"); preview.href = url; preview.target = "_blank"; preview.rel = "noopener";
+            preview.setAttribute("aria-label", `查看${value.title}`); preview.append(image); item.append(preview);
+            const description = doc.createElement("span");
+            description.textContent = [value.body, ...value.edges.map((edge, i) => `${i + 1}. ${value.nodes[edge.from]} → ${value.nodes[edge.to]}${edge.label ? `：${edge.label}` : ""}`)].join("\n");
+            item.append(description);
           }
+          const link = doc.createElement("a"); link.href = url; link.download = `${name}.${format === "PDF" ? "pdf" : "png"}`;
+          link.textContent = `下载 ${link.download}`; item.append(link); files.append(item);
+          status.textContent = format === "PDF" ? `已生成 ${pages.length} 页 PDF · 文字不可选取` : "图解已生成";
+        } catch (error) {
+          if (!live()) return;
+          status.textContent = error.message || "生成失败，请重试";
+          const retry = doc.createElement("button"); retry.type = "button"; retry.textContent = "重试生成文件";
+          retry.addEventListener("click", () => { state.queue = state.queue.then(generate); }); actions.append(retry);
+        } finally { record.generating = false; }
       };
-      // Serialize historical file rendering; do not allocate many canvases at once.
-      state.queue = state.queue.then(() => {
-        if (bubble.isConnected && exports.get(target) === state) return generate();
-      });
+      // A cached historical export does not re-enter this queue on refresh.
+      state.queue = state.queue.then(generate);
     });
+    for (const [key, record] of state.items) if (!used.has(key)) {
+      release(record); record.nodes.forEach(node => node.remove()); state.items.delete(key);
+    }
   }
 
   function execution({ form }) {
@@ -289,5 +311,5 @@
       return `${text}\n[历史生成文件，非确认资料，内容可能截断]\n${JSON.stringify(value).slice(0, limit)}`;
     } catch (_) { return text; }
   }
-  return Object.freeze({ VERSION, validate, fromResult, searchFromResult, documentText, historyText, pdfFromJpegs, wrapText, renderPages, renderDiagram, decorate, execution });
+  return Object.freeze({ VERSION, validate, fromResult, searchFromResult, documentText, historyText, pdfFromJpegs, wrapText, renderPages, renderDiagram, decorate, dispose, execution });
 }));

@@ -16,31 +16,40 @@
       request.onerror = () => reject(request.error);
       request.onblocked = () => reject(Error("WORKSPACE_MIGRATION_BLOCKED"));
     });
-    if (Object.keys(schema).every(store => db.objectStoreNames.contains(store))) return db;
+    if (Object.keys(schema).every(store => db.objectStoreNames.contains(store)) && db.objectStoreNames.contains("__workspace")) return db;
     const nextVersion = db.version + 1;
     db.close();
     return openSchemaDatabase(name, schema, nextVersion);
   }
 
   async function initialize(name, nativeOpen) {
-    const original = await nativeOpen();
     const schema = root.AriadneWorkspaceStorageContract?.databases?.[name], snapshot = {};
-    if (!schema) { original.close(); throw Error("WORKSPACE_CONTRACT_INVALID"); }
-    try {
-      const names = Array.from(original.objectStoreNames);
-      if (names.length) await new Promise((resolve, reject) => {
-        const tx = original.transaction(names);
-        for (const storeName of names) {
-          const store = tx.objectStore(storeName), request = store.getAll();
-          if (schema[storeName] !== store.keyPath) { tx.abort(); reject(Error("WORKSPACE_MIGRATION_SCHEMA_MISMATCH")); return; }
-          request.onsuccess = () => { snapshot[storeName] = request.result; };
-        }
-        tx.oncomplete = resolve; tx.onerror = tx.onabort = () => reject(tx.error || Error("WORKSPACE_MIGRATION_READ_FAILED"));
-      });
-
-    } finally { original.close(); }
+    if (!schema) throw Error("WORKSPACE_CONTRACT_INVALID");
     const db = await openSchemaDatabase(name, schema);
     try {
+      // A completed migration no longer depends on opening or decoding the old
+      // database. Its records remain an untouched backup, not a second source.
+      const migrated = await new Promise((resolve, reject) => {
+        const tx = db.transaction("__workspace"), read = tx.objectStore("__workspace").get("migration");
+        let exists = false;
+        read.onsuccess = () => { exists = Boolean(read.result); };
+        tx.oncomplete = () => resolve(exists);
+        tx.onerror = tx.onabort = () => reject(tx.error || Error("WORKSPACE_MIGRATION_READ_FAILED"));
+      });
+      if (migrated) return;
+      const original = await nativeOpen();
+      try {
+        const names = Array.from(original.objectStoreNames);
+        if (names.length) await new Promise((resolve, reject) => {
+          const tx = original.transaction(names);
+          for (const storeName of names) {
+            const store = tx.objectStore(storeName), request = store.getAll();
+            if (schema[storeName] !== store.keyPath) { tx.abort(); reject(Error("WORKSPACE_MIGRATION_SCHEMA_MISMATCH")); return; }
+            request.onsuccess = () => { snapshot[storeName] = request.result; };
+          }
+          tx.oncomplete = resolve; tx.onerror = tx.onabort = () => reject(tx.error || Error("WORKSPACE_MIGRATION_READ_FAILED"));
+        });
+      } finally { original.close(); }
       await new Promise((resolve, reject) => {
         const tx = db.transaction([...Object.keys(schema), "__workspace"], "readwrite");
         let failure;
@@ -62,8 +71,22 @@
   }
 
   function wrap(database) {
-    return { name: database.name, storage: "MARKDOWN_BROWSER", objectStoreNames: database.objectStoreNames,
+    const wrapped = { name: database.name, storage: "MARKDOWN_BROWSER", objectStoreNames: database.objectStoreNames,
       close: () => database.close(),
+      async getRecord(name, key) { return (await wrapped.batchGet(name, [key]))[0]; },
+      async batchGet(name, keys) {
+        if (!Array.isArray(keys) || keys.length > 1000 || keys.some(key => typeof key !== "string" || !key || key.length > 1024)) throw Error("WORKSPACE_RECORD_ID_INVALID");
+        if (!keys.length) return [];
+        return root.AriadneContentDatabase.readRecords(wrapped, name, keys);
+      },
+      async getRecords(name, { job_context_id: jobId = null, metadata_only: metadataOnly = false } = {}) {
+        if (typeof metadataOnly !== "boolean" || jobId !== null && (!['applications', 'job_journal_entries', 'job_journal_images'].includes(name)
+          || typeof jobId !== "string" || !jobId || jobId.length > 1024)) throw Error("WORKSPACE_QUERY_INVALID");
+        const records = await root.AriadneContentDatabase.readRecords(wrapped, name);
+        const selected = jobId === null ? records : records.filter(record => record.job_context_id === jobId);
+        return metadataOnly ? selected.map(root.AriadneContentDatabase.metadata) : selected;
+      },
+      getAllMetadata(name) { return wrapped.getRecords(name, { metadata_only: true }); },
       transaction(names, mode) {
         const tx = database.transaction(names, mode);
         let conversionError;
@@ -99,6 +122,7 @@
         });
       },
     };
+    return wrapped;
   }
 
   async function open(name, nativeOpen) {

@@ -7,7 +7,7 @@ from src.job_model_runtime import *
 from src.runtime_binding import CODEX_MODEL,CODEX_PROTOCOL,CODEX_CREDENTIAL,adapter_for
 with contextlib.redirect_stdout(io.StringIO()):fixture=runpy.run_path(str(ROOT/'tests/job_model_import_regression.py'))
 
-def pdf_request(blob=b'%PDF-1.4\nsynthetic only\n%%EOF',provider='codex'):
+def pdf_request(blob=(ROOT/'public/provider-visual-check.pdf').read_bytes(),provider='codex'):
     value=copy.deepcopy(fixture['request']());source=value.pop('source_document');prep=value.pop('source_preparation');h='sha256:'+hashlib.sha256(blob).hexdigest();sid='source-job-'+h[7:]
     source.update(source_document_id=sid,content_hash=h,source_type='PDF',mime_type='application/pdf',filename='synthetic-job.pdf')
     blocks=[{'source_ref':f'job-source-block-{n}','location':f'p. {n}','text':f'Original PDF visual page {n}'} for n in [1,2]]

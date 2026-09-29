@@ -18,85 +18,139 @@ def encode(event):
     return (json.dumps(event, ensure_ascii=True, separators=(",", ":")) + "\n").encode()
 
 
-def public_preview(raw):
-    """Decode only public answer fields, including incomplete JSON strings.
+class PublicPreviewParser:
+    """Append-only JSON lexer for three public paths; final validation stays separate.
 
-    A lexical walk, not a regex over arbitrary source/patch/tool fields. Preview
-    is never accepted as a domain action, persisted, or described as verified.
+    Strings in arrays, source objects, patches and deliverables are never public.
+    Once the first allowed string ends, later private JSON needs no preview scan.
     """
-    raw = raw[:160000]
-    decoder = json.JSONDecoder()
-    allowed = {("message",), ("summary",), ("semantic_action", "message")}
-    found = []
+    ALLOWED = {("message",), ("summary",), ("semantic_action", "message")}
 
-    def space(i):
-        while i < len(raw) and raw[i].isspace(): i += 1
-        return i
+    def __init__(self):
+        self.stack = []
+        self.mode, self.string_kind = None, None
+        self.token, self.escape, self.unicode, self.surrogate = "", False, None, None
+        self.text, self.selected, self.finished, self.failed = "", False, False, False
+        self.seen = 0
 
-    def string(i):
-        start = i
-        i += 1
-        while i < len(raw):
-            if raw[i] == '"':
-                return json.loads(raw[start:i + 1]), i + 1
-            if raw[i] == "\\": i += 1
-            i += 1
-        # Drop only an unfinished escape / surrogate at the boundary.
-        tail = raw[start:]
-        for trim in range(min(12, len(tail))):
-            try:
-                text = json.loads((tail[:-trim] if trim else tail) + '"')
-                return text, len(raw)
-            except ValueError:
-                pass
-        raise ValueError()
+    def _complete(self):
+        if self.stack: self.stack[-1]["state"] = "comma"
+        else: self.finished = True
 
-    def value(i, path, depth=0):
-        i = space(i)
-        if i >= len(raw) or depth > 20: raise ValueError()
-        if raw[i] == '"':
-            text, end = string(i)
-            if path in allowed:
-                found.append(text[:6000])
-            return end
-        if raw[i] == "{":
-            i = space(i + 1)
-            while i < len(raw) and raw[i] != "}":
-                if raw[i] != '"': raise ValueError()
-                key, i = string(i)
-                i = space(i)
-                if i >= len(raw) or raw[i] != ":": raise ValueError()
-                i = space(value(i + 1, path + (key,), depth + 1))
-                if i < len(raw) and raw[i] == ",": i = space(i + 1)
-                elif i < len(raw) and raw[i] != "}": raise ValueError()
-            return i + 1
-        if raw[i] == "[":
-            i = space(i + 1)
-            while i < len(raw) and raw[i] != "]":
-                i = space(value(i, path + ("[]",), depth + 1))
-                if i < len(raw) and raw[i] == ",": i = space(i + 1)
-                elif i < len(raw) and raw[i] != "]": raise ValueError()
-            return i + 1
-        _, end = decoder.raw_decode(raw, i)
-        return end
+    def _character(self, character):
+        if self.string_kind == "key":
+            if len(self.token) >= 256: self.failed = True
+            else: self.token += character
+        elif self.string_kind == "public" and len(self.text) < 6000:
+            code = ord(character)
+            if self.surrogate is not None:
+                if 0xDC00 <= code <= 0xDFFF:
+                    self.text += chr(0x10000 + (self.surrogate - 0xD800) * 1024 + code - 0xDC00)
+                    self.surrogate = None
+                    return
+                self.text += "?"
+                self.surrogate = None
+            if 0xD800 <= code <= 0xDBFF: self.surrogate = code
+            elif 0xDC00 <= code <= 0xDFFF: self.text += "?"
+            elif len(self.text) < 6000: self.text += character
 
-    try:
-        value(0, ())
-    except (ValueError, RecursionError):
-        pass
-    # Do not send dangling UTF-16 surrogates to the browser.
-    return found[0].encode("utf-8", "replace").decode() if found else ""
+    def feed(self, fragment):
+        for character in fragment:
+            if self.finished or self.failed or self.seen >= 160000: break
+            self.seen += 1
+            if self.mode == "string":
+                if self.unicode is not None:
+                    if character not in "0123456789abcdefABCDEF": self.failed = True; break
+                    self.unicode += character
+                    if len(self.unicode) == 4:
+                        self._character(chr(int(self.unicode, 16))); self.unicode = None
+                elif self.escape:
+                    self.escape = False
+                    if character == "u": self.unicode = ""
+                    elif character in '\"\\/bfnrt': self._character({'b': '\b', 'f': '\f', 'n': '\n', 'r': '\r', 't': '\t'}.get(character, character))
+                    else: self.failed = True; break
+                elif character == "\\": self.escape = True
+                elif character == '\"':
+                    self.mode = None
+                    if self.string_kind == "key":
+                        self.stack[-1].update(key=self.token, state="colon")
+                    else:
+                        self._complete()
+                        if self.string_kind == "public": self.finished = True
+                elif ord(character) < 32: self.failed = True; break
+                else: self._character(character)
+                continue
+            if self.mode == "primitive":
+                if character not in " \r\n\t,]}":
+                    self.token += character
+                    if len(self.token) > 1000: self.failed = True
+                    continue
+                try:
+                    value = json.loads(self.token)
+                    if isinstance(value, (dict, list, str)): raise ValueError()
+                except ValueError: self.failed = True; break
+                self.mode = None; self._complete()
+            if character.isspace(): continue
+            frame = self.stack[-1] if self.stack else None
+            state = frame["state"] if frame else "value"
+            if state in {"key", "first_key"}:
+                if character == "}" and state == "first_key": self.stack.pop(); self._complete(); continue
+                if character != '\"': self.failed = True; break
+                self.mode, self.string_kind, self.token = "string", "key", ""
+                continue
+            if state == "colon":
+                if character != ":": self.failed = True; break
+                frame["state"] = "value"; continue
+            if state == "comma":
+                closer = "}" if frame["kind"] == "object" else "]"
+                if character == closer: self.stack.pop(); self._complete(); continue
+                if character != ",": self.failed = True; break
+                frame["state"] = "key" if frame["kind"] == "object" else "value"
+                continue
+            if state == "first_value" and character == "]": self.stack.pop(); self._complete(); continue
+            path = () if frame is None else frame["path"] + ((frame["key"],) if frame["kind"] == "object" else ("[]",))
+            if character in "{[":
+                if len(self.stack) >= 20: self.failed = True; break
+                self.stack.append({"kind": "object" if character == "{" else "array", "path": path,
+                                   "state": "first_key" if character == "{" else "first_value", "key": None})
+            elif character == '\"':
+                self.mode, self.token = "string", ""
+                self.string_kind = "public" if not self.selected and path in self.ALLOWED else "private"
+                if self.string_kind == "public": self.selected = True
+            elif character in "-0123456789tfn": self.mode, self.token = "primitive", character
+            else: self.failed = True; break
+        return self.text
+
+
+def public_preview(raw):
+    return PublicPreviewParser().feed(raw)
 
 
 class Preview:
     def __init__(self):
-        self.previous = ""
+        self.previous, self.raw = "", ""
+        self.fragments = []
+        self.parser = PublicPreviewParser()
+
+    def append(self, fragment):
+        self.fragments.append(fragment)
+        self._publish(self.parser.feed(fragment))
 
     def update(self, raw):
-        text = public_preview(raw)
+        # Completed App Server items can replace their deltas. Streaming callers
+        # use append(), avoiding repeated scans/comparisons of the growing JSON.
+        previous_raw = self.raw + "".join(self.fragments)
+        self.fragments.clear()
+        if raw.startswith(previous_raw):
+            fragment = raw[len(previous_raw):]
+        else:
+            self.parser = PublicPreviewParser()
+            fragment = raw
+        self.raw = raw
+        self._publish(self.parser.feed(fragment))
+
+    def _publish(self, text):
         if text and text != self.previous:
-            # Send only the suffix for growing answers: per-character updates
-            # remain linear in size instead of resending the whole answer.
             if self.previous and text.startswith(self.previous):
                 emit("preview_delta", text=text[len(self.previous):])
             else:
@@ -109,7 +163,7 @@ class ChatStream:
     def __init__(self, limit):
         self.limit, self.size, self.buffer = limit, 0, b""
         self.response = {"choices": [{"index": 0, "message": {"content": ""}, "finish_reason": None}]}
-        self.tools, self.done, self.preview = {}, False, Preview()
+        self.tools, self.done, self.preview, self.tool_previews = {}, False, Preview(), {}
 
     def feed(self, chunk):
         self.size += len(chunk)
@@ -139,7 +193,7 @@ class ChatStream:
                 # reasoning_content, reasoning and tool arguments are never UI events.
                 if isinstance(delta.get("content"), str):
                     target["message"]["content"] += delta["content"]
-                    self.preview.update(target["message"]["content"])
+                    self.preview.append(delta["content"])
                 if delta.get("refusal"): target["message"]["refusal"] = delta["refusal"]
                 for tool in delta.get("tool_calls") or []:
                     index = tool.get("index", 0)
@@ -151,7 +205,7 @@ class ChatStream:
                         fragment = (tool.get("function") or {}).get(key, "")
                         if not isinstance(fragment, str): raise ValueError("PROVIDER_STREAM_INVALID")
                         dest["function"][key] += fragment
-                    self.preview.update(dest["function"]["arguments"])
+                    self.tool_previews.setdefault(index, Preview()).append((tool.get("function") or {}).get("arguments", ""))
                 if choice.get("finish_reason") is not None: target["finish_reason"] = choice["finish_reason"]
 
     def finish(self):
@@ -167,9 +221,12 @@ class ChatStream:
 
 
 def read_chat_stream(response, limit):
+    from src.runtime_cancellation import check_cancelled
     parser = ChatStream(limit)
     while True:
+        check_cancelled()
         line = response.readline(limit + 1)
+        check_cancelled()
         if not line: break
         parser.feed(line)
     return parser.finish()

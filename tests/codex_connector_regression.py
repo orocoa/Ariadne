@@ -82,11 +82,11 @@ try:
     value.update(media_type='application/pdf', expected_content_hash='sha256:' + hashlib.sha256(pdf).hexdigest(),
                  document_data_url='data:application/pdf;base64,' + base64.b64encode(pdf).decode())
     value.pop('image_data_url')
-    with patch('src.web_source_read.render_complete_pdf_pages', return_value=[('1', b'page1'), ('2', b'page2')]):
+    with patch('src.web_source_read.inspect_complete_pdf', return_value=2):
         status, body, _ = request_http('POST', '/api/local-source-read', value, token=token)
         assert status == 200 and body['visual_page_count'] == 2 and body['extracted_text'] == ''
     value['expected_content_hash'] = 'sha256:incorrect'
-    with patch('src.web_source_read.render_complete_pdf_pages', side_effect=AssertionError('tampered original rendered')):
+    with patch('src.web_source_read.inspect_complete_pdf', side_effect=AssertionError('tampered original inspected')):
         assert request_http('POST', '/api/local-source-read', value, token=token)[0] == 422
     assert request_http('POST','/api/connector/revoke',token=token)[0]==200
     assert request_http('GET','/api/runtime-options',token=token)[0]==401

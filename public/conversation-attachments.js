@@ -27,12 +27,14 @@
     for (const file of files) if (!file.size || !TYPES[file.name.split('.').pop().toLowerCase()] || file.name.length > 240) throw Error("支持 PDF、DOCX、PNG、JPG、TXT、Markdown；文件不能为空。");
     return files;
   }
-  async function recordFor(file) {
+  async function recordFor(file, inline = true) {
     const raw = await file.arrayBuffer(), mime = TYPES[file.name.split('.').pop().toLowerCase()];
     const digest = [...new Uint8Array(await crypto.subtle.digest("SHA-256", raw))].map((x) => x.toString(16).padStart(2, "0")).join("");
+    const metadata = { name: file.name, mime_type: mime, size: raw.byteLength, content_hash: `sha256:${digest}` };
+    if (!inline) return metadata;
     const blob = new Blob([raw], { type: mime });
     const dataUrl = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(blob); });
-    return { name: file.name, mime_type: mime, size: raw.byteLength, content_hash: `sha256:${digest}`, data_url: dataUrl };
+    return { ...metadata, data_url: dataUrl };
   }
   async function persist(request, files, records, domain) {
     const nativeOpen = () => new Promise((resolve, reject) => { const open = indexedDB.open(CONTRACT, 1); open.onupgradeneeded = () => open.result.createObjectStore("turns", { keyPath: "request_id" }); open.onsuccess = () => resolve(open.result); open.onerror = () => reject(open.error); });
@@ -140,14 +142,18 @@
       const check = await (root.AriadneTransport || root).fetch("/api/conversation-attachment-capabilities", { cache: "no-store" });
       if (!check.ok || (await check.json()).contract_id !== CONTRACT) throw Error("attachment_contract_invalid");
       setStatus(state, "READING_AND_HASHING", "正在读取并校验附件完整性…");
-      const files = [...state.files], records = await Promise.all(files.map(recordFor));
+      const local = root.AriadneProduct?.kind === "skill" && runtime.provider === "codex" && root.AriadneContentDatabase;
+      const files = [...state.files], records = await Promise.all(files.map(file => recordFor(file, !local)));
       if (new Set(records.map(r => r.content_hash)).size !== records.length) throw Error("attachment_duplicate_content");
       if (!state.consent.checked) throw Error("attachment_consent_required");
       await persist(request, files, records, domain);
       if (!state.consent.checked || state.runtime !== state.identityFor(runtime)) throw Error("attachment_consent_required");
       pending.set(requestId(request), { state, files });
       setStatus(state, "SAVED_LOCALLY", `附件已安全保存在本机；准备发送给 ${providerName(runtime)}…`);
-      return { ...request, attachments: { contract_id: CONTRACT, request_id: requestId(request), files: records,
+      const outbound = local ? records.map((record, index) => ({ ...record, local_reference: {
+        workspace: root.localStorage.getItem(root.AriadneContentDatabase.WORKSPACE_KEY), request_id: requestId(request), index,
+      } })) : records;
+      return { ...request, attachments: { contract_id: CONTRACT, request_id: requestId(request), files: outbound,
         consent: { confirmed: true, provider: runtime.provider, model: runtime.model, purpose: "CURRENT_CONVERSATION_TURN" } } };
     } catch (error) { state.busy = false; state.status.textContent = errorCopy(error) || error.message; state.render(); throw error; }
   }

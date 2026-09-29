@@ -84,7 +84,7 @@ def material_parts(mime, raw, render_pages=render_complete_pdf_pages):
         if not raw.startswith(b"%PDF-"):
             raise ValueError("attachment_pdf_invalid")
         try:
-            pages = render_pages(raw)
+            pages = render_pages(raw, max_pages=MAX_IMAGES) if render_pages is render_complete_pdf_pages else render_pages(raw)
         except Exception as error:
             raise ValueError("attachment_pdf_render_failed") from error
         if not pages or len(pages) > MAX_IMAGES:

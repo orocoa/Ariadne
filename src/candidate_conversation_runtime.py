@@ -140,12 +140,15 @@ class CandidateConversationExecutionRegistry:
         self._lock = Lock()
         self._active: dict[str, str] = {}
         self._cancelled: set[tuple[str, str]] = set()
+        self._cancellations = {}
 
     def begin(self, execution_id: str, generation: str) -> bool:
         with self._lock:
             if execution_id in self._active:
                 return False
             self._active[execution_id] = generation
+            from src.runtime_cancellation import CANCEL
+            self._cancellations[(execution_id, generation)] = CANCEL.get()
             return True
 
     def cancel(self, execution_id: str, generation: str) -> bool:
@@ -155,7 +158,9 @@ class CandidateConversationExecutionRegistry:
                 return False
             self._cancelled.add((execution_id, generation))
             self._active.pop(execution_id, None)
-            return True
+            cancellation = self._cancellations.pop((execution_id, generation), None)
+        if cancellation is not None: cancellation.cancel()
+        return True
 
     def accept(self, execution_id: str, generation: str) -> bool:
         with self._lock:
@@ -163,6 +168,7 @@ class CandidateConversationExecutionRegistry:
             if self._active.get(execution_id) == generation:
                 self._active.pop(execution_id, None)
             self._cancelled.discard((execution_id, generation))
+            self._cancellations.pop((execution_id, generation), None)
             return accepted
 
     def fail(self, execution_id: str, generation: str) -> None:
@@ -170,6 +176,7 @@ class CandidateConversationExecutionRegistry:
             if self._active.get(execution_id) == generation:
                 self._active.pop(execution_id, None)
             self._cancelled.discard((execution_id, generation))
+            self._cancellations.pop((execution_id, generation), None)
 
 
 def _mapping(value: Any, code: str) -> Mapping[str, Any]:

@@ -14,6 +14,7 @@ import time
 
 from src.conversation_events import Preview, emit
 from src.codex_account import environment
+from src.runtime_cancellation import check_cancelled
 
 
 class Channel:
@@ -23,11 +24,14 @@ class Channel:
         self.pending = []
 
     def send(self, value):
+        check_cancelled()
         self.process.stdin.write((json.dumps(value, ensure_ascii=True) + "\n").encode())
         self.process.stdin.flush()
 
     def read(self):
+        check_cancelled()
         while b"\n" not in self.buffer:
+            check_cancelled()
             remaining = self.deadline - time.monotonic()
             if remaining <= 0: raise TimeoutError("CODEX_TIMEOUT")
             if not select.select([self.process.stdout], [], [], min(remaining, 1))[0]: continue
@@ -93,10 +97,18 @@ def check_policy(result, model, directory, effort):
 class PublicEvents:
     def __init__(self, thread, turn, search, limit):
         self.thread, self.turn, self.search, self.limit = thread, turn, search, limit
-        self.items, self.messages, self.previews = {}, {}, {}
+        self.items, self.messages, self.previews, self.commentaries = {}, {}, {}, {}
         self.final, self.usage, self.completed = None, {}, False
         self.searches = set()
         self.legacy = [{"type": "thread.started", "thread_id": thread}]
+
+    def commentary(self, ident, text):
+        text = text[:6000]
+        previous = self.commentaries.get(ident, "")
+        if not text.strip() or text == previous: return
+        if previous and text.startswith(previous): emit("commentary_delta", id=ident, text=text[len(previous):])
+        else: emit("commentary", id=ident, text=text)
+        self.commentaries[ident] = text
 
     def accept(self, event):
         method, p = event.get("method"), event.get("params") or {}
@@ -114,10 +126,10 @@ class PublicEvents:
             if len(value) > 160000: raise ValueError("CODEX_OUTPUT_LIMIT")
             self.messages[ident] = value
             if self.items[ident].get("phase") != "commentary" or value.lstrip().startswith("{"):
-                self.previews.setdefault(ident, Preview()).update(value)
+                self.previews.setdefault(ident, Preview()).append(delta)
             elif value.strip():
                 # Public commentary, never reasoning/summaryTextDelta.
-                emit("commentary", id=ident, text=value[:6000])
+                self.commentary(ident, value)
         elif method in {"item/started", "item/completed"}:
             item = p.get("item", {})
             if not isinstance(item, dict): raise ValueError("CODEX_ITEM_INVALID")
@@ -144,7 +156,7 @@ class PublicEvents:
                 if item.get("phase") == "final_answer" or text.lstrip().startswith("{"):
                     self.final = text
                     self.previews.setdefault(ident, Preview()).update(text)
-                elif item.get("phase") == "commentary" and text.strip(): emit("commentary", id=ident, text=text[:6000])
+                elif item.get("phase") == "commentary" and text.strip(): self.commentary(ident, text)
         elif method == "thread/tokenUsage/updated":
             total = p.get("tokenUsage", {}).get("last", {})
             self.usage = {"input_tokens": total.get("inputTokens", 0), "output_tokens": total.get("outputTokens", 0)}

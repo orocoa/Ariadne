@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
+import vm from "node:vm";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (file) => fs.readFileSync(path.join(root, "public", file), "utf8");
@@ -348,7 +349,15 @@ assert.doesNotMatch(jobImport, /data-job-processing-mode|id="job-processing-mode
 assert.doesNotMatch(pages, /selectedJobProcessingMode|configureJobProcessingMode/);
 assert.match(read("source-input-domain.js"), /for \(const source of sources\)/);
 assert.doesNotMatch(pages, /await processJobSource\(/);
-assert.match(pages, /async function runJobProcessing\(\) \{ return archiveSelectedSources\("job"\); \}/);
+// A failed pending paste cannot fall through to archiving an obsolete source.
+const jobEntryCode = pages.slice(pages.indexOf("  async function runJobProcessing("), pages.indexOf("  function jobReviewMarkup("));
+let archivedAfterFailure = false;
+const runJobProcessing = vm.runInNewContext(`${jobEntryCode}; runJobProcessing`, {
+  prepareCurrentJobPaste: async () => { throw Error("synthetic paste preparation failed"); },
+  archiveSelectedSources: () => { archivedAfterFailure = true; },
+});
+await assert.rejects(runJobProcessing(), /synthetic paste preparation failed/);
+assert.equal(archivedAfterFailure, false, "preparation failure must not save an obsolete original");
 assert.match(pages, /原件保存未完成，请重试；已成功保存的文件会保留。/);
 assert.match(pages, /await renderAwaitingJobReviews\(\{ reset: true \}\)/);
 assert.match(pages, /if \(!remaining\.length\) \{/);

@@ -83,6 +83,7 @@
     if (!reader) throw fallbackError({ error: "CONVERSATION_STREAM_UNAVAILABLE" });
     const decoder = new TextDecoder("utf-8", { fatal: true });
     let buffer = "", size = 0, sequence = 0, terminal = null, previewText = "";
+    const commentaryText = new Map();
     try {
       while (true) {
         const { done, value } = await reader.read();
@@ -106,13 +107,20 @@
             if (!["thinking", "search", "reading", "finding"].includes(event.activity) || !["started", "completed"].includes(event.state)
               || typeof event.id !== "string" || !event.id || event.id.length > 200 || Object.keys(event).some(key => !["seq", "type", "id", "activity", "state"].includes(key))) throw Error("CONVERSATION_STREAM_EVENT_INVALID");
             onEvent(event);
-          } else if (["update", "preview", "preview_delta", "commentary"].includes(event.type) && typeof event.text === "string" && event.text.length <= 12000) {
-            if (event.type === "commentary" && (typeof event.id !== "string" || !event.id || event.id.length > 200)) throw Error("CONVERSATION_STREAM_EVENT_INVALID");
+          } else if (["update", "preview", "preview_delta", "commentary", "commentary_delta"].includes(event.type) && typeof event.text === "string" && event.text.length <= 12000) {
+            if (["commentary", "commentary_delta"].includes(event.type) && (typeof event.id !== "string" || !event.id || event.id.length > 200 || Object.keys(event).some(key => !["seq", "type", "id", "text"].includes(key)))) throw Error("CONVERSATION_STREAM_EVENT_INVALID");
             if (event.type === "preview" || event.type === "preview_delta") {
               if (event.type === "preview_delta" && !previewText) throw Error("CONVERSATION_STREAM_EVENT_INVALID");
               previewText = event.type === "preview" ? event.text : previewText + event.text;
               if (previewText.length > 12000) throw Error("CONVERSATION_STREAM_EVENT_INVALID");
               onEvent({ ...event, type: "preview", text: previewText });
+            } else if (["commentary", "commentary_delta"].includes(event.type)) {
+              const previous = commentaryText.get(event.id);
+              if (event.type === "commentary_delta" && previous === undefined) throw Error("CONVERSATION_STREAM_EVENT_INVALID");
+              const text = event.type === "commentary" ? event.text : previous + event.text;
+              if (text.length > 12000 || (!commentaryText.has(event.id) && commentaryText.size >= 200)) throw Error("CONVERSATION_STREAM_EVENT_INVALID");
+              commentaryText.set(event.id, text);
+              onEvent({ ...event, type: "commentary", text });
             } else onEvent(event);
           } else throw Error("CONVERSATION_STREAM_EVENT_INVALID");
         }
@@ -168,6 +176,7 @@
         response = { ok: terminal.status >= 200 && terminal.status < 300, status: terminal.status };
       } else result = await response.json().catch(() => ({ error: malformed }));
       if (!response.ok || result?.error) {
+        root.AriadneTransport?.noteError?.(result?.error);
         throw createError ? createError({ response, result }) : fallbackError(result, fallback);
       }
       finished = true;

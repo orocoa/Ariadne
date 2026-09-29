@@ -1,8 +1,8 @@
 (function (root, factory) {
-  const api = factory();
+  const api = factory(root.AriadneContentDatabase || (typeof module === "object" && module.exports ? require("./content-database.js") : null));
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.AriadneJobJournal = api;
-}(globalThis, function () {
+}(globalThis, function (ContentDatabase) {
   "use strict";
   const DB = "ariadne-job-journal-v1", STORE = "job_journal_entries", IMAGES = "job_journal_images";
   const FEEDBACK = Object.freeze({ UPDATE: "进展记录", READ_NO_REPLY: "已读未回", REJECTED: "明确拒绝", NO_RESPONSE: "持续无回复", INTERVIEW: "面试邀请", OFFER: "收到 Offer", OTHER: "其他反馈" });
@@ -50,28 +50,28 @@
   }
   const open = () => globalThis.AriadneJobFollowupStorage ? globalThis.AriadneJobFollowupStorage.open(DB, native) : globalThis.AriadneContentDatabase ? globalThis.AriadneContentDatabase.open(DB, native) : native();
   async function list(jobId) {
+    if (typeof jobId !== "string" || !jobId || jobId.length > 1024) throw Error("WORKSPACE_QUERY_INVALID");
     const db = await open();
     try {
-      const metadata = await new Promise((resolve, reject) => {
-        const store = db.transaction(STORE).objectStore(STORE);
-        const read = store.getAllMetadata ? store.getAllMetadata() : store.getAll();
-        read.onsuccess = () => resolve(read.result.filter(entry => entry.job_context_id === jobId && !entry.deleted_at));
-        read.onerror = () => reject(Error("求职记录读取失败，请重试。"));
-      });
-      const entries = await Promise.all(metadata.map(entry => new Promise((resolve, reject) => {
-        const read = db.transaction(STORE).objectStore(STORE).get(entry.entry_id);
-        read.onsuccess = () => resolve(read.result);
-        read.onerror = () => reject(Error("图片读取失败，请保留原文件后重试。"));
-      })));
+      // Read this job's entries once, then batch only their live image IDs.
+      // Revisions and images are immutable during this independent read; the
+      // save command still rechecks the complete journal/application read set.
+      const records = db.getRecords ? await db.getRecords(STORE, { job_context_id: jobId })
+        : await ContentDatabase.readRecords(db, STORE);
+      const entries = records.filter(entry => entry.job_context_id === jobId && !entry.deleted_at);
+      const imageIds = [...new Set(entries.flatMap(entry => entry.images.map(image => image.image_id)))];
+      const images = new Map();
+      for (let offset = 0; offset < imageIds.length; offset += 1000) {
+        const keys = imageIds.slice(offset, offset + 1000);
+        const batch = db.batchGet ? await db.batchGet(IMAGES, keys) : await ContentDatabase.readRecords(db, IMAGES, keys);
+        keys.forEach((key, index) => images.set(key, batch[index]));
+      }
       for (const entry of entries) {
-        entry.images = await Promise.all(entry.images.map(image => new Promise((resolve, reject) => {
-          const read = db.transaction(IMAGES).objectStore(IMAGES).get(image.image_id);
-          read.onsuccess = () => {
-            if (!read.result || read.result.entry_id !== entry.entry_id || read.result.job_context_id !== jobId) return reject(Error("求职记录图片来源不一致。"));
-            resolve({ image_id: image.image_id, name: image.name, file: read.result.file });
-          };
-          read.onerror = () => reject(Error("求职记录图片无法读取，请重试。"));
-        })));
+        entry.images = entry.images.map(image => {
+          const original = images.get(image.image_id);
+          if (!original || original.entry_id !== entry.entry_id || original.job_context_id !== jobId) throw Error("求职记录图片来源不一致。");
+          return { image_id: image.image_id, name: image.name, file: original.file };
+        });
         validate(entry);
       }
       return entries.sort((a, b) => a.observed_on.localeCompare(b.observed_on) || a.created_at.localeCompare(b.created_at) || a.entry_id.localeCompare(b.entry_id));

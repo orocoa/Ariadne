@@ -12,6 +12,7 @@
   const enhancedForms = new WeakSet();
   const awaitingReplies = new WeakSet();
   const renderedKeys = new WeakMap();
+  const renderedNodes = new WeakMap();
   const reveals = new WeakMap();
   let outputModule;
   function withOutput(callback) {
@@ -114,6 +115,9 @@
       const records = [];
       let node, length = 0;
       while ((node = walker.nextNode())) {
+        // Cached downloads/search controls must remain usable across a resumed
+        // text reveal; only prose and domain evidence participate in the reveal.
+        if (node.parentElement?.closest?.(".v1-reply-exports")) continue;
         const text = node.data, chars = segmenter ? [...segmenter.segment(text)].map((part) => part.segment) : Array.from(text);
         records.push({ node, text, chars, start: length });
         length += chars.length;
@@ -239,17 +243,57 @@
     const readingHistory = scroll && previousCount > 0 && previousTop + scroll.clientHeight < previousHeight - 32;
     const previousEnds = renderedEnds.get(target);
     const first = messages.length ? textFor(messages[0]) : "", last = messages.length ? textFor(messages.at(-1)) : "";
-    const keys = messages.map((message) => message.message_id || message.id || `${message.role}:${textFor(message)}`);
+    const occurrences = new Map();
+    const keys = messages.map((message) => {
+      const key = message.message_id || message.id || `${message.role}:${textFor(message)}`;
+      const count = occurrences.get(key) || 0; occurrences.set(key, count + 1);
+      return count ? `${key}:duplicate:${count}` : key;
+    });
     const oldKeys = renderedKeys.get(target) || [];
+    const oldKeySet = new Set(oldKeys);
     const previousReveal = reveals.get(target);
     if (previousReveal) {
       previousReveal.view.clearTimeout(previousReveal.timer);
       reveals.delete(target);
       target.setAttribute("aria-busy", "false");
     }
-    target.innerHTML = messages.length
-      ? messages.map((message, index) => `<p class="v1-conversation-message ${message.role === "USER" ? "user" : "assistant"}${previousCount > 0 && index >= previousCount ? " is-entering" : ""}">${escapeHtml(textFor(message))}</p>`).join("")
-      : `<p class="v1-conversation-empty">${escapeHtml(emptyText || "")}</p>`;
+    const doc = target.ownerDocument;
+    if (doc?.createElement && target.insertBefore) {
+      const previous = renderedNodes.get(target) || new Map(), next = new Map();
+      messages.forEach((message, index) => {
+        const key = keys[index], text = String(textFor(message) ?? ""), role = message.role;
+        let record = previous.get(key);
+        if (!record || record.text !== text || record.role !== role) {
+          const node = doc.createElement("p");
+          node.className = `v1-conversation-message ${role === "USER" ? "user" : "assistant"}`;
+          node.textContent = text;
+          if (previousCount > 0 && !oldKeySet.has(key)) node.classList.add("is-entering");
+          record = { node, text, role };
+        } else {
+          // Domain callers append evidence after this function. Rebuild those
+          // attachments, while retaining the message and cached output nodes.
+          for (const child of [...record.node.children]) if (!child.classList.contains("v1-reply-exports")) child.remove();
+          if (previousReveal?.key === key) {
+            if (record.node.firstChild) record.node.firstChild.data = text;
+            record.node.style.visibility = "";
+          }
+        }
+        record.node.dataset.messageKey = key;
+        next.set(key, record);
+        if (target.children[index] !== record.node) target.insertBefore(record.node, target.children[index] || null);
+      });
+      const keep = new Set([...next.values()].map(record => record.node));
+      for (const child of [...target.children]) if (!keep.has(child)) child.remove();
+      if (!messages.length) {
+        const empty = doc.createElement("p"); empty.className = "v1-conversation-empty"; empty.textContent = emptyText || ""; target.append(empty);
+      }
+      renderedNodes.set(target, next);
+    } else {
+      // Minimal non-DOM adapters used by consumers retain the string renderer.
+      target.innerHTML = messages.length
+        ? messages.map((message, index) => `<p class="v1-conversation-message ${message.role === "USER" ? "user" : "assistant"}${previousCount > 0 && index >= previousCount ? " is-entering" : ""}">${escapeHtml(textFor(message))}</p>`).join("")
+        : `<p class="v1-conversation-empty">${escapeHtml(emptyText || "")}</p>`;
+    }
     renderedCounts.set(target, messages.length);
     renderedEnds.set(target, { first, last });
     renderedKeys.set(target, keys);
@@ -262,7 +306,7 @@
     else target.lastElementChild?.scrollIntoView?.({ block: "nearest" });
     const lastKey = keys.at(-1);
     const continuing = previousReveal && previousReveal.key === lastKey;
-    const newReply = awaitingReplies.has(target) && messages.at(-1)?.role === "ASSISTANT" && !oldKeys.includes(lastKey);
+    const newReply = awaitingReplies.has(target) && messages.at(-1)?.role === "ASSISTANT" && !oldKeySet.has(lastKey);
     if (continuing || newReply) {
       awaitingReplies.delete(target);
       if (target.dataset?.liveReply === "true") delete target.dataset.liveReply;

@@ -126,6 +126,69 @@ class EventsTests(unittest.TestCase):
             self.assertEqual(list(body), [])
             self.assertEqual(headers[0][1]["Content-Type"], CONTENT_TYPE)
 
+    def test_local_disconnect_cancels_silent_work_without_new_public_events(self):
+        import socket
+        import time
+        from src.runtime_cancellation import check_cancelled, ExecutionCancelled
+        entered, cancelled = threading.Event(), threading.Event()
+        class Handler(app.JobRadarHandler):
+            def _do_POST(self):
+                self.rfile.read(int(self.headers.get("Content-Length", "0")))
+                entered.set()
+                deadline = time.monotonic() + 3
+                try:
+                    while time.monotonic() < deadline:
+                        check_cancelled()
+                        time.sleep(0.02)
+                except ExecutionCancelled:
+                    cancelled.set()
+                    raise
+            def log_message(self, *_): pass
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        connection = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=4)
+        try:
+            connection.request("POST", "/api/job-conversation-turn", "{}", {"Accept": CONTENT_TYPE, "Content-Type": "application/json"})
+            response = connection.getresponse()
+            self.assertEqual(json.loads(response.readline())["type"], "received")
+            self.assertTrue(entered.wait(2))
+            response.fp.raw._sock.shutdown(socket.SHUT_RDWR)
+            response.close(); connection.close()
+            self.assertTrue(cancelled.wait(2), "silent model work must observe a disconnected request")
+        finally:
+            connection.close(); server.shutdown(); server.server_close()
+
+    def test_skill_nonstream_import_disconnect_reaches_request_cancellation(self):
+        import socket
+        import time
+        from src.runtime_cancellation import check_cancelled, ExecutionCancelled
+        from src.product_application import skill_handler
+        from src.runtime_binding import CODEX_MODEL
+        entered, cancelled = threading.Event(), threading.Event()
+        class Base(app.JobRadarHandler):
+            def do_POST(self):
+                self.rfile.read(int(self.headers.get("Content-Length", "0")))
+                entered.set()
+                try:
+                    deadline = time.monotonic() + 3
+                    while time.monotonic() < deadline:
+                        check_cancelled(); time.sleep(0.02)
+                except ExecutionCancelled:
+                    cancelled.set(); raise
+            def log_message(self, *_): pass
+        server = ThreadingHTTPServer(("127.0.0.1",0),skill_handler(Base))
+        threading.Thread(target=server.serve_forever,daemon=True).start()
+        connection = http.client.HTTPConnection("127.0.0.1",server.server_port,timeout=4)
+        try:
+            with patch('src.product_application.codex_enabled',return_value=True):
+                body = json.dumps({"runtime_snapshot":{"provider":"codex","model":CODEX_MODEL}})
+                connection.request("POST","/api/candidate-model-structure",body,{"Content-Type":"application/json"})
+                self.assertTrue(entered.wait(2))
+                connection.sock.shutdown(socket.SHUT_RDWR); connection.close()
+                self.assertTrue(cancelled.wait(2))
+        finally:
+            connection.close(); server.shutdown(); server.server_close()
+
     def test_local_socket_flushes_before_completion(self):
         proceed = threading.Event()
         class Handler(app.JobRadarHandler):

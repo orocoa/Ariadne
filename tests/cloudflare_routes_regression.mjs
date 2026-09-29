@@ -19,4 +19,6 @@ const options={method:'POST',body:JSON.stringify({message:'Hello'})};
 assert.deepEqual(JSON.parse((await pdf.prepareRequest('/api/candidate-conversation-turn',options,{request_limit:100})).body),{message:'Hello'});
 await assert.rejects(pdf.prepareRequest('/api/x',{body:JSON.stringify({_cloudflare_pdf_pages:[]})},{request_limit:100}),/WEB_PDF_MANIFEST_INVALID/);
 await assert.rejects(pdf.prepareRequest('/api/x',options,{request_limit:1}),/WEB_PREVIEW_REQUEST_SIZE_LIMIT/);
+const metadataOptions = {body:JSON.stringify({document_data_url:'data:application/pdf;base64,QQ=='})};
+assert.equal(await pdf.prepareRequest('/api/local-source-read', metadataOptions, {request_limit:100}), metadataOptions);
 console.log('Pages routing, missing binding, PDF detection and request limits PASS');

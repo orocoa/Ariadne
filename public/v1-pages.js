@@ -78,6 +78,7 @@
   let jobExecutionState = "IDLE";
   let jobImportLifecycle = null;
   let jobSelectionVersion = 0;
+  let jobPasteTimer = null, jobPastePreparation = null, jobPastePending = false;
   let jobModelAttemptGeneration = 0;
   let jobModelConsentSelectionVersion = null;
   let jobModelConsentRuntimeIdentity = null;
@@ -1151,11 +1152,36 @@
     return true;
   }
 
+  async function readWorkspaceCounts() {
+    const database = await Truth.openDatabase();
+    try {
+      const names = ["candidate_context_revisions", "candidate_context_lifecycle", Demo.DEMO_STORES.candidates,
+        "job_context_revisions", "job_context_lifecycle", Demo.DEMO_STORES.jobs].filter(name => database.objectStoreNames.contains(name));
+      const records = await new Promise((resolve, reject) => {
+        if (!names.length) { resolve({}); return; }
+        const values = {}, transaction = database.transaction(names, "readonly");
+        for (const name of names) {
+          const read = transaction.objectStore(name).getAll();
+          read.onsuccess = () => { values[name] = read.result; };
+        }
+        transaction.oncomplete = () => resolve(values);
+        transaction.onerror = transaction.onabort = () => reject(transaction.error || Error("workspace_count_read_failed"));
+      });
+      const candidates = LocalCandidateReview.activeConfirmedRevisions(records.candidate_context_revisions || [], records.candidate_context_lifecycle || []);
+      const jobs = JobContext.activeRevisions(records.job_context_revisions || [], records.job_context_lifecycle || []);
+      const canonicalIds = new Set(jobs.map(job => job.context_id));
+      const removed = new Set((records.job_context_lifecycle || []).map(entry => entry.context_id));
+      const legacyJobs = LocalJobLifecycle.libraryJobs(records[Demo.DEMO_STORES.jobs] || []);
+      return {
+        candidateCount: candidates.reduce((count, revision) => count + (revision.payload.items || []).length, 0) + (records[Demo.DEMO_STORES.candidates] || []).length,
+        jobCount: jobs.length + legacyJobs.filter(job => !canonicalIds.has(job.job_context_id) && !removed.has(job.job_context_id)).length,
+      };
+    } finally { database.close(); }
+  }
+
   async function initWorkspace() {
     try {
-      const [candidates, jobs] = await Promise.all([readPersonalLibrary(), readJobLibrary()]);
-      const candidateCount = candidates.canonical.length + candidates.legacy.length;
-      const jobCount = jobs.canonical.length + jobs.legacy.length;
+      const { candidateCount, jobCount } = await readWorkspaceCounts();
       byId("workspace-personal-count").textContent = candidateCount ? `${candidateCount} 张资料卡片` : "尚未添加";
       byId("workspace-job-count").textContent = jobCount ? `${jobCount} 个职位对象` : "尚未添加";
     } catch (error) {
@@ -3159,6 +3185,7 @@
   }
 
   function resetJobSource() {
+    window.clearTimeout(jobPasteTimer); jobPasteTimer = null; jobPastePending = false;
     jobSelectionVersion += 1;
     selectedJobSource = null;
     selectedJobSources = [];
@@ -3240,8 +3267,11 @@
   }
 
   async function readJobSourceForModel(database, source, sourceDocument, runtimeSnapshot, signal) {
+    signal?.throwIfAborted();
     const resolved = await LocalJob.resolveRawSource(database, sourceDocument);
+    signal?.throwIfAborted();
     const dataUrl = await LocalJob.readAsDataURL(resolved.file || resolved.blob, sourceDocument.mime_type);
+    signal?.throwIfAborted();
     const image = ["image/png", "image/jpeg"].includes(sourceDocument.mime_type);
     const response = await (globalThis.AriadneTransport || globalThis).fetch("/api/local-source-read", {
       method: "POST",
@@ -3295,6 +3325,7 @@
   }
 
   async function openJobModelConsent() {
+    await prepareCurrentJobPaste();
     if (!JobModel || !selectedJobSource || !selectedJobSources.length) throw new Error("job_model_source_bundle_invalid");
     const gate = JobModel.assertEligibleGate(refreshJobImportGate());
     const selectionVersion = jobSelectionVersion;
@@ -3377,7 +3408,7 @@
       run = JobModel.processingRunFor(source, runtimeSnapshot.snapshot_id, "RUNNING", { run_id: run.run_id, started_at: startedAt });
       await Truth.persistRecord(database, "processing_runs", run);
       setJobWorkspaceProgress(["职位材料已准备", "正在理解职位内容", "正在提取职位要求", "正在生成职位信息"], 1);
-      const sourceReadResults = await Promise.all(sourceDocuments.map((sourceDocument, index) => readJobSourceForModel(database, sources[index], sourceDocument, runtimeSnapshot, abortController.signal)));
+      const sourceReadResults = await mapSourceReads(sourceDocuments, (sourceDocument, index) => readJobSourceForModel(database, sources[index], sourceDocument, runtimeSnapshot, abortController.signal), abortController.signal);
       const preparations = JobModel.boundedBundlePreparations(sourceDocuments, sourceReadResults.map((entry) => entry.preparation_result));
       const sourceInputs = sourceReadResults.map((entry) => entry.source_input).filter(Boolean);
       if (abortController.signal.aborted) throw Object.assign(new Error("job_model_import_cancelled"), { name: "AbortError" });
@@ -3424,7 +3455,7 @@
     }
   }
 
-  async function runJobProcessing() { return archiveSelectedSources("job"); }
+  async function runJobProcessing() { await prepareCurrentJobPaste(); return archiveSelectedSources("job"); }
 
   function jobReviewMarkup(proposal, position, total) {
     const job = proposal.payload;
@@ -3437,7 +3468,7 @@
     return `<article class="v1-review-card" data-job-proposal-id="${escapeHtml(proposal.proposal_id)}"><p class="v1-review-progress">第 ${position} / ${total} 条</p><h3>${escapeHtml(title)}</h3><p class="v1-review-note">${escapeHtml(note)}</p><section class="v1-review-item"><div class="v1-review-source"><p class="v1-section-label">来源证据</p><p class="v1-review-evidence">${escapeHtml(proposal.grounding_refs?.[0]?.excerpt_or_reference || "原始来源已保留")}</p><small>${escapeHtml(proposal.grounding_refs?.[0]?.location || "document")}</small></div><div class="v1-review-result"><p class="v1-section-label">${escapeHtml(resultLabel)}</p><label>职位名称<input data-job-field="title" value="${escapeHtml(job.title || "")}"></label><label>公司<input data-job-field="company" value="${escapeHtml(job.company || "")}"></label><label>地点<input data-job-field="location" value="${escapeHtml(job.location || "")}"></label><label>摘要<textarea data-job-field="summary">${escapeHtml(job.summary || "")}</textarea></label><label>任职要求（每行一条）<textarea data-job-field="requirements">${escapeHtml(requirements)}</textarea></label></div></section><div class="v1-button-row"><button type="button" class="v1-primary-button" data-job-review-action="confirm">确认并创建职位版本</button><button type="button" class="v1-tertiary-button" data-job-review-action="reject">拒绝</button></div></article>`;
   }
 
-  async function renderAwaitingJobReviews({ advance = false, reset = false } = {}) {
+  async function renderAwaitingJobReviews({ advance = false, reset = false, isCurrent = () => true } = {}) {
     if (!JobContext || !byId("job-review-surface")) return [];
     const database = await Truth.openDatabase();
     let pending;
@@ -3449,6 +3480,7 @@
         .filter((proposal) => selectedSourceIds.size > 0 && proposal.source_document_ids.some((sourceId) => selectedSourceIds.has(sourceId)))
         .sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)) || a.proposal_id.localeCompare(b.proposal_id));
     } finally { database.close(); }
+    if (!isCurrent()) return [];
     if (reset || !jobReviewSessionTotal) { jobReviewSessionTotal = pending.length; jobReviewSessionResolved = 0; }
     else if (advance) jobReviewSessionResolved += 1;
     if (pending.length > jobReviewSessionTotal - jobReviewSessionResolved) jobReviewSessionTotal = jobReviewSessionResolved + pending.length;
@@ -3552,6 +3584,58 @@
     } });
   }
 
+  async function mapSourceReads(sources, reader, signal, concurrency = 2) {
+    const output = new Array(sources.length);
+    let next = 0, failure = null;
+    async function worker() {
+      while (!failure) {
+        signal?.throwIfAborted();
+        const index = next++;
+        if (index >= sources.length) return;
+        try { output[index] = await reader(sources[index], index); }
+        catch (error) { failure = error; throw error; }
+      }
+    }
+    // Wait for already-started readers before callers close their database.
+    const results = await Promise.allSettled(Array.from({ length: Math.min(concurrency, sources.length) }, worker));
+    const rejected = results.find(result => result.status === "rejected");
+    if (rejected) throw rejected.reason;
+    return output;
+  }
+
+  function prepareCurrentJobPaste() {
+    window.clearTimeout(jobPasteTimer); jobPasteTimer = null;
+    if (!jobPastePending || selectedJobImportType !== "Paste") return Promise.resolve();
+    const input = byId("job-paste-input"), text = input.value, version = jobSelectionVersion;
+    if (jobPastePreparation?.version === version) return jobPastePreparation.promise;
+    const current = () => version === jobSelectionVersion && input.value === text && selectedJobImportType === "Paste";
+    const promise = (async () => {
+      if (!text.trim() || !current()) return;
+      const source = await LocalJob.preparePastedText(text, `job-batch-${crypto.randomUUID()}`, byId("job-link-input")?.value.trim() || null);
+      if (!current()) return;
+      const database = await Truth.openDatabase();
+      let importState, modelMode;
+      try {
+        if (!current()) return;
+        modelMode = refreshJobImportGate().authority.runtime.mode === "model";
+        importState = await jobSourceImportState(source.source_document_id, database, modelMode);
+      } finally { database.close(); }
+      if (!current()) return;
+      selectedJobSource = { ...source, sizeLabel: `${text.length} 字符`, import_type: "Paste", import_state: importState };
+      selectedJobSources = [selectedJobSource];
+      if (!modelMode || ["NEW", "RETRY"].includes(importState)) beginJobImportLifecycle();
+      else if (modelMode && importState === "WORKSPACE") beginJobImportLifecycle(ModelImportLifecycle.STATES.WORKING);
+      else if (importState === "PENDING_REVIEW") beginJobImportLifecycle(ModelImportLifecycle.STATES.REVIEWING);
+      else beginJobImportLifecycle(ModelImportLifecycle.STATES.SAVED);
+      showJobSource(selectedJobSource);
+      await renderAwaitingJobReviews({ reset: true, isCurrent: current });
+      if (current()) jobPastePending = false;
+    })();
+    jobPastePreparation = { version, promise };
+    promise.finally(() => { if (jobPastePreparation?.promise === promise) jobPastePreparation = null; }).catch(() => {});
+    return promise;
+  }
+
   function initJobImport() {
     ProductShell.bindImportShell(document);
     jobSharedWorkspace();
@@ -3568,24 +3652,15 @@
       if (!button) return;
       configureJobImportType(button.dataset.jobImportType);
     });
-    byId("job-paste-input").addEventListener("input", async (event) => {
-      const text = event.target.value;
-      if (!text.trim()) { resetJobSource(); return; }
-      const selectionVersion = ++jobSelectionVersion;
-      const source = await LocalJob.preparePastedText(text, `job-batch-${crypto.randomUUID()}`, byId("job-link-input")?.value.trim() || null);
-      const database = await Truth.openDatabase();
-      const modelMode = refreshJobImportGate().authority.runtime.mode === "model";
-      const importState = await jobSourceImportState(source.source_document_id, database, modelMode);
-      database.close();
-      if (selectionVersion !== jobSelectionVersion || event.target.value !== text) return;
-      selectedJobSource = { ...source, sizeLabel: `${text.length} 字符`, import_type: "Paste", import_state: importState };
-      selectedJobSources = [selectedJobSource];
-      if (!modelMode || ["NEW", "RETRY"].includes(selectedJobSource.import_state)) beginJobImportLifecycle();
-      else if (modelMode && selectedJobSource.import_state === "WORKSPACE") beginJobImportLifecycle(ModelImportLifecycle.STATES.WORKING);
-      else if (selectedJobSource.import_state === "PENDING_REVIEW") beginJobImportLifecycle(ModelImportLifecycle.STATES.REVIEWING);
-      else beginJobImportLifecycle(ModelImportLifecycle.STATES.SAVED);
-      showJobSource(selectedJobSource);
-      await renderAwaitingJobReviews({ reset: true });
+    byId("job-paste-input").addEventListener("input", () => {
+      // Invalidate the old source/consent immediately; only expensive preparation waits.
+      resetJobSource();
+      if (!byId("job-paste-input").value.trim()) return;
+      jobPastePending = true;
+      const version = jobSelectionVersion;
+      jobPasteTimer = window.setTimeout(() => prepareCurrentJobPaste().catch(error => {
+        if (version === jobSelectionVersion) showJobError(error);
+      }), 200);
     });
     jobSourceInputBinding = SourceInput.bind({
       dropzone: byId("job-dropzone"), input: byId("job-file-input"),

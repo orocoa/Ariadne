@@ -485,37 +485,51 @@
     });
   }
 
-  function persistAcceptedChange(database, currentRevision, proposal) {
-    const accepted = changeDecision(proposal, "CONFIRM");
-    const revision = revisionFromChangeProposal(currentRevision, proposal, accepted.decided_at, accepted.job_change_decision_id);
+  function persistChangeDecision(database, proposal, decision, currentRevision = null) {
+    const checked = validateChangeProposal(proposal), decided = changeDecision(checked, decision);
+    const revision = decision === "CONFIRM"
+      ? revisionFromChangeProposal(currentRevision, checked, decided.decided_at, decided.job_change_decision_id) : null;
     return new Promise((resolve, reject) => {
-      const transaction = database.transaction(["job_context_revisions", "job_change_decisions"], "readwrite");
-      let failure = null;
-      const request = transaction.objectStore("job_context_revisions").getAll();
-      request.onsuccess = () => {
-        const head = latestRevision(request.result || [], currentRevision.context_id);
-        if (!head || head.revision_id !== currentRevision.revision_id || head.version !== currentRevision.version) {
-          failure = new JobContextError("ANALYSIS_STALE"); transaction.abort(); return;
-        }
-        transaction.objectStore("job_context_revisions").add(clone(revision));
-        transaction.objectStore("job_change_decisions").add(clone(accepted));
+      const names = ["job_change_proposals", "job_change_decisions", ...(revision ? ["job_context_revisions", "job_context_lifecycle"] : [])];
+      const transaction = database.transaction(names, "readwrite");
+      let failure = null, pending = names.length;
+      const records = {};
+      const abort = error => { failure = error; transaction.abort(); };
+      const ready = () => {
+        if (--pending) return;
+        try {
+          if (!records.job_change_proposals || JSON.stringify(validateChangeProposal(records.job_change_proposals)) !== JSON.stringify(checked)) {
+            throw new JobContextError("job_change_proposal_changed");
+          }
+          if (records.job_change_decisions.some(item => item.job_change_proposal_id === checked.job_change_proposal_id)) {
+            throw new JobContextError("job_change_already_decided");
+          }
+          if (revision) {
+            const head = latestRevision(records.job_context_revisions, currentRevision.context_id);
+            if (!head || head.revision_id !== currentRevision.revision_id || head.version !== currentRevision.version) throw new JobContextError("ANALYSIS_STALE");
+            if (!activeRevisions([head], records.job_context_lifecycle).length) throw new JobContextError("job_context_already_removed");
+            transaction.objectStore("job_context_revisions").add(clone(revision));
+          }
+          transaction.objectStore("job_change_decisions").add(clone(decided));
+        } catch (error) { abort(error); }
       };
-      request.onerror = () => { failure = request.error || new JobContextError("job_revision_read_failed"); transaction.abort(); };
-      transaction.oncomplete = () => resolve(Object.freeze({ proposal, decision: accepted, revision }));
-      transaction.onerror = () => reject(failure || transaction.error || new JobContextError("job_change_persistence_failed"));
-      transaction.onabort = () => reject(failure || transaction.error || new JobContextError("job_change_persistence_failed"));
+      for (const name of names) {
+        const store = transaction.objectStore(name);
+        const request = name === "job_change_proposals" ? store.get(checked.job_change_proposal_id) : store.getAll();
+        request.onsuccess = () => { records[name] = request.result; ready(); };
+        request.onerror = () => abort(request.error || new JobContextError("job_change_read_failed"));
+      }
+      transaction.oncomplete = () => resolve(revision ? Object.freeze({ proposal, decision: decided, revision }) : decided);
+      transaction.onerror = transaction.onabort = () => reject(failure || transaction.error || new JobContextError("job_change_persistence_failed"));
     });
   }
 
+  function persistAcceptedChange(database, currentRevision, proposal) {
+    return persistChangeDecision(database, proposal, "CONFIRM", currentRevision);
+  }
+
   function persistRejectedChange(database, proposal) {
-    const decision = changeDecision(proposal, "REJECT");
-    return new Promise((resolve, reject) => {
-      const transaction = database.transaction("job_change_decisions", "readwrite");
-      transaction.objectStore("job_change_decisions").add(clone(decision));
-      transaction.oncomplete = () => resolve(decision);
-      transaction.onerror = () => reject(transaction.error || new JobContextError("job_change_decision_persistence_failed"));
-      transaction.onabort = () => reject(transaction.error || new JobContextError("job_change_decision_persistence_failed"));
-    });
+    return persistChangeDecision(database, proposal, "REJECT");
   }
 
   function archivedSourceUrl(sourceRecords, sourceIds) {

@@ -23,6 +23,18 @@ const publicSeen=[];
 await T.readStream(response([commentary,result])[0],event=>publicSeen.push(event));
 assert.deepEqual(publicSeen,[commentary]);
 await assert.rejects(T.readStream(response([{...commentary,id:null},result])[0],()=>{}));
+const commentaryDeltas = [];
+await T.readStream(response([
+  {seq:1,type:'commentary',id:'one',text:'你'},
+  {seq:2,type:'commentary',id:'two',text:'Other'},
+  {seq:3,type:'commentary_delta',id:'one',text:'好。'},
+  {seq:4,type:'commentary',id:'one',text:'更正'},
+  {seq:5,type:'result',status:200,result:{output:'done'}}
+])[0], event => commentaryDeltas.push([event.id,event.text]));
+assert.deepEqual(commentaryDeltas, [['one','你'],['two','Other'],['one','你好。'],['one','更正']]);
+await assert.rejects(T.readStream(response([{seq:1,type:'commentary_delta',id:'one',text:'orphan'},result])[0],()=>{}));
+await assert.rejects(T.readStream(response([{...commentary,text:'x'.repeat(12000)},{seq:2,type:'commentary_delta',id:'public-1',text:'x'}])[0],()=>{}));
+
 const activity = {seq:1,type:'activity',id:'a',activity:'thinking',state:'started'};
 const activitySeen=[];
 await T.readStream(response([activity,result])[0],event=>activitySeen.push(event));

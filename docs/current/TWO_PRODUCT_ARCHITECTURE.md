@@ -14,7 +14,7 @@
 ## 组合层与共用层
 
 - `public/product-config.js` 是静态 Web 的产品契约；Skill 服务同路径生成 `kind=skill/storage=filesystem/runtime=codex`，在页面业务脚本之前加载。产品身份不由 hostname、旧 API 偏好或旧配对 token 决定。
-- `public/product-shell.js` 提供产品级有效 Runtime 和导航；Skill 不写掉历史 Web/API 偏好。共用选择解析器在 Skill 下从固定 Agent runtime 开始，保留相容的对话推理强度设置；能力验证和每次派发的 RuntimeSnapshot 仍由原契约负责。
+- `public/product-shell.js` 提供产品级有效 Runtime 和导航；Skill 不写掉历史 Web/API 偏好。共用选择解析器在 Skill 下从已验证的 Codex 模型与独立推理强度设置解析当前选择；能力验证和每次派发的 RuntimeSnapshot 仍由原契约负责。
 - `public/product-transport.js` 只发送同源请求。Web 的 API Key 与临时会话只进入对应同源 BYOK 路由；Skill 请求不携带旧 API Key 或配对 token。Web 拒绝 Codex、Skill 拒绝 API Provider，旧配对状态不再参与路由。
 - `src/product_application.py` 组合 Skill HTTP 入口：根地址/旧首页转到工作空间，模型目录仅包含 Codex，API 连接设置被拒绝，模型业务请求必须绑定 Codex。Codex 不可用返回明确失败，不切换 Provider 或 Local 生成替代结果。
 - `web_app.py` 与 Cloudflare Worker 继续负责 Web 的 origin、API Provider、凭据和请求隔离，禁止 Codex、磁盘工作区和任意本机路由。页面静态资源保持同一套。
@@ -41,7 +41,9 @@ flowchart LR
 
 旧 `public/local-connector.js`、`public/codex-connect.js` 与后端配对实现源码保留为历史兼容研究材料，当前页面不加载，Skill CLI 的 `connect` 明确返回 `WEB_PAIRING_RETIRED`。旧 `/codex-connect.html` 仅显示安装说明；当前发布入口不运行配对服务。旧 App/资料/QA 证据原地保留。
 
-启动本身不调用模型。材料发送继续使用原确认机制；服务关闭不等于撤销已发出的请求。当前固定沿用已验证的 `codex / gpt-5.6-sol`，不是继承唤起 Skill 的聊天模型或上下文。其他 Agent 未加入选择器。
+启动本身不调用模型。材料发送继续使用原确认机制；服务关闭不等于撤销已发出的请求。2026-09-28 起，Skill 使用资格目录与实际 Codex model/list 交集中的模型，由用户分别选择型号与推理强度；不继承唤起 Skill 的聊天模型或上下文，不因开发 agent 使用 Ultra 而开放应用内 Ultra。当前资格及限制以 [模型选择契约](MODEL_SELECTION_AND_TUNING_ARCHITECTURE.md) 为准。其他 Agent 未加入选择器。
+
+2026-09-29 的可靠性与负载优化增加统一 Promise 读取、按职位查询/按键批读、页面内提案草稿与历史节点复用、请求内完整 PDF 预算、本机已保存附件引用、真实取消传播与 Web 显式连接续期。写入继续使用完整读集与 CAS；来源、旧库与历史不删除；Web 不加载本地文件库。细节与验证边界见 [优化记录](RUNTIME_OPTIMIZATION_20260929.md)。
 
 ## 验收与交付边界
 

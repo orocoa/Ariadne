@@ -42,7 +42,7 @@ def download_metadata(download_url=None):
     return metadata
 
 
-def build(output, pdfjs, download_url=None, skill_release_tag=None):
+def build(output, pdfjs, download_url=None, skill_release_tag=None, previous_pages=None):
     if skill_release_tag is not None and not re.fullmatch(r"skill-[A-Za-z0-9.-]+", skill_release_tag):
         raise ValueError("Invalid Skill release tag")
     if json.loads((pdfjs / "package.json").read_text())["version"] != "5.4.624":
@@ -92,7 +92,8 @@ def build(output, pdfjs, download_url=None, skill_release_tag=None):
     shutil.copyfile(pdfjs / "LICENSE", vendor / "LICENSE")
     shutil.copyfile(ROOT / "deploy/cloudflare/pages-worker.js", pages / "_worker.js")
     (pages / "_routes.json").write_text(json.dumps({"version": 1, "include": ["/api/*", "/healthz"], "exclude": []}))
-    (pages / "_headers").write_text("/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: no-referrer\n  X-Frame-Options: SAMEORIGIN\n  Content-Security-Policy: frame-ancestors 'self'\n  Cache-Control: no-cache\n")
+    from scripts.fingerprint_web_assets import fingerprint
+    asset_manifest = fingerprint(pages, previous_pages)
     shutil.copyfile(ROOT / "deploy/cloudflare/worker.py", runtime / "worker.py")
     for name in ("wrangler.jsonc", "pyproject.toml", "pylock.toml"):
         shutil.copyfile(ROOT / "deploy/cloudflare" / name, worker / name)
@@ -123,6 +124,7 @@ def build(output, pdfjs, download_url=None, skill_release_tag=None):
     manifest = {"created_at": datetime.now().isoformat(), "origin": "https://ariadne.kai-nex.com",
         "pages_archive_sha256": hashlib.sha256(archive.read_bytes()).hexdigest(), "local_download_configured": bool(metadata.get("url")),
         "source_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
+        "asset_generation": asset_manifest["generation"],
         "files": {str(p.relative_to(output)): hashlib.sha256(p.read_bytes()).hexdigest() for p in output.rglob("*") if p.is_file()},
         "deployed": False}
     (output / "release.json").write_text(json.dumps(manifest, indent=2))
@@ -136,6 +138,7 @@ if __name__ == "__main__":
     parser.add_argument("--pdfjs", type=Path, required=True, help="Installed pdfjs-dist 5.4.624 directory")
     parser.add_argument("--download-url", help="Published public GitHub Release URL matching the current local ZIP")
     parser.add_argument("--skill-release-tag", help="GitHub tag for this exact Skill package; upload it before deploying Pages")
+    parser.add_argument("--previous-pages", type=Path, help="Previous verified Pages export; retain its hashed lazy assets for open tabs")
     args = parser.parse_args()
     output = args.output or ROOT / ".cache/cloudflare-distribution" / datetime.now().strftime("%Y%m%d-%H%M%S")
-    print(json.dumps(build(output.resolve(), args.pdfjs.resolve(), args.download_url, args.skill_release_tag)))
+    print(json.dumps(build(output.resolve(), args.pdfjs.resolve(), args.download_url, args.skill_release_tag, args.previous_pages)))

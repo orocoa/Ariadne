@@ -5,7 +5,7 @@ import json
 
 from src.execution_contract import validate_runtime_snapshot
 from src.material_delivery import DOCX, docx_parts, image_part, MAX_TEXT
-from src.pdf_delivery import render_complete_pdf_pages
+from src.pdf_delivery import inspect_complete_pdf
 from src.upload_limits import MAX_FILE_BYTES
 
 
@@ -38,10 +38,8 @@ def read_source(payload):
     elif mime == "application/pdf":
         if not raw.startswith(b"%PDF-"):
             raise ValueError("source_pdf_invalid")
-        pages = render_complete_pdf_pages(raw)
-        if not 1 <= len(pages) <= 48:
-            raise ValueError("job_pdf_complete_page_limit")
-        count, text, method = len(pages), "", "complete_pdf_page_manifest_v1"
+        count = inspect_complete_pdf(raw, max_pages=48)
+        text, method = "", "complete_pdf_page_manifest_v1"
     elif mime == DOCX:
         parts = docx_parts(raw)
         if any(part["type"] != "text" for part in parts):

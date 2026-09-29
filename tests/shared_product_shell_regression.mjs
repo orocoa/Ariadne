@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
+import vm from "node:vm";
 
 const require = createRequire(import.meta.url);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -81,7 +82,19 @@ for (const html of [candidateImport, jobImport]) assert.match(html, /class="v1-c
 assert.equal((pages.match(/ProductShell\.bindWorkspaceShell\(document,/g) || []).length, 2);
 assert.equal((pages.match(/ProductShell\.bindImportShell\(document\)/g) || []).length, 2);
 assert.equal((pages.match(/ProductShell\.createDetailEditController/g) || []).length, 2);
-assert.match(pages, /async function runJobProcessing\(\) \{ return archiveSelectedSources\("job"\); \}/);
+// Exercise the real entrypoint: a debounced paste must finish before archiving.
+const jobEntryCode = pages.slice(pages.indexOf("  async function runJobProcessing("), pages.indexOf("  function jobReviewMarkup("));
+let finishPreparation;
+const prepared = new Promise(resolve => { finishPreparation = resolve; }), archived = [];
+const runJobProcessing = vm.runInNewContext(`${jobEntryCode}; runJobProcessing`, {
+  prepareCurrentJobPaste: () => prepared,
+  archiveSelectedSources: kind => { archived.push(kind); return "synthetic archive result"; },
+});
+const pendingArchive = runJobProcessing();
+assert.deepEqual(archived, [], "archive must wait for pending paste preparation");
+finishPreparation();
+assert.equal(await pendingArchive, "synthetic archive result");
+assert.deepEqual(archived, ["job"], "completed paste enters the shared Job archive exactly once");
 assert.match(pages, /ProductShell\.setFeedback\(byId\("candidate-workspace-save-status"/);
 assert.match(pages, /ProductShell\.setFeedback\(byId\("job-workspace-save-status"/);
 assert.match(pages, /ProductShell\.bindDetailShell\(document,/);

@@ -38,9 +38,9 @@
     return value;
   }
 
-  async function request(payload) {
+  async function request(payload, signal = undefined) {
     if (payload?.action === "commit") payload = { ...payload, transaction_id: crypto.randomUUID().replaceAll("-", "") };
-    const options = payload ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) } : { cache: "no-store" };
+    const options = payload ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), signal } : { cache: "no-store", signal };
     let response, result;
     for (let attempt = 0; attempt < 2; attempt++) {
       try { response = await fetch("/api/workspace", options); result = await response.json(); break; }
@@ -78,11 +78,11 @@
     return item;
   }
 
-  async function hydrate(item, workspace, database) {
+  async function hydrate(item, workspace, database, signal = undefined) {
     if (item instanceof Blob) return item;
-    if (item?.$blob === "file") return deserialize(await request({ action: "blob", workspace, database, entry: item }));
-    if (Array.isArray(item)) return Promise.all(item.map(value => hydrate(value, workspace, database)));
-    if (item && typeof item === "object") return Object.fromEntries(await Promise.all(Object.entries(item).map(async ([key, value]) => [key, await hydrate(value, workspace, database)])));
+    if (item?.$blob === "file") return deserialize(await request({ action: "blob", workspace, database, entry: item }, signal));
+    if (Array.isArray(item)) return Promise.all(item.map(value => hydrate(value, workspace, database, signal)));
+    if (item && typeof item === "object") return Object.fromEntries(await Promise.all(Object.entries(item).map(async ([key, value]) => [key, await hydrate(value, workspace, database, signal)])));
     return item;
   }
 
@@ -95,6 +95,24 @@
 
   function locked(name, callback) {
     return globalThis.navigator?.locks ? navigator.locks.request(name, callback) : callback();
+  }
+
+  // Shared Promise boundary for native IndexedDB and the file adapter. A read
+  // succeeds only when its transaction completes; startup/abort failures settle
+  // callers even when no individual request has run yet.
+  function readRecords(database, name, keys = null) {
+    return new Promise((resolve, reject) => {
+      const tx = database.transaction(name, "readonly"), store = tx.objectStore(name);
+      const selected = keys === null ? [null] : keys;
+      const values = new Array(selected.length);
+      selected.forEach((key, index) => {
+        const read = keys === null ? store.getAll() : store.get(key);
+        read.onsuccess = () => { values[index] = read.result; };
+        read.onerror = () => reject(read.error || tx.error || Error("WORKSPACE_READ_FAILED"));
+      });
+      tx.oncomplete = () => resolve(keys === null ? values[0] || [] : values);
+      tx.onerror = tx.onabort = () => reject(tx.error || Error("WORKSPACE_READ_FAILED"));
+    });
   }
 
   function openNative(database) {
@@ -172,6 +190,25 @@
         if (read.record == null) return undefined;
         return hydrate(Content.unpack(name, schema[name], deserialize(read.record)), workspace, database);
       },
+      async batchGet(name, keys) {
+        if (closed) throw Error("WORKSPACE_CONNECTION_CLOSED");
+        if (!Object.hasOwn(schema, name)) throw Error("WORKSPACE_TRANSACTION_SCOPE_INVALID");
+        if (!Array.isArray(keys) || keys.length > 1000 || keys.some(key => typeof key !== "string" || !key || key.length > 1024)) throw Error("WORKSPACE_RECORD_ID_INVALID");
+        if (!keys.length) return [];
+        const read = await request({ action: "batch_get", workspace, database, store: name, keys });
+        if (!read.initialized) throw Error("WORKSPACE_NOT_INITIALIZED");
+        return read.records.map(value => value == null ? undefined : Content.unpack(name, schema[name], deserialize(value)));
+      },
+      async getRecords(name, { job_context_id: jobId = null, metadata_only: metadataOnly = false } = {}) {
+        if (closed) throw Error("WORKSPACE_CONNECTION_CLOSED");
+        if (!Object.hasOwn(schema, name)) throw Error("WORKSPACE_TRANSACTION_SCOPE_INVALID");
+        if (typeof metadataOnly !== "boolean" || jobId !== null && (!['applications', 'job_journal_entries', 'job_journal_images'].includes(name)
+          || typeof jobId !== "string" || !jobId || jobId.length > 1024)) throw Error("WORKSPACE_QUERY_INVALID");
+        const read = await request({ action: "query", workspace, database, store: name, job_context_id: jobId, metadata_only: metadataOnly });
+        if (!read.initialized) throw Error("WORKSPACE_NOT_INITIALIZED");
+        const records = read.records.map(value => Content.unpack(name, schema[name], deserialize(value)));
+        return metadataOnly ? records.map(metadata) : records;
+      },
       getAllMetadata(name) {
         return new Promise((resolve, reject) => {
           const tx = databaseConnection.transaction(name), read = tx.objectStore(name).getAllMetadata();
@@ -183,14 +220,27 @@
         if (closed) throw Error("WORKSPACE_CONNECTION_CLOSED");
         const stores = typeof selected === "string" ? [selected] : [...selected];
         if (!stores.length || stores.some(name => !Object.hasOwn(schema, name)) || !["readonly", "readwrite"].includes(mode)) throw Error("WORKSPACE_TRANSACTION_INVALID");
-        const queue = [], writes = [];
-        let state = "pending", failure = null, snapshot;
+        const queue = [], writes = [], pendingRequests = new Set();
+        const readController = new AbortController();
+        let state = "pending", failure = null, snapshot, failed = false;
+        const fail = (error, notifyError = true) => {
+          if (failed || state === "complete") return;
+          failed = true; failure = error; state = "aborted";
+          readController.abort();
+          for (const req of pendingRequests) {
+            req.error = error;
+            queueMicrotask(() => req.onerror?.({ target: req, preventDefault() {}, stopPropagation() {} }));
+          }
+          pendingRequests.clear(); queue.length = 0;
+          queueMicrotask(() => { if (notifyError) tx.onerror?.({ target: tx }); });
+          queueMicrotask(() => tx.onabort?.({ target: tx }));
+        };
         const tx = {
           oncomplete: null, onerror: null, onabort: null,
           get error() { return failure; },
           abort() {
             if (["committing", "complete"].includes(state)) throw new DOMException("Save has already started", "InvalidStateError");
-            state = "aborted";
+            fail(new DOMException("Transaction aborted", "AbortError"), false);
           },
           objectStore(name) {
             if (!stores.includes(name)) throw Error("WORKSPACE_TRANSACTION_SCOPE_INVALID");
@@ -198,6 +248,7 @@
               if (!["pending", "running"].includes(state)) throw Error("WORKSPACE_TRANSACTION_INACTIVE");
               if (["add", "put", "delete", "clear"].includes(operation) && mode !== "readwrite") throw new DOMException("Read only", "ReadOnlyError");
               const req = { result: undefined, error: null, onsuccess: null, onerror: null };
+              pendingRequests.add(req);
               queue.push({ name, operation, input: clone(input), req });
               return req;
             }
@@ -205,27 +256,23 @@
               add: value => enqueue("add", value), put: value => enqueue("put", value), delete: key => enqueue("delete", key), clear: () => enqueue("clear") };
           },
         };
-        const fail = error => {
-          failure = error; state = "aborted";
-          tx.onerror?.({ target: tx }); tx.onabort?.({ target: tx });
-        };
         // Defer so callers can install callbacks and enqueue their first reads.
         setTimeout(() => locked(lockName, async () => {
           try {
-            if (state === "aborted") { tx.onabort?.({ target: tx }); return; }
-            const read = await request({ action: "read", workspace, database, stores, metadata_only: true });
+            if (state === "aborted") return;
+            const read = await request({ action: "read", workspace, database, stores, metadata_only: true }, readController.signal);
             if (!read.initialized) throw Error("WORKSPACE_NOT_INITIALIZED");
             snapshot = Object.fromEntries(stores.map(name => [name, new Map(read.stores[name].map(value => {
               const record = Content.unpack(name, schema[name], deserialize(value));
               return [record[schema[name]], record];
             }))]));
-            if (state === "aborted") { tx.onabort?.({ target: tx }); return; }
+            if (state === "aborted") return;
             state = "running";
             while (queue.length && state !== "aborted") {
               const { name, operation, input, req } = queue.shift(), records = snapshot[name];
               try {
-                if (operation === "get") req.result = await hydrate(clone(records.get(input)), workspace, database);
-                else if (operation === "getAll") req.result = await hydrate([...records.keys()].sort().map(key => clone(records.get(key))), workspace, database);
+                if (operation === "get") req.result = await hydrate(clone(records.get(input)), workspace, database, readController.signal);
+                else if (operation === "getAll") req.result = await hydrate([...records.keys()].sort().map(key => clone(records.get(key))), workspace, database, readController.signal);
                 else if (operation === "getAllMetadata") req.result = [...records.keys()].sort().map(key => metadata(clone(records.get(key))));
                 else if (operation === "clear") {
                   for (const key of records.keys()) writes.push({ store: name, operation: "delete", key });
@@ -240,18 +287,22 @@
                   req.result = operation === "delete" ? undefined : key;
                 }
               } catch (error) {
+                if (state === "aborted") return;
                 req.error = error;
+                pendingRequests.delete(req);
                 let prevented = false;
                 req.onerror?.({ target: req, preventDefault() { prevented = true; }, stopPropagation() {} });
                 if (!prevented) throw error;
                 continue;
               }
+              if (state === "aborted") return;
+              pendingRequests.delete(req);
               req.onsuccess?.({ target: req });
             }
-            if (state === "aborted") { tx.onabort?.({ target: tx }); return; }
+            if (state === "aborted") return;
             const outbound = [];
             for (const write of writes) outbound.push(write.value ? { ...write, value: await serialize(write.value, workspace) } : write);
-            if (state === "aborted") { tx.onabort?.({ target: tx }); return; }
+            if (state === "aborted") return;
             if (writes.length) {
               state = "committing";
               await request({ action: "commit", workspace, database, expected: read.versions, writes: outbound });
@@ -278,5 +329,5 @@
     return connection(workspace, database, await connections.get(key));
   }
 
-  return Object.freeze({ open, connection, serialize, deserialize, errorCopy, WORKSPACE_KEY });
+  return Object.freeze({ open, connection, serialize, deserialize, readRecords, metadata, errorCopy, WORKSPACE_KEY });
 }));

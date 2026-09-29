@@ -25,14 +25,14 @@ class PublicPDFTests(unittest.TestCase):
         actual_pages = [2]
         def command(argv, **kwargs):
             if argv[0] == 'pdfinfo':
-                return subprocess.CompletedProcess(argv, 0, b'Pages: 2\n')
+                return subprocess.CompletedProcess(argv, 0, b'Pages: 2\nPage 1 size: 595 x 842 pts\nPage 2 size: 595 x 842 pts\n')
             self.assertIn('-scale-to', argv)
             for page in range(1, actual_pages[0] + 1):
                 Path(argv[-1] + '-' + str(page) + '.jpg').write_bytes(b'synthetic-page')
             return subprocess.CompletedProcess(argv, 0)
         token = PUBLIC_PDF_LIMITS.set(True)
         try:
-            with patch('src.pdf_delivery.subprocess.run', command):
+            with patch('src.pdf_delivery.subprocess.run', command), patch('src.pdf_delivery._run_pdf_render', lambda argv, directory: command(argv)):
                 self.assertEqual([page for page, _ in render_complete_pdf_pages(b'%PDF-synthetic')], ['1', '2'])
                 actual_pages[0] = 1
                 with self.assertRaises(AICareerIngestionError):

@@ -13,7 +13,7 @@ export function collectPDFs(value, found = new Set()) {
   return found;
 }
 
-export async function renderPDF(raw, signal) {
+export async function renderPDF(raw, signal, group = null) {
   aborted(signal);
   if (!raw.byteLength || raw.byteLength > MAX_ORIGINAL) throw new Error("WEB_PDF_SIZE_LIMIT");
   const sourceHash = "sha256:" + await hash(raw);
@@ -31,12 +31,26 @@ export async function renderPDF(raw, signal) {
   try {
     const pdf = await task.promise;
     if (pdf.numPages < 1 || pdf.numPages > MAX_PAGES) throw new Error("WEB_PDF_PAGE_LIMIT");
-    const pages = [];
-    let total = 0;
+    const pages = [], geometry = [];
+    let pixels = 0;
+    // Inspect the complete page set before allocating the first render canvas.
     for (let number = 1; number <= pdf.numPages; number++) {
       aborted(signal);
       const page = await pdf.getPage(number), size = page.getViewport({scale: 1});
+      if (![size.width, size.height].every(v => Number.isFinite(v) && v > 0 && v <= 200000)) throw new Error("WEB_PDF_IMAGE_LIMIT");
       const viewport = page.getViewport({scale: Math.min(120 / 72, 2048 / Math.max(size.width, size.height))});
+      pixels += Math.ceil(viewport.width) * Math.ceil(viewport.height);
+      if (pixels > 64 * 1024 * 1024) throw new Error("WEB_PDF_IMAGE_LIMIT");
+      geometry.push(viewport);
+    }
+    if (group) {
+      if (group.pages + pdf.numPages > 48 || group.pixels + pixels > 128 * 1024 * 1024) throw new Error("WEB_PDF_IMAGE_LIMIT");
+      group.pages += pdf.numPages; group.pixels += pixels;
+    }
+    let total = 0;
+    for (let number = 1; number <= pdf.numPages; number++) {
+      aborted(signal);
+      const page = await pdf.getPage(number), viewport = geometry[number - 1];
       const canvas = document.createElement("canvas");
       canvas.width = Math.ceil(viewport.width); canvas.height = Math.ceil(viewport.height);
       try {
@@ -57,17 +71,20 @@ export async function renderPDF(raw, signal) {
 }
 
 export async function prepareRequest(path, options, service, fetcher = fetch) {
+  // Source-read checks original PDF metadata on the server. Only the eventual
+  // inference request needs complete pixels; no cross-request private cache.
   const payload = JSON.parse(options.body);
   if (Object.hasOwn(payload, "_cloudflare_pdf_pages")) throw new Error("WEB_PDF_MANIFEST_INVALID");
+  if (path === "/api/local-source-read") return options;
   const originals = [...collectPDFs(payload)];
   if (originals.length > 4) throw new Error("WEB_PDF_COUNT_LIMIT");
-  const pages = [];
+  const pages = [], group = {pages: 0, pixels: 0};
   if (/^\/api\/runtime-providers\/(gemini|qwen)\/connection-check$/.test(path) && payload.confirmed === true) {
     const response = await fetcher("/provider-visual-check.pdf", {cache: "no-store", signal: options.signal});
     if (!response.ok) throw new Error("WEB_PDF_PREPARATION_FAILED");
     pages.push(await renderPDF(new Uint8Array(await response.arrayBuffer()), options.signal));
   }
-  for (const value of originals) pages.push(await renderPDF(bytesFromURL(value), options.signal));
+  for (const value of originals) pages.push(await renderPDF(bytesFromURL(value), options.signal, group));
   if (pages.length) payload._cloudflare_pdf_pages = pages;
   const body = JSON.stringify(payload);
   if (new Blob([body]).size > service.request_limit) throw new Error("WEB_PREVIEW_REQUEST_SIZE_LIMIT");

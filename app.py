@@ -8,6 +8,7 @@ from src.byok_providers import BROWSER_REFERENCES, PROVIDERS as BYOK_PROVIDERS, 
 from src.pdf_delivery import render_complete_pdf_pages
 from src.runtime_transport import PROVIDER_HTTP_OPEN
 from src.conversation_attachments import CONTRACT as ATTACHMENTS_CONTRACT, REQUEST_LIMIT as ATTACHMENTS_REQUEST_LIMIT
+from src.local_attachment_delivery import local_attachment_scope
 
 import json
 import base64
@@ -1091,6 +1092,7 @@ class JobRadarHandler(SimpleHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802 - required by the standard library
         from src.conversation_events import CONTENT_TYPE, PATHS, SINK, encode
+        from src.runtime_cancellation import CANCEL, ExecutionCancelled, socket_cancellation
         if (not getattr(self, "web_request", False) and urlparse(self.path).path in PATHS
                 and self.headers.get("Accept") == CONTENT_TYPE):
             if not self.local_request_allowed():
@@ -1102,9 +1104,12 @@ class JobRadarHandler(SimpleHTTPRequestHandler):
             self.send_header("Connection", "close")
             self.end_headers()
             self.close_connection = True
+            cancellation = CANCEL.get() or socket_cancellation(self.connection)
+            cancel_token = CANCEL.set(cancellation)
             sequence = 0
             def send(event):
                 nonlocal sequence
+                cancellation.check()
                 sequence += 1
                 self.wfile.write(encode({**event, "seq": sequence}))
                 self.wfile.flush()
@@ -1114,12 +1119,14 @@ class JobRadarHandler(SimpleHTTPRequestHandler):
             try:
                 send({"type": "received"})
                 self._do_POST()
-            except (BrokenPipeError, ConnectionResetError):
-                pass
+            except (BrokenPipeError, ConnectionResetError, ExecutionCancelled):
+                cancellation.cancel()
             except Exception:
-                self.send_json(500, {"error": "CONVERSATION_STREAM_FAILED", "persistence": "not_written"})
+                try: self.send_json(500, {"error": "CONVERSATION_STREAM_FAILED", "persistence": "not_written"})
+                except (BrokenPipeError, ConnectionResetError, ExecutionCancelled): cancellation.cancel()
             finally:
                 SINK.reset(token)
+                CANCEL.reset(cancel_token)
                 self.send_json = original
             return
         self._do_POST()
@@ -1441,6 +1448,7 @@ class JobRadarHandler(SimpleHTTPRequestHandler):
             return
         self.send_json(HTTPStatus.OK, result)
 
+    @local_attachment_scope("CANDIDATE")
     def run_candidate_conversation_turn(self) -> None:
         """Run one qualified Candidate turn without UI or persistence semantics."""
         execution_id = None
@@ -1520,6 +1528,7 @@ class JobRadarHandler(SimpleHTTPRequestHandler):
             return
         self.send_json(HTTPStatus.OK, result)
 
+    @local_attachment_scope("JOB_OVERVIEW")
     def run_job_overview_turn(self) -> None:
         try:
             length = int(self.headers.get("Content-Length", "0"))
@@ -1540,6 +1549,7 @@ class JobRadarHandler(SimpleHTTPRequestHandler):
             return
         self.send_json(HTTPStatus.OK, result)
 
+    @local_attachment_scope("PERSONAL")
     def run_personal_understanding_turn(self) -> None:
         try:
             length = int(self.headers.get("Content-Length", "0"))
@@ -1560,6 +1570,7 @@ class JobRadarHandler(SimpleHTTPRequestHandler):
             return
         self.send_json(HTTPStatus.OK, result)
 
+    @local_attachment_scope("JOB")
     def run_job_conversation_turn(self) -> None:
         """Run one Job Intelligence turn; browser persistence remains authoritative."""
         execution_id = None
@@ -2579,6 +2590,11 @@ class JobRadarHandler(SimpleHTTPRequestHandler):
                 result = library.read(workspace, database, request["stores"], include_blobs=not request.get("metadata_only", False))
             elif action == "get":
                 result = library.read_record(workspace, database, request["store"], request["key"])
+            elif action == "batch_get":
+                result = library.read_records(workspace, database, request["store"], request["keys"])
+            elif action == "query":
+                result = library.query_records(workspace, database, request["store"],
+                    job_context_id=request.get("job_context_id"), metadata_only=request.get("metadata_only", False))
             elif action == "stage_blob":
                 result = library.stage_blob(workspace, request["value"], request.get("filename"))
             elif action == "blob":
@@ -2592,7 +2608,7 @@ class JobRadarHandler(SimpleHTTPRequestHandler):
             # Only operation identifiers, never source names, IDs or content.
             from src.workspace_storage import CONTRACT
             self.log_message("workspace_error code=%s action=%s database=%s", error.code,
-                             action if "action" in locals() and isinstance(action, str) and action in {"status", "read", "get", "blob", "stage_blob", "commit"} else "invalid",
+                             action if "action" in locals() and isinstance(action, str) and action in {"status", "read", "get", "batch_get", "query", "blob", "stage_blob", "commit"} else "invalid",
                              database if "database" in locals() and isinstance(database, str) and database in CONTRACT["databases"] else "invalid")
             self.send_json(error.status, {"error": error.code})
         except (ValueError, KeyError, TypeError):

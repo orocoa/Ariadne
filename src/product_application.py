@@ -111,9 +111,15 @@ def skill_handler(base):
                 except (ValueError, TypeError, AttributeError):
                     self.send_json(400, {"error": "SKILL_REQUEST_INVALID", "network_call_made": False})
                     return
+            from src.runtime_cancellation import CANCEL, ExecutionCancelled, socket_cancellation
+            cancellation = CANCEL.get() or socket_cancellation(getattr(self, "connection", None))
+            token = CANCEL.set(cancellation) if path in MODEL_PATHS else None
             try:
                 super().do_POST()
+            except (ExecutionCancelled, BrokenPipeError, ConnectionResetError):
+                cancellation.cancel()
             finally:
+                if token is not None: CANCEL.reset(token)
                 if original_input is not None:
                     self.rfile = original_input
     return SkillHandler

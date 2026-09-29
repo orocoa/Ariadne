@@ -24,6 +24,23 @@ jobs:
         run: python3 scripts/run_regressions.py
       - name: Visual system integrity
         run: python3 scripts/check_vi.py
+      - name: Install pinned browser test runtime
+        shell: bash
+        run: |
+          npm install --prefix "$RUNNER_TEMP/ariadne-browser-deps" --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.62.1
+          node "$RUNNER_TEMP/ariadne-browser-deps/node_modules/playwright/cli.js" install chromium
+      - name: Synthetic browser acceptance
+        env:
+          ARIADNE_PLAYWRIGHT_PACKAGE: ${{ runner.temp }}/ariadne-browser-deps/node_modules/playwright
+        run: node tests/optimization_browser_qa.mjs
+      - name: Preserve synthetic browser evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: optimization-browser-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/optimization-browser/
+          if-no-files-found: ignore
+          retention-days: 14
       - name: Scan full history with pinned Gitleaks
         shell: bash
         run: |

@@ -134,9 +134,11 @@ class WebApplication:
     def stream(self, environ, start_response):
         """WSGI event channel; normal dispatch still owns every access check."""
         import queue
+        from src.runtime_cancellation import CANCEL, Cancellation
         from contextvars import copy_context
         from src.conversation_events import CONTENT_TYPE, SINK, encode
         events, closed = queue.Queue(maxsize=64), threading.Event()
+        cancellation = Cancellation()
         sequence = 0
         def send(event):
             nonlocal sequence
@@ -148,6 +150,7 @@ class WebApplication:
                 raise ConnectionAbortedError() from None
         def run():
             token = SINK.set(send)
+            cancel_token = CANCEL.set(cancellation)
             try:
                 send({"type": "received"})
                 try:
@@ -162,6 +165,7 @@ class WebApplication:
                 pass
             finally:
                 SINK.reset(token)
+                CANCEL.reset(cancel_token)
         def body():
             start_response("200 OK", [("Content-Type", CONTENT_TYPE), ("Cache-Control", "no-store"),
                            ("X-Content-Type-Options", "nosniff"), ("X-Accel-Buffering", "no")])
@@ -179,6 +183,7 @@ class WebApplication:
                     if json.loads(chunk)["type"] == "result": break
             finally:
                 closed.set()
+                cancellation.cancel()
         return body()
 
     @staticmethod

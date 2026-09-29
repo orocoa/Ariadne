@@ -324,6 +324,17 @@ This output becomes a NON_AUTHORITATIVE Working Job. It becomes confirmed truth 
 
 
 def build_job_model_payload(request: JobModelRequest) -> dict[str, Any]:
+    from src.pdf_delivery import pdf_preparation
+    documents = [item["pdf_bytes"] for item in request.source_inputs if "pdf_bytes" in item]
+    try:
+        with pdf_preparation(documents, max_pages=48, other_images=sum("pdf_bytes" not in item for item in request.source_inputs)):
+            return _build_job_model_payload(request)
+    except (ValueError, OSError) as error:
+        if isinstance(error, JobModelRuntimeError): raise
+        raise JobModelRuntimeError("job_pdf_complete_render_failed", "delivery") from error
+
+
+def _build_job_model_payload(request: JobModelRequest) -> dict[str, Any]:
     provider_source = {
         "bundle_order": "USER_SUPPLIED",
         "sources": [
@@ -340,7 +351,7 @@ def build_job_model_payload(request: JobModelRequest) -> dict[str, Any]:
     for item in request.source_inputs:
         if "pdf_bytes" in item:
             try:
-                pages = render_complete_pdf_pages(item["pdf_bytes"])
+                pages = render_complete_pdf_pages(item["pdf_bytes"], max_pages=48)
             except (ValueError, OSError) as error:
                 raise JobModelRuntimeError("job_pdf_complete_render_failed", "delivery") from error
             blocks = request.source_preparations[item["source_index"] - 1]["blocks"]

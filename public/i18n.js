@@ -17,6 +17,8 @@
   ].join(",");
 
   const EN = Object.freeze({
+    "这条建议或相关资料已变化；你的编辑仍保留，请复制需要的内容后重新核对。": "This suggestion or its supporting information has changed. Your edits are preserved; copy anything you need before reviewing the latest version.",
+    "放弃这份编辑并读取最新建议": "Discard these edits and load the latest suggestion",
     "选择记录图片": "Choose entry images",
     "添加图片，可拖拽或粘贴": "Add images, drag or paste",
     "拖拽图片到这里，或点击选择": "Drop images here, or click to choose",

@@ -247,6 +247,52 @@ class WorkspaceStorage:
             record = self._load_record(directory, entry, schema[store], key, False) if entry else None
             return {"initialized": True, "record": record}
 
+    def read_records(self, workspace, database, store, keys):
+        """One ordered point-read batch, including only the requested originals.
+
+        No versions are issued here: these reads cannot stand in for a write
+        transaction's complete read set or relax its conflict/hash checks.
+        """
+        schema = self._schema(database, [store])
+        if (not isinstance(keys, list) or len(keys) > 1000
+                or any(not isinstance(key, str) or not 0 < len(key) <= 1024 for key in keys)):
+            raise WorkspaceError("WORKSPACE_RECORD_ID_INVALID")
+        with self._locked(workspace) as directory:
+            current = self._head(directory)["databases"].get(database)
+            if current is None:
+                return {"initialized": False, "records": []}
+            index = current.get(store, {})
+            records = [self._load_record(directory, index[key], schema[store], key) if key in index else None for key in keys]
+            return {"initialized": True, "records": records}
+
+    def query_records(self, workspace, database, store, *, job_context_id=None, metadata_only=False):
+        """Filter one verified scan; no derived index or duplicate prose authority."""
+        schema = self._schema(database, [store])
+        if not isinstance(metadata_only, bool) or (job_context_id is not None and (
+                store not in {"applications", "job_journal_entries", "job_journal_images"}
+                or not isinstance(job_context_id, str) or not 0 < len(job_context_id) <= 1024)):
+            raise WorkspaceError("WORKSPACE_QUERY_INVALID")
+        with self._locked(workspace) as directory:
+            current = self._head(directory)["databases"].get(database)
+            if current is None:
+                return {"initialized": False, "records": []}
+            records = []
+            for key, entry in sorted(current.get(store, {}).items()):
+                record = self._load_record(directory, entry, schema[store], key, False)
+                identity = record
+                if record.get("content_format") == FORMAT:
+                    try:
+                        markdown = record["markdown"]
+                        identity = json.loads(markdown[4:markdown.index("\n---\n", 4)])["record"]
+                        if not isinstance(identity, dict):
+                            raise ValueError()
+                    except (ValueError, KeyError, TypeError):
+                        raise WorkspaceError("WORKSPACE_MARKDOWN_INVALID", 409)
+                if job_context_id is not None and identity.get("job_context_id") != job_context_id:
+                    continue
+                records.append(record if metadata_only else self._restore_blobs(directory, record))
+            return {"initialized": True, "records": records}
+
     def commit(self, workspace, database, expected, writes, *, initialize=False, transaction_id=None):
         if not isinstance(expected, dict) or not isinstance(initialize, bool):
             raise WorkspaceError("WORKSPACE_REQUEST_INVALID")

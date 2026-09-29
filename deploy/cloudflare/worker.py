@@ -27,6 +27,7 @@ from src.pdf_delivery import PDF_RENDERER
 from src.browser_pdf_delivery import BrowserPDFDelivery
 from src.web_execution import WebBoundaryError
 from src.conversation_events import CONTENT_TYPE, PATHS as TURN_PATHS, SINK, encode
+from src.runtime_cancellation import CANCEL, Cancellation, ExecutionCancelled, check_cancelled
 
 MAX_REQUEST = 12 * 1024 * 1024
 ENDPOINTS = {app.DEEPSEEK_ENDPOINT, app.DEEPSEEK_MODELS_ENDPOINT, *(item["endpoint"] for item in PROVIDERS.values())}
@@ -100,8 +101,11 @@ class Default(WorkerEntrypoint):
             name = namespace(request, body)
         except (ValueError, TypeError, UnicodeError):
             return error("WEB_REQUEST_OR_CREDENTIAL_INVALID", 400)
-        forwarded = js.Request.new(request.url, to_js({"method": "POST", "headers": dict(request.headers.items()),
-            "body": body}, dict_converter=js.Object.fromEntries))
+        forwarding = {"method": "POST", "headers": dict(request.headers.items()), "body": body}
+        incoming_signal = getattr(getattr(request, "js_object", request), "signal", None)
+        if incoming_signal is not None:
+            forwarding["signal"] = incoming_signal
+        forwarded = js.Request.new(request.url, to_js(forwarding, dict_converter=js.Object.fromEntries))
         stub = self.env.EXECUTIONS.get(self.env.EXECUTIONS.idFromName(name))
         return await stub.fetch(forwarded)
 
@@ -114,9 +118,10 @@ class ProviderResponse(io.BytesIO):
 
 class StreamingProviderResponse:
     """Pull SSE lines without buffering the whole Provider answer in Workers."""
-    def __init__(self, response):
+    def __init__(self, response, release_cancellation=lambda: None):
         self.status = response.status
         self.reader, self.buffer, self.done, self.size = response.body.getReader(), b"", False, 0
+        self.release_cancellation = release_cancellation
 
     def __enter__(self): return self
 
@@ -124,11 +129,14 @@ class StreamingProviderResponse:
         try:
             if not self.done: run_sync(self.reader.cancel())
         finally:
-            self.reader.releaseLock()
+            try: self.reader.releaseLock()
+            finally: self.release_cancellation()
 
     def readline(self, limit=8_000_001):
+        check_cancelled()
         while b"\n" not in self.buffer and len(self.buffer) < limit and not self.done:
             part = run_sync(self.reader.read())
+            check_cancelled()
             self.done = bool(part.done)
             if not self.done:
                 chunk = part.value.to_bytes()
@@ -161,6 +169,7 @@ class ExecutionSession(DurableObject):
             headers["Accept"] = "application/json"
             forwarded = js.Request.new(getattr(request, "js_object", request), to_js({"headers": headers}, dict_converter=js.Object.fromEntries))
             cancelled = False
+            cancellation = Cancellation()
             proxies = []
             async def start(controller):
                 sequence = 0
@@ -170,6 +179,7 @@ class ExecutionSession(DurableObject):
                     sequence += 1
                     controller.enqueue(to_js(encode({**event, "seq": sequence})))
                 token = SINK.set(send)
+                cancel_token = CANCEL.set(cancellation)
                 try:
                     send({"type": "received"})
                     response = await self._fetch(forwarded)
@@ -179,16 +189,32 @@ class ExecutionSession(DurableObject):
                     if not cancelled:
                         send({"type": "result", "status": 500, "result": {"error": "WEB_STREAM_FAILED", "persistence": "not_written"}})
                 finally:
+                    CANCEL.reset(cancel_token)
                     SINK.reset(token)
                     if not cancelled: controller.close()
                     for proxy in proxies: proxy.destroy()
             def cancel(_reason=None):
                 nonlocal cancelled
                 cancelled = True
+                cancellation.cancel()
             proxies.extend([create_proxy(start), create_proxy(cancel)])
             stream = js.ReadableStream.new(to_js({"start": proxies[0], "cancel": proxies[1]}, dict_converter=js.Object.fromEntries))
             return Response(stream, headers={"Content-Type": CONTENT_TYPE, "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
-        return await self._fetch(request)
+        incoming_signal = getattr(getattr(request, "js_object", request), "signal", None)
+        if incoming_signal is None:
+            return await self._fetch(request)
+        state = Cancellation()
+        abort_proxy = create_proxy(lambda _event=None: state.cancel())
+        incoming_signal.addEventListener("abort", abort_proxy)
+        if incoming_signal.aborted: state.cancel()
+        token = CANCEL.set(state)
+        try:
+            state.check()
+            return await self._fetch(request)
+        finally:
+            CANCEL.reset(token)
+            incoming_signal.removeEventListener("abort", abort_proxy)
+            abort_proxy.destroy()
 
     async def _fetch(self, request):
         if not allowed(request, self.env):
@@ -219,6 +245,7 @@ class ExecutionSession(DurableObject):
             receipt = hashlib.sha256((path + "\0" + identity).encode()).hexdigest() if isinstance(identity, str) else None
 
             async def provider_open_async(outbound, timeout):
+                check_cancelled()
                 if outbound.full_url not in ENDPOINTS or outbound.get_method() not in {"GET", "POST"}:
                     raise ValueError("PROVIDER_ENDPOINT_DENIED")
                 # Replays after eviction are refused even though transient answers
@@ -232,8 +259,12 @@ class ExecutionSession(DurableObject):
                     if count >= 256:
                         raise WebBoundaryError("WEB_SESSION_OPERATION_LIMIT", 429)
                     self.ctx.storage.sql.exec("INSERT INTO receipts VALUES (?, ?)", receipt, fingerprint)
+                abort = js.AbortController.new()
+                state = CANCEL.get()
+                release = state.register(lambda: abort.abort()) if state else lambda: None
+                transferred = False
                 options = {"method": outbound.get_method(), "headers": dict(outbound.header_items()),
-                    "redirect": "manual", "signal": js.AbortSignal.timeout(int(timeout * 1000))}
+                    "redirect": "manual", "signal": js.AbortSignal.any(to_js([abort.signal, js.AbortSignal.timeout(int(timeout * 1000))]))}
                 if outbound.data is not None:
                     options["body"] = outbound.data
                 try:
@@ -242,11 +273,14 @@ class ExecutionSession(DurableObject):
                         await response.body.cancel()
                         raise HTTPError(outbound.full_url, response.status, "PROVIDER_HTTP_ERROR", {}, None)
                     if SINK.get() and outbound.data and json.loads(outbound.data).get("stream") is True:
-                        return StreamingProviderResponse(response)
+                        stream = StreamingProviderResponse(response, release)
+                        transferred = True
+                        return stream
                     reader = response.body.getReader()
                     chunks, size = [], 0
                     try:
                         while True:
+                            check_cancelled()
                             part = await reader.read()
                             if part.done:
                                 break
@@ -259,10 +293,13 @@ class ExecutionSession(DurableObject):
                     finally:
                         reader.releaseLock()
                     return ProviderResponse(b"".join(chunks), response.status)
-                except (HTTPError, ValueError):
+                except (HTTPError, ValueError, ExecutionCancelled):
                     raise
                 except Exception:
+                    check_cancelled()
                     raise URLError("PROVIDER_NETWORK_FAILED") from None
+                finally:
+                    if not transferred: release()
 
             def provider_open(outbound, *, timeout):
                 return run_sync(provider_open_async(outbound, timeout))

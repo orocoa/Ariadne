@@ -33,7 +33,7 @@ class AppServerTests(unittest.TestCase):
             self.assertEqual([e for e in seen if e['type'] == 'activity'], [
                 {'type': 'activity', 'id': 'private', 'activity': 'thinking', 'state': 'started'},
                 {'type': 'activity', 'id': 'private', 'activity': 'thinking', 'state': 'completed'}])
-            self.assertEqual([e['text'] for e in seen if e['type'] == 'commentary'], ['Public ', 'Public status'])
+            self.assertEqual([(e['type'], e['text']) for e in seen if e['type'].startswith('commentary')], [('commentary', 'Public '), ('commentary_delta', 'status')])
             p.accept(event('item/completed', item={'id': 'final', 'type': 'agentMessage', 'phase': 'final_answer', 'text': raw}))
             p.accept(event('turn/completed', turn={'id': 'r', 'status': 'completed'}))
             self.assertTrue(p.completed); self.assertIn(b'turn.completed', p.result_events())

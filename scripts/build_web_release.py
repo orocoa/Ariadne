@@ -20,6 +20,7 @@ def release_files():
                 "deploy/install-docker-ubuntu.sh", "src/byok_providers.py", "public/provider-visual-check.pdf"}
     selected = set(explicit)
     selected.update({'public/product-shell.js', 'public/skill-guide.js', 'public/product-config.js', 'public/product-transport.js', 'src/product_application.py'})
+    selected.update({'src/local_attachment_delivery.py', 'src/runtime_cancellation.py'})
     for name in filter(None, names):
         if name.startswith(("public/", "src/")) and not name.startswith("public/downloads/"):
             selected.add(name)
