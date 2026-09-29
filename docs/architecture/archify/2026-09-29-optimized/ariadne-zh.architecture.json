@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Ariadne · 优化后的双端架构",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [1380, 730],
+    "repository": {"url": "https://github.com/orocoa/Ariadne", "provider": "github", "revision": "8b77d26abb3b9609960e2d674fd88c0f545fa884", "link_mode": "web"}
+  },
+  "components": [
+    {"id": "web-workspace", "type": "frontend", "label": "Web 工作空间", "sublabel": "共用页面 · 增量显示 · 草稿保护", "pos": [80, 90], "size": [260, 82], "sources": [{"path": "public/product-transport.js"}, {"path": "public/conversation-ui-domain.js"}]},
+    {"id": "web-execution", "type": "cloud", "brand": "cloudflare", "label": "Cloudflare 执行入口", "sublabel": "模型 POST：Pages → Worker → DO", "pos": [540, 90], "size": [280, 82], "sources": [{"path": "deploy/cloudflare/pages-worker.js"}, {"path": "deploy/cloudflare/worker.py"}, {"path": "web_app.py"}]},
+    {"id": "byok-inference", "type": "external", "label": "已验证的 API 模型", "sublabel": "用户自带 Key · 能力资格约束", "pos": [1020, 90], "size": [270, 82], "sources": [{"path": "src/byok_providers.py"}]},
+    {"id": "browser-library", "type": "database", "label": "浏览器内容库", "sublabel": "IndexedDB · 原件与版本", "pos": [80, 265], "size": [260, 82], "sources": [{"path": "public/content-browser-storage.js"}]},
+    {"id": "shared-domain-contract", "type": "security", "label": "共用领域与保存契约", "sublabel": "代码分别部署 · 范围 / 原件 / 提案", "tag": "人工保存 + 版本冲突检查", "pos": [540, 275], "size": [280, 96], "sources": [{"path": "src/product_application.py"}, {"path": "public/job-context-domain.js"}, {"path": "public/personal-understanding.js"}]},
+    {"id": "skill-workspace", "type": "frontend", "label": "Ariadne Skill 窗口", "sublabel": "共用页面 · 独立本机工作空间", "pos": [80, 485], "size": [260, 82], "sources": [{"path": "src/product_application.py"}, {"path": "public/product-transport.js"}]},
+    {"id": "local-execution", "type": "backend", "label": "本机 Python 服务", "sublabel": "附件引用 · PDF 预算 · 取消传播", "pos": [540, 485], "size": [280, 82], "sources": [{"path": "app.py"}, {"path": "src/local_attachment_delivery.py"}, {"path": "src/runtime_cancellation.py"}]},
+    {"id": "codex-inference", "type": "external", "label": "Codex → 远端模型", "sublabel": "本机隔离 App Server · 用户选型", "pos": [1020, 485], "size": [270, 82], "sources": [{"path": "src/codex_app_server.py"}, {"path": "src/codex_models.py"}]},
+    {"id": "local-library", "type": "database", "label": "本机文件内容库", "sublabel": "Markdown · 原件 · 历史 · CAS", "pos": [80, 650], "size": [260, 64], "sources": [{"path": "src/workspace_storage.py"}, {"path": "public/content-database.js"}]}
+  ],
+  "connections": [
+    {"id": "web-call", "from": "web-workspace", "to": "web-execution", "label": "同源 HTTPS", "variant": "emphasis"},
+    {"id": "api-model-call", "from": "web-execution", "to": "byok-inference", "label": "确认后请求", "variant": "emphasis"},
+    {"id": "browser-persist", "from": "web-workspace", "to": "browser-library", "label": "本地读写", "labelAt": [210, 186]},
+    {"id": "web-contract", "from": "shared-domain-contract", "to": "web-execution", "label": "共用代码", "variant": "dashed"},
+    {"id": "skill-contract", "from": "shared-domain-contract", "to": "local-execution", "label": "共用代码", "variant": "dashed", "labelAt": [680, 385]},
+    {"id": "skill-call", "from": "skill-workspace", "to": "local-execution", "label": "回环 HTTP", "variant": "emphasis"},
+    {"id": "codex-model-call", "from": "local-execution", "to": "codex-inference", "label": "App Server", "variant": "emphasis"},
+    {"id": "filesystem-persist", "from": "local-execution", "to": "local-library", "label": "查询 / 批读 / 原子写入"}
+  ],
+  "cards": [
+    {"dot": "cyan", "title": "减少重复工作", "items": ["公开输出增量传输，PDF 预检后按需转图", "已保存附件复用，记录与图片按需批读"]},
+    {"dot": "rose", "title": "边界保持", "items": ["两端资料独立，不自动同步", "讨论不自动保存，取消不保证退费"]},
+    {"dot": "amber", "title": "已验证与待验证", "items": ["离线、浏览器与本地平台检查通过", "未部署；真实语义与生产压力仍待验收"]}
+  ]
+}

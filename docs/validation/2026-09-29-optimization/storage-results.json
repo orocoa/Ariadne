@@ -1,0 +1,419 @@
+{
+  "benchmark_version": 1,
+  "generated_at": "2026-09-29T15:18:43.496Z",
+  "baseline_commit": "a16e004cfcb85b430cb808c7b78b1f992f795302",
+  "measurement": "Actual baseline/current client modules; synthetic read-only workspace endpoint; compact uncompressed UTF-8 JSON bytes excluding HTTP headers.",
+  "caveats": [
+    "Point-read comparisons compare the legacy transaction.get call pattern with independent getRecord/batchGet; getRecord already existed before this turn.",
+    "Journal comparison executes the unchanged baseline list() and the current list() against the same synthetic records.",
+    "Each fixture has ten percent of journal records assigned to the selected job; all selected records and image bytes are compared for equality.",
+    "The current server query still scans and hash-checks the store once; no disk/time improvement or production workload distribution is claimed.",
+    "Migration/open/schema/HEAD/lock/write costs are excluded. Write transaction read-set, CAS, and hash integrity remain unchanged.",
+    "Images contain synthetic 4096-byte payloads with image/png metadata; this benchmark does not test image decoding."
+  ],
+  "module_sha256": {
+    "before": {
+      "public/content-database.js": "0a101f61051575f42e24cc30448bde865d8811d338c903f4803b76c65a42dffd",
+      "public/job-journal-domain.js": "647bc86e173df10bcb6d565a94b72f937ca8760090dfc58e8f6aaffe4dea87fc"
+    },
+    "after": {
+      "public/content-database.js": "3c7bb5f45d8a2b83bca2625075ad9f81d097743c0aefdb10f6f66c98e2cd91b1",
+      "public/job-journal-domain.js": "42c3836a1db9be8312e9ff8d56c2328827b520d5b1ac4084c03507d0c319cc16"
+    }
+  },
+  "cases": [
+    {
+      "scenario": "independent_point_read",
+      "total_store_records": 100,
+      "selected_records": 1,
+      "before": {
+        "requests": 1,
+        "request_json_bytes": 153,
+        "response_json_bytes": 74241,
+        "actions": {
+          "read": 1
+        }
+      },
+      "after": {
+        "requests": 1,
+        "request_json_bytes": 158,
+        "response_json_bytes": 769,
+        "actions": {
+          "get": 1
+        }
+      },
+      "request_reduction_percent": 0,
+      "json_byte_reduction_percent": 98.754
+    },
+    {
+      "scenario": "ten_independent_point_reads",
+      "total_store_records": 100,
+      "selected_records": 10,
+      "before": {
+        "requests": 10,
+        "request_json_bytes": 1530,
+        "response_json_bytes": 742410,
+        "actions": {
+          "read": 10
+        }
+      },
+      "after": {
+        "requests": 1,
+        "request_json_bytes": 383,
+        "response_json_bytes": 7432,
+        "actions": {
+          "batch_get": 1
+        }
+      },
+      "request_reduction_percent": 90,
+      "json_byte_reduction_percent": 98.95
+    },
+    {
+      "scenario": "journal_list",
+      "total_journal_records": 100,
+      "selected_journal_records": 10,
+      "total_image_records": 0,
+      "selected_images": 0,
+      "images_per_entry": 0,
+      "image_bytes": 4096,
+      "before": {
+        "requests": 11,
+        "request_json_bytes": 1716,
+        "response_json_bytes": 950367,
+        "actions": {
+          "read": 11
+        }
+      },
+      "after": {
+        "requests": 1,
+        "request_json_bytes": 197,
+        "response_json_bytes": 8692,
+        "actions": {
+          "query": 1
+        }
+      },
+      "request_reduction_percent": 90.909,
+      "json_byte_reduction_percent": 99.066
+    },
+    {
+      "scenario": "journal_list",
+      "total_journal_records": 100,
+      "selected_journal_records": 10,
+      "total_image_records": 100,
+      "selected_images": 10,
+      "images_per_entry": 1,
+      "image_bytes": 4096,
+      "before": {
+        "requests": 31,
+        "request_json_bytes": 6526,
+        "response_json_bytes": 1494227,
+        "actions": {
+          "read": 21,
+          "blob": 10
+        }
+      },
+      "after": {
+        "requests": 2,
+        "request_json_bytes": 612,
+        "response_json_bytes": 66574,
+        "actions": {
+          "query": 1,
+          "batch_get": 1
+        }
+      },
+      "request_reduction_percent": 93.548,
+      "json_byte_reduction_percent": 95.523
+    },
+    {
+      "scenario": "journal_list",
+      "total_journal_records": 100,
+      "selected_journal_records": 10,
+      "total_image_records": 200,
+      "selected_images": 20,
+      "images_per_entry": 2,
+      "image_bytes": 4096,
+      "before": {
+        "requests": 51,
+        "request_json_bytes": 11336,
+        "response_json_bytes": 2709987,
+        "actions": {
+          "read": 31,
+          "blob": 20
+        }
+      },
+      "after": {
+        "requests": 2,
+        "request_json_bytes": 882,
+        "response_json_bytes": 124434,
+        "actions": {
+          "query": 1,
+          "batch_get": 1
+        }
+      },
+      "request_reduction_percent": 96.078,
+      "json_byte_reduction_percent": 95.395
+    },
+    {
+      "scenario": "independent_point_read",
+      "total_store_records": 500,
+      "selected_records": 1,
+      "before": {
+        "requests": 1,
+        "request_json_bytes": 153,
+        "response_json_bytes": 371041,
+        "actions": {
+          "read": 1
+        }
+      },
+      "after": {
+        "requests": 1,
+        "request_json_bytes": 158,
+        "response_json_bytes": 769,
+        "actions": {
+          "get": 1
+        }
+      },
+      "request_reduction_percent": 0,
+      "json_byte_reduction_percent": 99.75
+    },
+    {
+      "scenario": "ten_independent_point_reads",
+      "total_store_records": 500,
+      "selected_records": 10,
+      "before": {
+        "requests": 10,
+        "request_json_bytes": 1530,
+        "response_json_bytes": 3710410,
+        "actions": {
+          "read": 10
+        }
+      },
+      "after": {
+        "requests": 1,
+        "request_json_bytes": 383,
+        "response_json_bytes": 7432,
+        "actions": {
+          "batch_get": 1
+        }
+      },
+      "request_reduction_percent": 90,
+      "json_byte_reduction_percent": 99.789
+    },
+    {
+      "scenario": "journal_list",
+      "total_journal_records": 500,
+      "selected_journal_records": 50,
+      "total_image_records": 0,
+      "selected_images": 0,
+      "images_per_entry": 0,
+      "image_bytes": 4096,
+      "before": {
+        "requests": 51,
+        "request_json_bytes": 7956,
+        "response_json_bytes": 22021647,
+        "actions": {
+          "read": 51
+        }
+      },
+      "after": {
+        "requests": 1,
+        "request_json_bytes": 197,
+        "response_json_bytes": 43372,
+        "actions": {
+          "query": 1
+        }
+      },
+      "request_reduction_percent": 98.039,
+      "json_byte_reduction_percent": 99.802
+    },
+    {
+      "scenario": "journal_list",
+      "total_journal_records": 500,
+      "selected_journal_records": 50,
+      "total_image_records": 500,
+      "selected_images": 50,
+      "images_per_entry": 1,
+      "image_bytes": 4096,
+      "before": {
+        "requests": 151,
+        "request_json_bytes": 32046,
+        "response_json_bytes": 34230947,
+        "actions": {
+          "read": 101,
+          "blob": 50
+        }
+      },
+      "after": {
+        "requests": 2,
+        "request_json_bytes": 1692,
+        "response_json_bytes": 332654,
+        "actions": {
+          "query": 1,
+          "batch_get": 1
+        }
+      },
+      "request_reduction_percent": 98.675,
+      "json_byte_reduction_percent": 99.024
+    },
+    {
+      "scenario": "journal_list",
+      "total_journal_records": 500,
+      "selected_journal_records": 50,
+      "total_image_records": 1000,
+      "selected_images": 100,
+      "images_per_entry": 2,
+      "image_bytes": 4096,
+      "before": {
+        "requests": 251,
+        "request_json_bytes": 56136,
+        "response_json_bytes": 63279747,
+        "actions": {
+          "read": 151,
+          "blob": 100
+        }
+      },
+      "after": {
+        "requests": 2,
+        "request_json_bytes": 3042,
+        "response_json_bytes": 621954,
+        "actions": {
+          "query": 1,
+          "batch_get": 1
+        }
+      },
+      "request_reduction_percent": 99.203,
+      "json_byte_reduction_percent": 99.013
+    },
+    {
+      "scenario": "independent_point_read",
+      "total_store_records": 1000,
+      "selected_records": 1,
+      "before": {
+        "requests": 1,
+        "request_json_bytes": 153,
+        "response_json_bytes": 742041,
+        "actions": {
+          "read": 1
+        }
+      },
+      "after": {
+        "requests": 1,
+        "request_json_bytes": 158,
+        "response_json_bytes": 769,
+        "actions": {
+          "get": 1
+        }
+      },
+      "request_reduction_percent": 0,
+      "json_byte_reduction_percent": 99.875
+    },
+    {
+      "scenario": "ten_independent_point_reads",
+      "total_store_records": 1000,
+      "selected_records": 10,
+      "before": {
+        "requests": 10,
+        "request_json_bytes": 1530,
+        "response_json_bytes": 7420410,
+        "actions": {
+          "read": 10
+        }
+      },
+      "after": {
+        "requests": 1,
+        "request_json_bytes": 383,
+        "response_json_bytes": 7432,
+        "actions": {
+          "batch_get": 1
+        }
+      },
+      "request_reduction_percent": 90,
+      "json_byte_reduction_percent": 99.895
+    },
+    {
+      "scenario": "journal_list",
+      "total_journal_records": 1000,
+      "selected_journal_records": 100,
+      "total_image_records": 0,
+      "selected_images": 0,
+      "images_per_entry": 0,
+      "image_bytes": 4096,
+      "before": {
+        "requests": 101,
+        "request_json_bytes": 15756,
+        "response_json_bytes": 87218247,
+        "actions": {
+          "read": 101
+        }
+      },
+      "after": {
+        "requests": 1,
+        "request_json_bytes": 197,
+        "response_json_bytes": 86722,
+        "actions": {
+          "query": 1
+        }
+      },
+      "request_reduction_percent": 99.01,
+      "json_byte_reduction_percent": 99.9
+    },
+    {
+      "scenario": "journal_list",
+      "total_journal_records": 1000,
+      "selected_journal_records": 100,
+      "total_image_records": 1000,
+      "selected_images": 100,
+      "images_per_entry": 1,
+      "image_bytes": 4096,
+      "before": {
+        "requests": 301,
+        "request_json_bytes": 63946,
+        "response_json_bytes": 135361847,
+        "actions": {
+          "read": 201,
+          "blob": 100
+        }
+      },
+      "after": {
+        "requests": 2,
+        "request_json_bytes": 3042,
+        "response_json_bytes": 665254,
+        "actions": {
+          "query": 1,
+          "batch_get": 1
+        }
+      },
+      "request_reduction_percent": 99.336,
+      "json_byte_reduction_percent": 99.507
+    },
+    {
+      "scenario": "journal_list",
+      "total_journal_records": 1000,
+      "selected_journal_records": 100,
+      "total_image_records": 2000,
+      "selected_images": 200,
+      "images_per_entry": 2,
+      "image_bytes": 4096,
+      "before": {
+        "requests": 501,
+        "request_json_bytes": 112136,
+        "response_json_bytes": 250884447,
+        "actions": {
+          "read": 301,
+          "blob": 200
+        }
+      },
+      "after": {
+        "requests": 2,
+        "request_json_bytes": 5742,
+        "response_json_bytes": 1243854,
+        "actions": {
+          "query": 1,
+          "batch_get": 1
+        }
+      },
+      "request_reduction_percent": 99.601,
+      "json_byte_reduction_percent": 99.502
+    }
+  ]
+}

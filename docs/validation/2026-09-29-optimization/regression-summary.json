@@ -1,0 +1,566 @@
+[
+  {
+    "test": "about_overlay_motion_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "add_model_sheet_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "ai_career_context_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "ai_career_ingestion_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "ai_provider_capabilities_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "analysis_review_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "ascii_waves_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "asset_fingerprint_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "browser_pdf_budget_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "byok_client_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "candidate_context_provider_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "candidate_context_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "candidate_context_removal_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "candidate_conversation_domain_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "candidate_conversation_persistence_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "candidate_conversation_runtime_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "candidate_local_model_isolation_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "candidate_model_failure_ui_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "candidate_model_runtime_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "candidate_model_runtime_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "candidate_semantic_capabilities_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "candidate_workspace_conversation_integration_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "candidate_workspace_route_contract_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "card_subtitle_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "career_entity_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "career_evidence_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "career_intelligence_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "cloudflare_download_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "cloudflare_pdf_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "cloudflare_routes_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "codex_app_server_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "codex_connector_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "codex_domain_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "codex_job_pdf_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "codex_models_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "codex_portfolio_timeout_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "codex_runtime_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "content_database_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "content_document_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "conversation_attachments_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "conversation_consent_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "conversation_delivery_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "conversation_draft_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "conversation_entry_motion_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "conversation_entry_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "conversation_events_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "conversation_intro_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "conversation_output_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "conversation_reply_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "conversation_scroll_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "conversation_search_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "conversation_search_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "conversation_stream_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "conversation_turn_transport_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "desktop_lifecycle_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "desktop_workspace_copy_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "detail_behavioral_wiring_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "entry_navigation_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "final_candidate_job_parity_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "floating_window_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "frontend_input_work_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "frontend_rendering_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "gemini_browser_runtime_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "gemini_connect_page_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "global_interaction_convergence_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "i18n_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "job_application_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "job_conversation_runtime_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "job_followup_storage_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "job_intelligence_foundation_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "job_journal_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "job_local_extraction_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "job_model_import_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "job_model_import_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "job_overview_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "job_overview_runtime_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "local_attachment_reference_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "local_candidate_extraction_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "local_candidate_extraction_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "local_candidate_proposal_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "local_candidate_proposal_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "local_candidate_review_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "local_context_lifecycle_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "local_download_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "local_package_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "local_server_isolation_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "macos_launcher_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "material_attachments_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "model_selection_settings_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "model_settings_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "model_updates_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "model_updates_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "multimodal_runtime_policy_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "multimodal_runtime_policy_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "navigation_icon_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "page_navigation_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "personal_job_lifecycle_final_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "personal_local_pipeline_stabilization_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "personal_local_pipeline_stabilization_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "personal_understanding_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "personal_understanding_runtime_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "product_boundary_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "provider_expansion_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "provider_expansion_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "provider_runtime_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "provider_scoped_models_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "public_web_context_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "qwen_runtime_connection_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "raw_source_persistence_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "runtime_byok_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "runtime_capability_gating_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "runtime_capability_gating_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "runtime_connection_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "runtime_efficiency_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "runtime_execution_contract_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "runtime_execution_contract_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "runtime_operation_routing_stabilization_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "runtime_selection_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "scoped_conversation_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "shared_product_shell_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "skill_bundle_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "skill_download_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "skill_install_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "step_02_03_ui_framework_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "storage_read_recovery_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "transport_efficiency_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "truth_persistence_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "truth_persistence_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "ui_contract_addendum_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "upload_size_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "upload_size_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "vi_system_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "wave_physics_loader_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "web_byok_harness_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "web_pdf_delivery_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "web_runtime_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "worker_lifecycle_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "workspace_contract_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "workspace_query_regression.py",
+    "exit_code": 0
+  },
+  {
+    "test": "workspace_repository_regression.mjs",
+    "exit_code": 0
+  },
+  {
+    "test": "workspace_storage_regression.py",
+    "exit_code": 0
+  }
+]

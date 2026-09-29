@@ -1,0 +1,47 @@
+{
+  "runtime": "wrangler Pages local / workerd",
+  "hashed_asset_matches": true,
+  "immutable_exact": true,
+  "new_generation": "192244333643d1723ea085da79b7df1b",
+  "previous_generation": "d8c9a144ef4f8f906939d0309596c19d",
+  "retained_assets": 1,
+  "deployed": false,
+  "provider_calls": 0,
+  "checks": [
+    {
+      "path": "/product-transport.192244333643d1723ea085da79b7df1b.js",
+      "status": 200,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/javascript",
+      "body_sha256": "7e2e5ebfd948aba95101b9aa6f457484a51afe2ab2b7a686bb6fafd3c5c72553"
+    },
+    {
+      "path": "/product-transport.d8c9a144ef4f8f906939d0309596c19d.js",
+      "status": 200,
+      "cache_control": "public, max-age=31536000, immutable",
+      "content_type": "application/javascript",
+      "body_sha256": "baa0303d1437f8f11d94e50e525dffa12cecc6965b3f11e4755bb5d49f2beac7"
+    },
+    {
+      "path": "/",
+      "status": 200,
+      "cache_control": "no-cache",
+      "content_type": "text/html; charset=utf-8",
+      "body_sha256": "17c733c787d2cb3696a7a8d523c3c07f65507746439dbacbf6b92170455adf73"
+    },
+    {
+      "path": "/product-transport.js",
+      "status": 200,
+      "cache_control": "no-cache",
+      "content_type": "application/javascript",
+      "body_sha256": "7e2e5ebfd948aba95101b9aa6f457484a51afe2ab2b7a686bb6fafd3c5c72553"
+    },
+    {
+      "path": "/asset-manifest.json",
+      "status": 200,
+      "cache_control": "no-cache",
+      "content_type": "application/json",
+      "body_sha256": "391dfd549ad8d61430257ea88609a8502762e7543673f876faeb0f56ee845bc8"
+    }
+  ]
+}

@@ -1,13 +1,13 @@
 # Ariadne · 衡
 
-2026-09-28：网页版与完整 Skill 包同步最新职位工作空间变更能力。网页版使用自己的 API、浏览器资料库；Skill 使用本机 Codex、本地文件库。[更新记录](CHANGELOG.md) · [下载本次版本](https://github.com/orocoa/Ariadne/releases/tag/skill-20260928-workspace-changes)。
+2026-09-29：源码已加入架构审核后的可靠性与负载优化，本轮尚未部署；官网与公开 Skill 安装包仍为 9 月 28 日版本。[源码更新记录](CHANGELOG.md) · [下载已发布的 9 月 28 日版本](https://github.com/orocoa/Ariadne/releases/tag/skill-20260928-workspace-changes)。
 
 
 > **看懂自己的经历，理解想去的岗位。**
 >
 > 一个开源 AI 工作空间：结合你的资料与目标职位讨论已有支持、未知和下一步，保留原件，由你审阅并保存变化。
 
-[English README](README.md) · [架构演进图](docs/architecture/archify/2026-09-12-project-evolution/07-architecture-evolution-six-stages.html) · [完整项目经历](PROJECT_HISTORY.md) · [运行时契约](docs/current/ARIADNE_RUNTIME_EXECUTION_CONTRACT.md) · [Skill 使用指南](docs/current/ARIADNE_SKILL.md)
+[English README](README.md) · [当前架构图](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.html) · [架构演进图](docs/architecture/archify/2026-09-12-project-evolution/07-architecture-evolution-six-stages.html) · [完整项目经历](PROJECT_HISTORY.md) · [运行时契约](docs/current/ARIADNE_RUNTIME_EXECUTION_CONTRACT.md) · [Skill 使用指南](docs/current/ARIADNE_SKILL.md)
 
 [打开网页版](https://ariadne.kai-nex.com/) · [Skill 安装说明](docs/current/ARIADNE_SKILL.md)
 
@@ -23,13 +23,30 @@
 
 [阅读产品案例与个人贡献](docs/product/PRODUCT_CASE_STUDY.md) · [查看真实用户验证方案](docs/product/USER_VALIDATION_PLAN.md)
 
+### 众神指导 · 开发致谢
+
+9 月 29 日的架构审核、实现与交叉验证，使用 **GPT-6 Astra / Ultra，并由多个 Astra agent 分工协作完成**。KAI 继续负责产品方向、架构取舍、设计、验收与发布，项目所有权及 MIT 许可证保持不变。这是开发过程的致谢：本轮没有训练新模型，Ultra 也不是 Ariadne 产品运行时的固定配置；产品仍依据实际能力、用户选择和传输确认使用模型及思考强度。
+
 ## 可以用它做什么
 
 Ariadne 帮你结合自己的经历，理解一个真正关心的岗位。你可以加入简历、作品集或项目记录，再单独加入职位描述。连接模型后，围绕这个职位讨论：哪些要求已有资料支持，哪些还需要补充证据或澄清，以及怎样更清楚地表达做过的事。
 
 原始材料会保留；模型提出的内容先供你审阅，只有你明确保存后才生成新的确认版本。目标岗位和下一步行动由你决定，Ariadne 不会自动替你投递。
 
-## 9 月 28 日更新内容
+## 9 月 29 日源码优化——尚未部署
+
+- **完整材料在预算内处理。** PDF 在昂贵转图前检查整组预算，同一请求复用准备结果；无法完整交付时明确失败。本机对话附件经身份、同意和哈希校验后复用已保存原件。
+- **减少重复工作。** 公开回复流、预览、历史渲染与 PDF 导出减少全文反复处理；求职记录按当前职位读取一次，再批量读取所属图片。独立读取走定点接口，写事务仍保留完整读集、版本校验和原子保存。
+- **失败明确收束，保留用户决定。** 存储启动异常与取消会结束等待中的读取；旧职位提案被拒绝或已处理后，不能再次接受。受影响的重渲染和冲突保留页面内草稿；这不等于关闭页面后的草稿恢复。
+- **执行与发布边界更清楚。** 取消向当前 Provider 传输传播；网页显式续期保留旧操作绑定，同一操作更换凭据时拒绝执行。资产构建使用内容版本 URL，保留指定上一代资源；HTML 与兼容地址仍重新验证缓存。
+
+一组合成求职记录基准：全库 1,000 条，当前职位 100 条、100 张图片，读取从 **301 次请求／135,361,847 响应字节，降到 2 次请求／665,254 响应字节**。这是未压缩 JSON 的传输计数，不代表生产延迟或模型速度；服务端仍对记录库做一次扫描与完整性校验。
+
+已检查离线回归、桌面／手机 Chrome 流程、真实本地 Workerd/Pyodide 启动与无效领域请求，以及 Pages 实际缓存响应头。上述产品验收未额外调用真实付费 Provider；新增语义评测在缺少真实输出与人工审阅时仍为 **NOT_RUN**。生产压力、新机器安装和普遍语义质量尚未由这些检查证明。候选包仅在本地构建并验包，官网与可下载 Skill 仍是 9 月 28 日代码。
+
+[优化细节与限制](docs/current/RUNTIME_OPTIMIZATION_20260929.md) · [架构分析](docs/current/ARCHITECTURE_REVIEW_20260929.md) · [验收记录](PROJECT_STATUS.md)
+
+## 已发布的 9 月 28 日版本
 
 - **一次同步完整信息。** 职位对话可以成组修改标题、公司、地点、简介、要求、投递阶段/结果、备注，以及新增、纠正、移除求职记录。例如“HR 让我加老板微信但一直没通过，结束这次投递并记下经过”，会同时提出状态和经过两项变化；未回应不会被自动认定为明确拒绝。
 - **统一审阅、一次保存。** 展示全部修改前后值，接受后整组保存，失败则整组不写入。期间数据变化会使旧建议失效；原件与历史保留。当前读取求职记录文字，记录附件图片仅提供数量，不解析图片内容；职位对话不能修改个人资料。
@@ -69,9 +86,11 @@ Mac 默认由 Skill 打开独立窗口，关闭最后窗口即停止服务，保
 
 网页版与 Skill 共用 Candidate/Job 页面、来源、版本和人工保存契约，分别管理启动、模型执行与存储。网页版使用自己的 API Key，资料保存在浏览器；Skill 在独立窗口中使用本机 Codex，资料保存在固定工作区文件库。网页本地 Agent 入口只负责安装引导，不再连接本机端口。
 
-[![Ariadne 当前架构：网页版 API 与本地 Codex Skill](docs/architecture/archify/2026-09-20-web-skill/ariadne-zh.png)](docs/architecture/archify/2026-09-20-web-skill/ariadne-zh.png)
+9 月 29 日源码架构继续围绕单一内容权威组织原件与 Markdown 记录、范围化上下文、模型执行、待审阅提案和明确保存。优化去掉重复传输与读取，保留来源身份、完整材料、领域隔离和人工保存权限；没有新增跨端同步，也没有整体更换应用框架。
 
-[中文交互图](docs/architecture/archify/2026-09-20-web-skill/ariadne-zh.html) · [English diagram](docs/architecture/archify/2026-09-20-web-skill/ariadne-en.html) · [可编辑源文件](docs/architecture/archify/2026-09-20-web-skill/ariadne-zh.architecture.json) · [验收记录](docs/architecture/archify/2026-09-20-web-skill/review.json) · [实现边界](docs/current/TWO_PRODUCT_ARCHITECTURE.md)。下载 HTML 后本地打开，可缩放、查看源码依据、切换深浅色和导出；GitHub 会把 HTML 显示为源码。此前 [Web/Mac App 图](docs/architecture/archify/2026-09-19-current/ariadne.html)保留为历史快照。
+[![Ariadne 9 月 29 日源码架构：完整材料、受控执行与人工保存](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.png)](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.html)
+
+[中文交互架构图](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.html) · [可编辑架构规格](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.architecture.json) · [图示验收记录](docs/architecture/archify/2026-09-29-optimized/review.json) · [架构分析](docs/current/ARCHITECTURE_REVIEW_20260929.md) · [双端边界](docs/current/TWO_PRODUCT_ARCHITECTURE.md)。新图描述尚未部署的源码状态；下载 HTML 后本地打开可交互查看，GitHub 会把 HTML 显示为源码。[9 月 20 日英文图](docs/architecture/archify/2026-09-20-web-skill/ariadne-en.html)、[9 月 20 日中文图](docs/architecture/archify/2026-09-20-web-skill/ariadne-zh.html)及更早的 [Web/Mac App 图](docs/architecture/archify/2026-09-19-current/ariadne.html)保留为历史快照。
 
 ## 为什么从网页走到安装包，再到 Skill？
 

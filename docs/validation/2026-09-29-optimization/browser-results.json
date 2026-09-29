@@ -1,0 +1,58 @@
+{
+  "checks": {
+    "drafts": {
+      "checks": [
+        "focus preserves value, node and caret",
+        "history prepends retain existing DOM",
+        "failed save preserves draft and restores controls"
+      ]
+    },
+    "pdf": {
+      "checks": [
+        "three complete PDF pages",
+        "valid byte offsets",
+        "JPEG only",
+        "unchanged export and URL reused"
+      ],
+      "bytes": 601768,
+      "pages": 3,
+      "sha256": "7f62c4342f150e4f34c73b839a765154b868576281cfbc2c77aff875db2a2ad1",
+      "download": "Synthetic three page export.pdf",
+      "nativeDownloadMatchesBlob": true
+    },
+    "conflict": {
+      "checks": [
+        "external decision preserves recovery text",
+        "conflicted save disabled",
+        "explicit discard available"
+      ],
+      "explicitDiscard": true
+    },
+    "session": {
+      "checks": [
+        "two successive operation limits can recover",
+        "no duplicate recovery UI",
+        "old operation bindings retained"
+      ]
+    },
+    "storage": {
+      "database": "synthetic-storage-768625ad-da6e-44dc-a482-73f6fa45f61c",
+      "checks": [
+        "native migration",
+        "job query",
+        "batch/point-read parity",
+        "metadata blobs excluded",
+        "persisted marker skips unavailable legacy database"
+      ]
+    }
+  },
+  "errors": [],
+  "consoleErrors": [],
+  "stubbedFontStylesheets": [
+    "/css2"
+  ],
+  "externalRequests": [],
+  "providerRequests": [],
+  "serverErrors": "",
+  "providerCalls": 0
+}

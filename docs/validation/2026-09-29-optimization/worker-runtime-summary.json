@@ -1,0 +1,49 @@
+{
+  "runtime": "Local Wrangler / workerd / Pyodide; Default -> Durable Object -> WSGI",
+  "checks": [
+    {
+      "path": "/healthz",
+      "status": 200,
+      "body": {
+        "ok": true,
+        "mode": "web"
+      },
+      "cache_control": "no-store"
+    },
+    {
+      "path": "/api/web-runtime",
+      "status": 200,
+      "body": {
+        "mode": "web",
+        "byok": [
+          "deepseek",
+          "gemini",
+          "qwen"
+        ],
+        "storage": "browser",
+        "preview": true,
+        "pdf_preparation": "browser_pdfjs_complete_pages_v1",
+        "request_limit": 12582912,
+        "network_call_made": false
+      },
+      "cache_control": "no-store"
+    },
+    {
+      "path": "/api/personal-understanding-turn",
+      "status": 422,
+      "body": {
+        "error": "PERSONAL_REQUEST_INVALID",
+        "failure_layer": "contract",
+        "network_call_made": false,
+        "persistence": "not_written"
+      },
+      "request_has_no_domain_contract": true
+    }
+  ],
+  "real_do_wsgi_validation_passed": true,
+  "source_hash_drift": [],
+  "all_owned_servers_closed": true,
+  "source_files_modified_by_verification": false,
+  "provider_calls": 0,
+  "deployed": false
+}

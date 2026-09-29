@@ -1,0 +1,43 @@
+{
+  "archives": [
+    {
+      "kind": "skill",
+      "path": "skill/Ariadne-Skill.zip",
+      "entries": 241,
+      "bytes": 2907705,
+      "sha256": "0136b20194ab369f691e8031c1a35a034d104b9d18e15272d1457d9b805e9fec"
+    },
+    {
+      "kind": "web",
+      "path": "web.tar.gz",
+      "entries": 258,
+      "bytes": 875882,
+      "sha256": "89ab814bb5e2ec27951e56341d3cf87c8a5d07223518c74b16393a28b91a47c5"
+    },
+    {
+      "kind": "pages",
+      "path": "cloudflare/Ariadne-Pages.zip",
+      "entries": 484,
+      "bytes": 7133344,
+      "sha256": "732a42fbeb70bc6e39facd5a8544f4d59066c43aaa55e6eba6ee00ed6f0b2a59"
+    }
+  ],
+  "required_files_identical_in_all_products": {
+    "src/local_attachment_delivery.py": "ea86cae07b96a55bdc54e0ef95a18ce94e588a14128c351287d754e297a07894",
+    "src/runtime_cancellation.py": "989492fd383823c9e114c814a599d20dd4447c9132af6894e8351bfcf7fcf9e5",
+    "public/conversation-attachments.js": "ef9bc0fc694535ea342d0b70c7b8aedd946213efb877aef0228f951d4757ac32",
+    "public/content-database.js": "3c7bb5f45d8a2b83bca2625075ad9f81d097743c0aefdb10f6f66c98e2cd91b1",
+    "public/content-browser-storage.js": "105ae0ce6f13093a242e4f2c3836577a1af1d75f5882f285a58d596daa03932d",
+    "public/product-transport.js": "2cae83e515155a50ded4a32369685897b0734da95058c6d100837b578555b5dc",
+    "public/browser-pdf-delivery.js": "d42e22c4d6e0214cb5bd40543d389dc9930382f273804791c9b380c0d066944a"
+  },
+  "skill_runtime_hashes_verified": 234,
+  "fingerprinted_assets_verified": 116,
+  "retained_assets_verified": 116,
+  "previous_generation": "2288e77a26e24670e35d9b9e21b87444",
+  "current_generation": "2288e77a26e24670e35d9b9e21b87444",
+  "forbidden_names_found": [],
+  "source_changed_since_build": [],
+  "provider_calls": 0,
+  "deployed": false
+}

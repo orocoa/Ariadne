@@ -1,0 +1,155 @@
+{
+  "schema": "ariadne-public-validation-evidence-v1",
+  "scope": "Synthetic local measurements and validation only; no real model execution, deployment or production stress claim.",
+  "baseline_commit": "a16e004cfcb85b430cb808c7b78b1f992f795302",
+  "recorded_source_commit": "8b77d26abb3b9609960e2d674fd88c0f545fa884",
+  "artifacts": [
+    {
+      "path": "runtime-results.json",
+      "bytes": 1686,
+      "sha256": "6cc5c1a39a5d432334ab14f7982f8629ab2f1ad32d0b98e40329157094674201",
+      "transformation": "Unchanged copy; synthetic numeric results only.",
+      "sources": [
+        {
+          "path": "work/optimization-20260929/runtime/results-final.json",
+          "bytes": 1686,
+          "sha256": "6cc5c1a39a5d432334ab14f7982f8629ab2f1ad32d0b98e40329157094674201"
+        }
+      ]
+    },
+    {
+      "path": "storage-results.json",
+      "bytes": 11441,
+      "sha256": "f253928b519b54f6deb2a9f911ce4d358915fc14e14aa9652cc51a556bae26ef",
+      "transformation": "Unchanged copy; synthetic numeric results only.",
+      "sources": [
+        {
+          "path": "work/optimization-20260929/storage/results-2026-09-29T15-18-43-497Z.json",
+          "bytes": 11441,
+          "sha256": "f253928b519b54f6deb2a9f911ce4d358915fc14e14aa9652cc51a556bae26ef"
+        }
+      ]
+    },
+    {
+      "path": "browser-results.json",
+      "bytes": 1500,
+      "sha256": "8e03617a5da394d950645a14c472eac6336efae4e61679cc609ce71b58c39927",
+      "transformation": "Unchanged copy; synthetic numeric results only.",
+      "sources": [
+        {
+          "path": "work/optimization-browser/2026-09-29T15-29-38-826Z-65547/results.json",
+          "bytes": 1500,
+          "sha256": "8e03617a5da394d950645a14c472eac6336efae4e61679cc609ce71b58c39927"
+        }
+      ]
+    },
+    {
+      "path": "package-verification.json",
+      "bytes": 1770,
+      "sha256": "c37b0ef1ec64e49b090ae1eb0644da74a4f029d76587630cdf244b552cafed63",
+      "transformation": "Unchanged copy; synthetic numeric results only.",
+      "sources": [
+        {
+          "path": "work/optimization-20260929/release-20260929-153146/package-verification.json",
+          "bytes": 1770,
+          "sha256": "c37b0ef1ec64e49b090ae1eb0644da74a4f029d76587630cdf244b552cafed63"
+        }
+      ]
+    },
+    {
+      "path": "regression-summary.json",
+      "bytes": 11052,
+      "sha256": "66ac6c619182d0282ea87c2c8c77e0cecb1cf6d8f2c767bbf30eb69a46ff3a03",
+      "transformation": "Unchanged suite exit-code list. Includes one previously untracked Mac launcher suite; supplemental six semantic-review checks are a separate run.",
+      "sources": [
+        {
+          "path": ".cache/regressions/summary.json",
+          "bytes": 11052,
+          "sha256": "66ac6c619182d0282ea87c2c8c77e0cecb1cf6d8f2c767bbf30eb69a46ff3a03"
+        }
+      ]
+    },
+    {
+      "path": "worker-runtime-summary.json",
+      "bytes": 1201,
+      "sha256": "51ed1730c963bb4f22987c91bb98be62fd554361cc5cc83a35ef88ef98513afd",
+      "transformation": "Parsed endpoint JSON bodies; retained validation outcomes. Removed dependency file inventory, transient local ports, duplicate headers and the early not_started Pages placeholder; independent final Pages reports are published separately.",
+      "sources": [
+        {
+          "path": "work/optimization-20260929/release-20260929-153146/local-runtime-report.json",
+          "bytes": 10539,
+          "sha256": "366186a3fee71ff290a9b3300f52c83404aa1629d75cb1ea3f6cabbc18892910"
+        },
+        {
+          "path": "work/optimization-20260929/release-20260929-153146/final-verification.json",
+          "bytes": 354,
+          "sha256": "6bb05a034fab624c5cd0183327570cdf87163c8b6c31ba33856f5678edec2429"
+        }
+      ]
+    },
+    {
+      "path": "pages-cache-summary.json",
+      "bytes": 1325,
+      "sha256": "08ab3ebbdacc39b1c495ed165c3e15ce03e456ea10d126fd62b047ae888b2347",
+      "transformation": "Retained response status, cache policy, content type, body hashes and release-generation checks; removed duplicate same-path checks and unrelated HTTP transport/security/date headers.",
+      "sources": [
+        {
+          "path": "work/optimization-20260929/release-20260929-153146/pages-runtime-report.json",
+          "bytes": 3860,
+          "sha256": "21f3721e46944d7982b69fb2369c1af69c85e5eafe60ddde8086b1417bd153f3"
+        }
+      ]
+    },
+    {
+      "path": "pages-distinct-generations-summary.json",
+      "bytes": 1627,
+      "sha256": "e809f1e23c6b049a8bcc482da500212afd3ecf7f7dd98e90291b484f2a8c2068",
+      "transformation": "Retained response status, cache policy, content type, body hashes and release-generation checks; removed duplicate same-path checks and unrelated HTTP transport/security/date headers.",
+      "sources": [
+        {
+          "path": "work/optimization-20260929/release-20260929-153146/pages-distinct-generation-report-v2.json",
+          "bytes": 3858,
+          "sha256": "7d500cf9d57a57bfbffe28b0226f8af1313c243538ee0680829dcd1744359482"
+        }
+      ]
+    }
+  ],
+  "source_binding": {
+    "scope": "Selected measured runtime/storage/browser modules match the recorded build snapshot at the named source commit; archive bytes were built before that commit and are historical artifacts.",
+    "verified_sha256": {
+      "src/conversation_events.py": "3cdc38db6bc0fcd8e810312007352bc6d237b2dacc007165d409fe84bcdaf304",
+      "src/codex_app_server.py": "430cb3c07fccbb914542fcd160f5eebf6699867f0fb47cd917eb9376ceda7051",
+      "src/pdf_delivery.py": "f497938a9c2fb3c1798adf7c0f6eef3a89c48b5683590dd145006999e71d61ac",
+      "public/content-database.js": "3c7bb5f45d8a2b83bca2625075ad9f81d097743c0aefdb10f6f66c98e2cd91b1",
+      "public/job-journal-domain.js": "42c3836a1db9be8312e9ff8d56c2328827b520d5b1ac4084c03507d0c319cc16",
+      "public/conversation-output.js": "297e1d7e77935d8b0c04e17a91bbbbf0468bdaaec5064c4e35d9ced9e979d32e",
+      "public/conversation-ui-domain.js": "ea1bd3bd3f5f40dd5182607f2a134bf5f7a1531f2d0aef7f5258bed6f78f913b",
+      "public/personal-understanding.js": "40431eafe9fd50ee31dcc4f16c5286c44fadaa034c7a3841ae6ed78c0bb86cce",
+      "public/product-transport.js": "2cae83e515155a50ded4a32369685897b0734da95058c6d100837b578555b5dc"
+    },
+    "snapshot_source": {
+      "path": "work/optimization-20260929/release-20260929-153146/source-hashes-before.json",
+      "sha256": "365bb41d6242e25401fa37c84211907a574f4099c770ae55ff28a7ec15107a8f"
+    }
+  },
+  "benchmark_copies": [
+    {
+      "path": "scripts/benchmarks/runtime_optimization.py",
+      "sha256": "35f11d0e3d5d5a1d0e13321005058dd78f97d39852bdc86abf5862a7ec12e69f",
+      "source": {
+        "path": "work/optimization-20260929/runtime/benchmark.py",
+        "sha256": "6219db25e2083bdbf8592be9b7129eee4113bb0c020e37514fb8761e1ac1640d"
+      },
+      "changes": "Copied, not moved. Portable repository root and explicit output arguments; default timestamped work/benchmarks output, no overwrite. Original synthetic workloads and assertions retained."
+    },
+    {
+      "path": "scripts/benchmarks/storage_reads.mjs",
+      "sha256": "633767b8d000557263bc2ccc153b8097f2ab8c459e4fd5657878b8734e499cb1",
+      "source": {
+        "path": "work/optimization-20260929/storage/benchmark.mjs",
+        "sha256": "782e647d716304e975817182d4f8b782e49927466d65583f93e344739fc876c8"
+      },
+      "changes": "Copied, not moved. Portable repository root and explicit output arguments; default timestamped work/benchmarks output, no overwrite. Original synthetic workloads and assertions retained."
+    }
+  ]
+}

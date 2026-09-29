@@ -1,5 +1,14 @@
 # AI Job Radar｜Phase 4 Status
 
+## 2026-09-29 — 优化源码、Archify 架构与 GitHub 说明
+
+- 用户明确要求分析优化后的最终架构并同步 GitHub。运行实现绑定 `8b77d26`；本阶段补双语 README、CHANGELOG、[架构分析](docs/current/ARCHITECTURE_REVIEW_20260929.md)与 [Archify 交互图](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.html)，旧图与下载链接保留。
+- 图中区分真实请求/存储访问与共用代码关系，核对 19 处源码引用；Web 的模型 POST 经 Pages → Python Worker → 分区 DO，Skill 经本机 Python → 隔离 Codex App Server → 远端模型，两端资料不自动同步，人工保存与冲突校验保持。图以源码状态为准，不把尚未部署的变化写成线上能力。
+- Archify showcase 9/9、0 errors / warnings；真实 Chrome 的 1440×900、1600×1000、1920×1080、2048×1320 均无页面溢出；明暗截图、实际 PNG 导出和 egolite 搜索/聚焦/来源面板关闭经检查。规格/HTML hash、浏览器证据及视觉审阅分别记录在图目录 `review.json`，原始 QA 保留。
+- 新增公开合成证据与可复现 benchmark 脚本，去除本机路径和冗余运行信息；保留旧原始产物。141 项历史全量回执与后续新增评测工具专项分开说明，不把真实业务模型、生产压力或新机器安装记为通过。
+- README 与变更记录加入“众神指导”：GPT-6 Astra / Ultra 与多个 Astra agent 协作完成本轮架构审核、优化及交叉验证；项目所有权、MIT、产品内模型选择和人工决策保持。此处是开发致谢，没有训练新的基础模型。
+- 本阶段同步范围为 GitHub 源码与说明；不部署官网、不创建新安装包 Release、不替换已安装 Skill。远端提交及 CI 以 GitHub 实际记录为准，原有未提交的 Mac 启动器、历史文档和本地 QA 不纳入本次同步。
+
 ## 2026-09-29 — 多 agent 审核后的可靠性与负载优化（本地完成）
 
 - 用户在只读审查后明确授权实施优化；三名 Astra / ultra agent 分别处理前端、运行成本及数据/架构边界，并交叉复核。开发模型与产品模型选择保持独立。实现与未完成项详见 [优化记录](docs/current/RUNTIME_OPTIMIZATION_20260929.md)。

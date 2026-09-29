@@ -1,0 +1,77 @@
+{
+  "baseline": "a16e004cfcb85b430cb808c7b78b1f992f795302",
+  "python": "3.9.6",
+  "provider_calls": 0,
+  "private_data_used": false,
+  "preview": [
+    {
+      "characters": 5973,
+      "delta_characters": 20,
+      "before_seconds": 0.1717145,
+      "after_seconds": 0.002412957999999965
+    },
+    {
+      "characters": 23973,
+      "delta_characters": 20,
+      "before_seconds": 1.9339848749999997,
+      "after_seconds": 0.0021604169999998035
+    },
+    {
+      "characters": 47973,
+      "delta_characters": 20,
+      "before_seconds": 9.549532499999998,
+      "after_seconds": 0.003341458999997826
+    }
+  ],
+  "commentary": [
+    {
+      "characters": 2400,
+      "delta_characters": 1,
+      "before": {
+        "events": 2400,
+        "bytes": 17425293
+      },
+      "after": {
+        "events": 2400,
+        "bytes": 166887
+      }
+    },
+    {
+      "characters": 6000,
+      "delta_characters": 5,
+      "before": {
+        "events": 1200,
+        "bytes": 21686493
+      },
+      "after": {
+        "events": 1200,
+        "bytes": 111687
+      }
+    }
+  ],
+  "pdf": [
+    {
+      "mode": "before",
+      "samples_seconds": [
+        1.9163774999999958,
+        1.1615197080000002,
+        1.0326442920000005
+      ],
+      "median_seconds": 1.1615197080000002,
+      "full_renders": 2,
+      "pages_delivered": 2
+    },
+    {
+      "mode": "after",
+      "samples_seconds": [
+        0.6293017500000033,
+        0.6073737919999971,
+        0.7017205830000037
+      ],
+      "median_seconds": 0.6293017500000033,
+      "full_renders": 1,
+      "pages_delivered": 2
+    }
+  ],
+  "pdf_fixture_sha256": "bcf3d28b20878ab8fec866b088492aaa281a8f8c81ad70ab123bce55f5320cdc"
+}

@@ -2,7 +2,7 @@
 
 本轮按用户授权实施多 agent 审核中能以现有契约验证的优化。三名审查/实现 agent 使用 Astra / ultra 分工，并交叉复核数据边界、运行成本和浏览器行为。开发所用模型不改变产品内用户选择的 Provider、型号、推理强度或权限。
 
-状态：本地实现、回归、浏览器与发布包验收完成；未推送、部署、替换已安装 Skill 或执行真实业务模型。本轮证据只使用合成资料。原件、旧库、历史、已有未提交内容与 QA 产物原地保留。
+优化验收时的状态：本地实现、回归、浏览器与发布包验收完成；当时尚未推送、部署、替换已安装 Skill 或执行真实业务模型。后续 GitHub 源码同步、最终架构分析与开发致谢见 [架构分析](ARCHITECTURE_REVIEW_20260929.md)，不表示已部署官网或升级安装包。本轮证据只使用合成资料。原件、旧库、历史、已有未提交内容与 QA 产物原地保留。
 
 ## 已实施的改动
 
@@ -30,24 +30,25 @@
 | --- | ---: | ---: | --- |
 | 2,400 字公开说明，每次增加 1 字 | 17,425,293 B | 166,887 B | NDJSON 事件字节，约减少 99.0% |
 | 6,000 字公开说明，每次增加 5 字 | 21,686,493 B | 111,687 B | NDJSON 事件字节，约减少 99.5% |
-| 47,973 字 JSON，公开段后接增长的非公开段 | 9.5495 s | 0.00334 s | 仅公开预览解析 CPU，中位数；不含模型时间 |
+| 47,973 字 JSON，公开段后接增长的非公开段 | 9.5495 s | 0.00334 s | 仅公开预览解析的经过时间，中位数；不含模型时间或 CPU 采样 |
 | 两页 PDF 的完整 Job 准备 | 2 次转图 / 1.1615 s | 1 次转图 / 0.6293 s | 三次取中位数，均交付完整两页 |
 | 1,000 条记录，其中当前 Job 100 条、各 1 张合成图片 | 301 请求 / 135,361,847 B | 2 请求 / 665,254 B | 真实新旧 JS 适配器、内存端点；压缩前 JSON，不含磁盘与网络延迟 |
 
-运行证据与脚本保留在本地工作目录：
+合成结果已整理为可随源码提交的[公开证据集](../validation/2026-09-29-optimization/README.md)，原始工作文件保留不动：
 
-- [运行时结果](../../work/optimization-20260929/runtime/results-final.json)与 [复现说明](../../work/optimization-20260929/runtime/README.md)。
-- [存储复现说明](../../work/optimization-20260929/storage/README.md)与 [15 组合成结果](../../work/optimization-20260929/storage/results-2026-09-29T15-18-43-497Z.json)。
+- [运行时结果](../validation/2026-09-29-optimization/runtime-results.json)与[可复现脚本](../../scripts/benchmarks/runtime_optimization.py)。
+- [15 组存储合成结果](../validation/2026-09-29-optimization/storage-results.json)与[可复现脚本](../../scripts/benchmarks/storage_reads.mjs)。
+- [复现说明与测量边界](../validation/2026-09-29-optimization/README.md)及[原始/公开证据 hash](../validation/2026-09-29-optimization/manifest.json)。两个脚本支持 `--root`、`--baseline`、`--output`；默认写入新的 `work/benchmarks/` 时间戳文件，不覆盖既有结果。
 
 存储查询仍需一次完整扫描并检查 hash；本轮消除的是重复扫描和无关数据传输，没有证明磁盘索引已无必要。30 MiB 原始附件减少一次约 40 MiB 的 base64 传输是编码体积估算，不是浏览器峰值内存实测。
 
 ## 验收与持续集成
 
-- 完整本地离线回归 141/141 通过，其中含此前未跟踪、未纳入本阶段提交的 Mac 启动器回归。随后人工语义回执校验的 6 项专项测试通过；不把它记作同一轮完整运行。
+- 完整本地离线回归 [141/141 通过](../validation/2026-09-29-optimization/regression-summary.json)，其中含此前未跟踪、未纳入本阶段提交的 Mac 启动器回归。随后人工语义回执校验的 6 项专项测试通过；不把它记作同一轮完整运行。
 - VI 检查与 diff 检查通过。新增边界回归覆盖附件引用、数据读取恢复、查询/批读、PDF 整组预算、公开增量解析、取消、session 续期与凭据变更、旧提案冲突和资产指纹。
 - egolite 实际验证草稿、历史、冲突、迁移与连接续期；截图连续遇到 CDP 超时，按用户约定改用已安装 Google Chrome。Chrome 完整验收通过，覆盖 1280px 与 390px 截图，浏览器/控制台错误均为零。测试使用隔离合成工作区、禁用业务模型调用和外网请求；为离线稳定性替换了 Google Fonts 样式请求，不代表线上字体加载验收。
-- 真实 canvas 导出 90 行、3 页 PDF，601,768 bytes，SHA-256 `7f62c4342f150e4f34c73b839a765154b868576281cfbc2c77aff875db2a2ad1`；实际下载与 Blob 字节相同，检查 JPEG-only、完整页和 xref 偏移。见 [浏览器结果](../../work/optimization-browser/2026-09-29T15-29-38-826Z-65547/results.json)及同目录桌面/手机截图。
-- CI 新增固定版本 Playwright 1.62.1 的真实浏览器流程及失败时也保留的证据上传；本地对应流程已通过，尚未推送，因此没有本次远端 CI 结果。既有全历史 Gitleaks 步骤保留，本轮未重新执行全历史扫描。
+- 真实 canvas 导出 90 行、3 页 PDF，601,768 bytes，SHA-256 `7f62c4342f150e4f34c73b839a765154b868576281cfbc2c77aff875db2a2ad1`；实际下载与 Blob 字节相同，检查 JPEG-only、完整页和 xref 偏移。见[公开浏览器结果](../validation/2026-09-29-optimization/browser-results.json)；桌面/手机截图和 PDF 原件仍保留在原工作目录，未纳入该小型公开证据集。
+- CI 新增固定版本 Playwright 1.62.1 的真实浏览器流程及失败时也保留的证据上传；本地对应流程已通过，优化验收时尚未推送，因此当时没有远端 CI 结果。后续同步的远端状态见 [GitHub Actions](https://github.com/orocoa/Ariadne/actions)。既有全历史 Gitleaks 步骤保留，不能把本地公开文件检查当作全历史扫描。
 
 本地运行浏览器验收：
 
@@ -59,7 +60,7 @@ ARIADNE_PLAYWRIGHT_PACKAGE=/absolute/path/to/playwright node tests/optimization_
 
 ## 构建与真实平台检查
 
-最终候选产物保留在 `work/optimization-20260929/release-20260929-153146/`，由该基线加本轮未提交实现构建；包内 manifest / 外部回执记录实际文件 hash，不冒充干净 Git 发布版本。最终构建与验包期间业务源文件无漂移，后续补充项目记录不改变已检验的运行代码。
+最终候选产物保留在原工作目录，[公开验包回执](../validation/2026-09-29-optimization/package-verification.json)记录三种包的大小、hash 和代码一致性。它们由该基线加当时未提交实现构建；包内 manifest / 外部回执记录实际文件 hash，不冒充干净 Git 发布版本。最终构建与验包期间业务源文件无漂移，后续补充项目记录不改变已检验的运行代码。
 
 | 产物 | 大小 | SHA-256 |
 | --- | ---: | --- |
@@ -69,7 +70,7 @@ ARIADNE_PLAYWRIGHT_PACKAGE=/absolute/path/to/playwright node tests/optimization_
 
 Skill 的 234 个 runtime 文件 hash 已核验；必要新模块在三种产品中一致。真实本地 Wrangler / workerd / Pyodide 的 `healthz` 与 Web runtime 均返回 200；无效合成非流式 POST 经过 Default → Durable Object → WSGI 后返回 422 `PERSONAL_REQUEST_INVALID` / `failure_layer=contract` / `network_call_made=false`，覆盖实际平台导入与 signal 属性兼容，无 Provider 调用。
 
-实际 Pages 服务验证了 hashed URL 的 `public, max-age=31536000, immutable`，以及 HTML、原路径别名和 manifest 的 `no-cache`。本次两包的前端图相同，因此 generation 相同，116 个上一代文件逐个校验；另外在发布包之外构建合成两代静态图，真实 Pages 验证新旧 hash URL 与缓存头，不改候选包。篡改拒绝另由资产回归覆盖。证据见该目录的 `package-verification.json`、`local-runtime-report.json`、`pages-runtime-report.json` 和 `pages-distinct-generation-report-v2.json`。
+实际 Pages 服务验证了 hashed URL 的 `public, max-age=31536000, immutable`，以及 HTML、原路径别名和 manifest 的 `no-cache`。本次两包的前端图相同，因此 generation 相同，116 个上一代文件逐个校验；另外在发布包之外构建合成两代静态图，真实 Pages 验证新旧 hash URL 与缓存头，不改候选包。篡改拒绝另由资产回归覆盖。公开摘要见 [Worker 检查](../validation/2026-09-29-optimization/worker-runtime-summary.json)、[候选包 Pages 缓存](../validation/2026-09-29-optimization/pages-cache-summary.json)和[不同两代 Pages 缓存](../validation/2026-09-29-optimization/pages-distinct-generations-summary.json)；原始来源与裁剪方式记录在[证据 manifest](../validation/2026-09-29-optimization/manifest.json)。
 
 构建时应传 `--previous-pages /absolute/path/to/previous/pages`，只保留该 manifest 所属的一代资源，并校验路径和内容 hash；不无限累计旧发布。Cloudflare `_headers` 使用 detach 后设置，避免重叠规则把 `no-cache` 和 `immutable` 合并，规则语义见 [官方 Headers 文档](https://developers.cloudflare.com/pages/configuration/headers/)。本轮没有部署或修改正式服务。
 

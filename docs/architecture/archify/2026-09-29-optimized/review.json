@@ -1,0 +1,222 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "skill": "archify 2.17",
+  "source_revision": "8b77d26abb3b9609960e2d674fd88c0f545fa884",
+  "repository": "https://github.com/orocoa/Ariadne",
+  "specification": {
+    "path": "ariadne-zh.architecture.json",
+    "sha256": "f31da10ba95e14da53415aca8884020af6a26e227be434146181354f57080702",
+    "bytes": 4500
+  },
+  "artifact": {
+    "path": "ariadne-zh.html",
+    "sha256": "389488b0ab00488f564bacc14bb5df0270d6e39d9fd779592d223501280638da",
+    "bytes": 813058
+  },
+  "validation": {
+    "profile": "showcase",
+    "checks_passed": 9,
+    "checks_total": 9,
+    "errors": 0,
+    "warnings": 0,
+    "verified_source_references": 19
+  },
+  "browser_evidence": "passed",
+  "browser_evidence_kind": "automated-browser",
+  "automated_receipt_original_sha256": "eb037c2b41441b29c7ba26054c3b4c0fe3183a1472d0a9fe718cb0c94e1e0c52",
+  "automated_receipt_note": "Original local sidecar retained; public receipt excludes absolute host paths. Its visualReview remains pending, separate from the image-capable review below.",
+  "browser_state": {
+    "detail": "read",
+    "motion": "still"
+  },
+  "viewports": [
+    {
+      "width": 1440,
+      "height": 900,
+      "theme": "light",
+      "innerWidth": 1440,
+      "innerHeight": 900,
+      "scrollWidth": 1440,
+      "scrollHeight": 900,
+      "overflowX": false,
+      "overflowY": false,
+      "ok": true,
+      "readerWidth": 1244,
+      "diagramWidth": 1214,
+      "viewBoxWidth": 1380,
+      "minimumProjectedNodeTextPx": 7.9173913043478255,
+      "minimumProjectedNodeText": "共用页面 · 增量显示 · 草稿保护",
+      "minimumProjectedNodeTextDetail": "context",
+      "minimumRequiredNodeTextPx": 6,
+      "readabilityOk": true,
+      "hasLegend": false,
+      "hasNavigationDock": true,
+      "legendDockIntersectionArea": 0,
+      "dockStageIntersectionArea": 0,
+      "dockStageGap": 10.21875,
+      "requiredDockStageGap": 10,
+      "viewerChromeStageOk": true,
+      "viewerChromeReserve": 51,
+      "viewerChromeActive": true,
+      "viewerChromeOk": true,
+      "resolvedTheme": "light"
+    },
+    {
+      "width": 1600,
+      "height": 1000,
+      "theme": "light",
+      "innerWidth": 1600,
+      "innerHeight": 1000,
+      "scrollWidth": 1600,
+      "scrollHeight": 1000,
+      "overflowX": false,
+      "overflowY": false,
+      "ok": true,
+      "readerWidth": 1289,
+      "diagramWidth": 1259,
+      "viewBoxWidth": 1380,
+      "minimumProjectedNodeTextPx": 8.210869565217392,
+      "minimumProjectedNodeText": "共用页面 · 增量显示 · 草稿保护",
+      "minimumProjectedNodeTextDetail": "context",
+      "minimumRequiredNodeTextPx": 6,
+      "readabilityOk": true,
+      "hasLegend": false,
+      "hasNavigationDock": true,
+      "legendDockIntersectionArea": 0,
+      "dockStageIntersectionArea": 0,
+      "dockStageGap": 10.21875,
+      "requiredDockStageGap": 10,
+      "viewerChromeStageOk": true,
+      "viewerChromeReserve": 51,
+      "viewerChromeActive": true,
+      "viewerChromeOk": true,
+      "resolvedTheme": "light"
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "theme": "light",
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "scrollWidth": 1920,
+      "scrollHeight": 1080,
+      "overflowX": false,
+      "overflowY": false,
+      "ok": true,
+      "readerWidth": 1440,
+      "diagramWidth": 1410,
+      "viewBoxWidth": 1380,
+      "minimumProjectedNodeTextPx": 9,
+      "minimumProjectedNodeText": "共用页面 · 增量显示 · 草稿保护",
+      "minimumProjectedNodeTextDetail": "context",
+      "minimumRequiredNodeTextPx": 6,
+      "readabilityOk": true,
+      "hasLegend": false,
+      "hasNavigationDock": true,
+      "legendDockIntersectionArea": 0,
+      "dockStageIntersectionArea": 0,
+      "dockStageGap": 10.21875,
+      "requiredDockStageGap": 10,
+      "viewerChromeStageOk": true,
+      "viewerChromeReserve": 51,
+      "viewerChromeActive": true,
+      "viewerChromeOk": true,
+      "resolvedTheme": "light"
+    },
+    {
+      "width": 2048,
+      "height": 1320,
+      "theme": "light",
+      "innerWidth": 2048,
+      "innerHeight": 1320,
+      "scrollWidth": 2048,
+      "scrollHeight": 1320,
+      "overflowX": false,
+      "overflowY": false,
+      "ok": true,
+      "readerWidth": 1835,
+      "diagramWidth": 1785,
+      "viewBoxWidth": 1380,
+      "minimumProjectedNodeTextPx": 9,
+      "minimumProjectedNodeText": "共用页面 · 增量显示 · 草稿保护",
+      "minimumProjectedNodeTextDetail": "context",
+      "minimumRequiredNodeTextPx": 6,
+      "readabilityOk": true,
+      "hasLegend": false,
+      "hasNavigationDock": true,
+      "legendDockIntersectionArea": 0,
+      "dockStageIntersectionArea": 0,
+      "dockStageGap": 10.21875,
+      "requiredDockStageGap": 10,
+      "viewerChromeStageOk": true,
+      "viewerChromeReserve": 41,
+      "viewerChromeActive": true,
+      "viewerChromeOk": true,
+      "resolvedTheme": "light"
+    }
+  ],
+  "screenshots": [
+    {
+      "path": "ariadne-zh.visual-check.1440x900.light.png",
+      "sha256": "ab5f00e1e2db5396b14d0b6eb95bd9f00729f14b6745669e5ec8f2e55c8ef34e",
+      "bytes": 117340
+    },
+    {
+      "path": "ariadne-zh.visual-check.1440x900.dark.png",
+      "sha256": "11ad378053a62853fa174a884f48c1c91c89773e2da7d85c0b3419cdb81bd33c",
+      "bytes": 118423
+    },
+    {
+      "path": "ariadne-zh.visual-check.2048x1320.light.png",
+      "sha256": "a6ca6c2e6f0e002e91a94cb4e3cd6f8fa6a53ad4feb97820554a0741f1f2411f",
+      "bytes": 162849
+    },
+    {
+      "path": "ariadne-zh.visual-check.2048x1320.dark.png",
+      "sha256": "eb04597d3de84c0bd2277429dbf8c081361c18125fa8af9e416e62f4cca56662",
+      "bytes": 163415
+    }
+  ],
+  "visual_review": "passed",
+  "visual_reviewer": "image-capable Codex review",
+  "visually_inspected": [
+    "ariadne-zh.visual-check.1440x900.light.png",
+    "ariadne-zh.visual-check.2048x1320.dark.png",
+    "ariadne-zh.png"
+  ],
+  "visual_observations": [
+    "Both themes preserve node and route separation; no label masks unrelated routes.",
+    "The large desktop composition uses the available height with conclusion cards visible.",
+    "Viewer PNG export contains the complete diagram without menus, search, source badges or navigation controls."
+  ],
+  "supplementary_browser": {
+    "browser": "egolite",
+    "checks": [
+      "opened exact delivered HTML",
+      "search for local Python service",
+      "focus opens node passport with revision-pinned sources",
+      "node passport closes",
+      "native PNG export downloaded"
+    ]
+  },
+  "export": {
+    "path": "ariadne-zh.png",
+    "sha256": "1a44a7d015e44b6779b1c1da865330fae850eacb4d85b147d4dfa0d0873061c8",
+    "bytes": 608383,
+    "format": "PNG",
+    "method": "actual viewer export",
+    "dimensions": [
+      5520,
+      2920
+    ],
+    "contains_viewer_controls": false
+  },
+  "geometry_repairs_before_delivery": 2,
+  "correction_rounds": 0,
+  "limits": [
+    "Diagram describes source, not a new deployment.",
+    "Source evidence proves committed blob identity, not model quality or production load.",
+    "Benchmark evidence and runtime limitations are documented separately."
+  ]
+}

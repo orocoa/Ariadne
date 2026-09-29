@@ -1,13 +1,13 @@
 # Ariadne · 衡
 
-2026-09-28: Web and the complete Skill package share the latest job workspace changes. Web uses your API and browser storage; Skill uses local Codex and local files. [Release notes](CHANGELOG.md) · [Download this release](https://github.com/orocoa/Ariadne/releases/tag/skill-20260928-workspace-changes).
+2026-09-29: The source includes reliability and load optimizations following an architecture review. These changes have not been deployed: the website and published Skill package remain on the September 28 release. [Source changes](CHANGELOG.md) · [Download the published September 28 release](https://github.com/orocoa/Ariadne/releases/tag/skill-20260928-workspace-changes).
 
 
 > **Understand your experience. Make sense of your next role.**
 >
 > An open-source AI workspace for exploring your experience and target jobs, with original sources, reviewable suggestions, and changes you explicitly save.
 
-[中文说明](README.zh-CN.md) · [Architecture evolution](docs/architecture/archify/2026-09-12-project-evolution/07-architecture-evolution-six-stages.en.html) · [Project history](PROJECT_HISTORY.md) · [Runtime contract](docs/current/ARIADNE_RUNTIME_EXECUTION_CONTRACT.md) · [Skill guide](docs/current/ARIADNE_SKILL.md)
+[中文说明](README.zh-CN.md) · [Current architecture map (Chinese)](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.html) · [Architecture evolution](docs/architecture/archify/2026-09-12-project-evolution/07-architecture-evolution-six-stages.en.html) · [Project history](PROJECT_HISTORY.md) · [Runtime contract](docs/current/ARIADNE_RUNTIME_EXECUTION_CONTRACT.md) · [Skill guide](docs/current/ARIADNE_SKILL.md)
 
 [Try the web app](https://ariadne.kai-nex.com/) · [Skill setup](docs/current/ARIADNE_SKILL.md)
 
@@ -23,13 +23,30 @@ The product question is whether people can understand the relationship between t
 
 [Read the product case / 产品案例与个人贡献](docs/product/PRODUCT_CASE_STUDY.md) · [User-validation protocol / 用户验证方案](docs/product/USER_VALIDATION_PLAN.md)
 
+### 众神指导 · Development acknowledgments
+
+The September 29 architecture review, implementation, and cross-verification used **GPT-6 Astra at Ultra reasoning effort, with multiple Astra agents collaborating on separate responsibilities**. KAI remains responsible for product direction, architecture decisions, design, acceptance, and release; project ownership and the MIT license are unchanged. This acknowledges the development workflow: no new model was trained, and Ultra is not a fixed Ariadne runtime setting. Product model and reasoning choices remain governed by available capabilities and the user's selection and confirmation.
+
 ## What you can do
 
 Ariadne helps you understand your experience in relation to a job you care about. Add your résumé, portfolio, or project notes, then add the job description separately. With a connected model, you can discuss which requirements your materials support, what needs more evidence or clarification, and how to describe your work more clearly.
 
 You can keep the original documents, review suggestions, and save the changes you agree with as new versions. The model does not decide your career goal or automatically submit applications.
 
-## September 28 update
+## September 29 source update — not yet deployed
+
+- **Bounded work with complete inputs.** PDF preparation checks the full input budget before expensive rendering, reuses preparation within a request, and fails explicitly when complete delivery is not possible. Local conversation attachments reuse the saved original after identity, consent, and hash checks.
+- **Less repeated work.** Public reply streaming, previews, history rendering, and PDF export avoid repeated whole-output work. Job journals fetch the selected Job's records once and batch their images. Independent reads use targeted APIs; write transactions retain their complete read set, version checks, and atomic save.
+- **Failures settle without discarding the user's decision.** Storage startup errors and cancellation reject waiting reads. Rejected or already decided legacy Job proposals cannot later be confirmed. In-page drafts survive affected rerenders and conflicts; they are not crash-recovery storage.
+- **Explicit execution and release boundaries.** Cancellation reaches the active provider transport. Web session renewal preserves old operation bindings and rejects a changed credential for an existing operation. Published asset builds use content-versioned URLs, retain a supplied previous generation, and keep HTML and compatibility URLs revalidated.
+
+One reproducible synthetic journal case—1,000 records, with 100 records and 100 images belonging to the selected Job—fell from **301 requests / 135,361,847 response bytes to 2 requests / 665,254 response bytes**. These are uncompressed JSON transport counts, not production latency or model-speed measurements. The server still scans and verifies the journal store once.
+
+Offline regressions, desktop/mobile Chrome flows, real local Workerd/Pyodide startup and an invalid domain request, and actual Pages cache headers were checked. These product checks made no real paid Provider calls; the new semantic-review suite remains **NOT_RUN** without real outputs and human review. Production load, installation on a new machine, and general semantic quality are not established by these checks. Candidate packages were built and inspected locally; the public website and downloadable Skill still contain September 28 code.
+
+[Optimization details and limits](docs/current/RUNTIME_OPTIMIZATION_20260929.md) · [Architecture review (Chinese)](docs/current/ARCHITECTURE_REVIEW_20260929.md) · [Verification record](PROJECT_STATUS.md)
+
+## Published September 28 release
 
 - **Synchronize a whole request.** A Job conversation can propose changes to title, company, location, summary, requirements, application stage/outcome, notes, and journal entries together. For example, “HR asked me to add the founder on WeChat, but the request was never accepted; close this application and record what happened” produces a reviewable group containing both the status and the event. No response is not treated as a confirmed rejection.
 - **Review and save once.** Compare all changes before accepting. They save together or fail together; concurrent edits invalidate stale proposals. Original sources and history remain. Journal text is in context; attached journal images are counted, not read by this feature. Job conversations cannot change personal records.
@@ -69,9 +86,11 @@ Historical Mac App builds and data notes remain in the [local distribution recor
 
 Web and Skill share Candidate/Job pages, source tracking, versions and explicit human save, while keeping startup, model execution and storage separate. Web uses your API key and browser storage. Skill uses local Codex and a stable file workspace in its own window. The website’s local Agent entry only explains installation; it does not connect to local ports.
 
-[![Ariadne current architecture: Web APIs and local Codex Skill](docs/architecture/archify/2026-09-20-web-skill/ariadne-en.png)](docs/architecture/archify/2026-09-20-web-skill/ariadne-en.png)
+The September 29 source architecture keeps one content authority with controlled views: original files and Markdown records, scoped context preparation, model execution, reviewable proposals, and explicit persistence. The optimization removes redundant transfers and reads while preserving source identity, complete inputs, domain separation, and save authority. It does not introduce cross-product synchronization or replace the application with a new framework.
 
-[English interactive diagram](docs/architecture/archify/2026-09-20-web-skill/ariadne-en.html) · [中文架构图](docs/architecture/archify/2026-09-20-web-skill/ariadne-zh.html) · [Editable source](docs/architecture/archify/2026-09-20-web-skill/ariadne-en.architecture.json) · [Validation record](docs/architecture/archify/2026-09-20-web-skill/review.json) · [Implementation boundaries](docs/current/TWO_PRODUCT_ARCHITECTURE.md). Download the HTML and open it locally for zoom, source evidence, themes and export; GitHub displays HTML as source. The earlier [Web/Mac App diagram](docs/architecture/archify/2026-09-19-current/ariadne.html) remains a historical snapshot.
+[![Ariadne September 29 source architecture — Chinese architecture map](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.png)](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.html)
+
+[Chinese interactive architecture map](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.html) · [Editable diagram specification](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.architecture.json) · [Diagram review record](docs/architecture/archify/2026-09-29-optimized/review.json) · [Architecture analysis (Chinese)](docs/current/ARCHITECTURE_REVIEW_20260929.md) · [Product boundaries](docs/current/TWO_PRODUCT_ARCHITECTURE.md). The current map is in Chinese and documents source changes not yet deployed. Download its HTML and open it locally for interaction; GitHub displays HTML as source. The [September 20 English diagram](docs/architecture/archify/2026-09-20-web-skill/ariadne-en.html), [September 20 Chinese diagram](docs/architecture/archify/2026-09-20-web-skill/ariadne-zh.html), and earlier [Web/Mac App diagram](docs/architecture/archify/2026-09-19-current/ariadne.html) remain historical snapshots.
 
 ## Why move from a web UI to an installer, then a Skill?
 
