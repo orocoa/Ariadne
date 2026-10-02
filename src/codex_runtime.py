@@ -218,6 +218,11 @@ def call_codex(credential, payload, *, timeout=None):
     if payload["model"] != CODEX_MODEL or payload["reasoning_effort"] not in {"low", "medium", "high"}:
         from src.codex_models import assert_available
         assert_available(payload["model"], payload["reasoning_effort"])
+    from src.codex_models import QUALIFICATIONS, discovery_identity
+    if payload['model'] not in QUALIFICATIONS['models']:
+        identity = discovery_identity()
+        if not identity: raise ValueError('CODEX_RUNTIME_NOT_ELIGIBLE')
+        payload = {**payload, '_verification_identity': identity}
     if not EXECUTION_SLOTS.acquire(blocking=False):
         raise ValueError("CODEX_BUSY")
     try:

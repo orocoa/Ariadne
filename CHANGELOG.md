@@ -1,5 +1,10 @@
 # 发布记录
 
+## 2026-10-03 — Skill 新型号自动验证
+
+- 模型菜单新增一次授权的自动验证：用合成图片和完整 PDF 检查新 Codex 型号，通过后自动加入可选目录；保留当前选择，显示进度、失败与重试入口。
+- 本机持久化资格绑定账号、CLI 与验证器版本；串行去重、每日尝试限制、取消与原子记录保护，避免重复消耗额度。详情见[模型选择契约](docs/current/MODEL_SELECTION_AND_TUNING_ARCHITECTURE.md)。
+
 ## 2026-10-03 — 完整 Skill 与卡片收回修复
 
 - 发布[完整 Skill 新版](https://github.com/orocoa/Ariadne/releases/tag/skill-20261003-card-return)，绑定源码 `0994b11`，包含此前已提交的可靠性与负载优化；官网及其安装指令保持 9 月 28 日版本，本轮未部署 Web/API。

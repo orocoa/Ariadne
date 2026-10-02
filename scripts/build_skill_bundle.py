@@ -23,6 +23,7 @@ def runtime_files(root=ROOT):
                   or name.startswith("public/") and not name.startswith("public/downloads/")}
     selected.update({'public/product-shell.js', 'public/skill-guide.js', 'public/product-config.js', 'public/product-transport.js', 'src/product_application.py'})
     selected.update({'src/local_attachment_delivery.py', 'src/runtime_cancellation.py'})
+    selected.add('src/codex_verification.py')
     selected.update({"public/skill-download.js", "public/skill-install.js", "public/install.html", "scripts/desktop_macos.swift", "scripts/local_package.py",
                      "assets/desktop-icon/compiled/Ariadne.icns", "assets/desktop-icon/compiled/Assets.car"})
     return sorted(selected)

@@ -10,7 +10,7 @@
     if (!response.ok) throw Error("无法读取可用模型，请检查本地服务或连接。");
     const result = await response.json();
     if (root.AriadneProduct?.kind === "skill" && result.settings_catalog) Settings.refreshCodex(result.settings_catalog);
-    return { entries: Selection.eligibleModels(result.models, operation), unavailable: result.unavailable_models || [], note: result.effort_note || "" };
+    return { entries: Selection.eligibleModels(result.models, operation), unavailable: result.unavailable_models || [], note: result.effort_note || "", verification: result.verification };
   }
   function mount(form, operation) {
     const field = form.querySelector(".v1-composer-field");
@@ -30,7 +30,7 @@
     panel.innerHTML = `<h3>选择模型</h3><div data-model-options role="group"></div><p>${root.AriadneProduct?.kind === "skill" ? "由 Ariadne Skill 使用本机 Codex。对话可按需搜索公开网页，查询词会发送至搜索服务；网页信息只作外部参考，不写入个人经历。" : '切换模型服务请前往<a href="/index.html">连接设置</a>。'}</p><p data-model-error role="status"></p>`;
     document.body.append(panel);
     const choices = panel.querySelector("[data-model-options]"), error = panel.querySelector("[data-model-error]");
-    let openedRevision, openedScope, original, saving = false, opening = 0;
+    let openedRevision, openedScope, original, saving = false, opening = 0, poll = null;
     const scope = () => Selection.bindings.get(form.id)?.scope || Selection.scopeFor(operation);
     const busy = () => form.getAttribute("aria-busy") === "true" || saving;
     const render = () => {
@@ -58,12 +58,42 @@
       try {
         if (original.mode !== "model") throw Error("当前处于 Local 模式。请先在连接设置选择模型。");
         if (!openedScope) throw Error("请先打开一份资料或职位。");
-        const { entries, unavailable, note } = await models(operation);
+        let { entries, unavailable, note, verification } = await models(operation);
         if (ticket !== opening || !panel.matches(":popover-open") || busy()) return;
         error.textContent = "";
         let selected = entries.find(entry => entry.model_id === original.model);
-        if (!entries.length) throw Error("当前没有通过验证且可用的模型。");
+        if (!entries.length && !verification) throw Error("当前没有通过验证且可用的模型。");
         let effort = selected?.model_id === original.model ? original.execution_settings?.effective_settings?.reasoning_effort : null;
+        const live = () => ticket === opening && panel.matches(":popover-open") && !busy() && scope() === openedScope && Selection.version() === openedRevision;
+        let changingVerification = false;
+        const reload = async () => {
+          clearTimeout(poll);
+          try {
+            const result = await models(operation);
+            if (!live()) return;
+            const selectedId = selected?.model_id;
+            const focused = choices.contains(document.activeElement) ? document.activeElement.textContent : null;
+            ({ entries, unavailable, note, verification } = result);
+            selected = entries.find(entry => entry.model_id === selectedId);
+            draw(); position();
+            if (focused) [...choices.querySelectorAll('button:not(:disabled)')].find(button => button.textContent === focused)?.focus({ preventScroll: true });
+            if (verification?.active) poll = setTimeout(reload, 2000);
+          } catch (_) {
+            if (live()) error.textContent = "无法更新验证状态；重新打开菜单可查看结果。";
+          }
+        };
+        const changeVerification = async body => {
+          if (!live() || changingVerification) return;
+          changingVerification = true; draw();
+          try {
+            const response = await (root.AriadneTransport || root).fetch("/api/codex-verification", {
+              method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+            if (!response.ok) throw Error("无法更新验证设置，请检查 Codex 登录或稍后重试。");
+            changingVerification = false;
+            if (live()) await reload();
+          } catch (err) { changingVerification = false; if (live()) { draw(); error.textContent = err.message; } }
+          finally { changingVerification = false; }
+        };
         const draw = () => {
           choices.replaceChildren();
           error.textContent = selected ? "" : "当前模型不可用，请重新选择。";
@@ -91,7 +121,20 @@
           if (note) { const hint = document.createElement("p"); hint.textContent = note; choices.append(hint); }
           if (unavailable.length) {
             heading("其他模型");
-            for (const entry of unavailable) { const hint = document.createElement("p"); hint.textContent = `${entry.display_name} · ${entry.reason}`; choices.append(hint); }
+            for (const entry of unavailable) {
+              const hint = document.createElement("p"); hint.textContent = `${entry.display_name} · ${entry.reason}`; choices.append(hint);
+              if (entry.can_retry) {
+                const retry = option(`重新验证 ${entry.display_name}`, false, () => changeVerification({ retry: entry.model, consent: true }));
+                retry.setAttribute("role", "menuitem"); retry.removeAttribute("aria-checked"); retry.disabled = changingVerification;
+              }
+            }
+          }
+          if (verification) {
+            const hint = document.createElement("p"); hint.textContent = verification.message; choices.append(hint);
+            const toggle = option(verification.enabled ? "关闭自动验证" : "允许自动验证新型号", false,
+              () => changeVerification({ enabled: !verification.enabled, consent: true }));
+            toggle.setAttribute("role", "menuitem"); toggle.removeAttribute("aria-checked");
+            toggle.dataset.verificationToggle = ""; toggle.disabled = changingVerification || !verification.available;
           }
           const apply = document.createElement("button"); apply.type = "button"; apply.className = "v1-model-apply";
           apply.textContent = "应用"; apply.disabled = !selected; apply.onclick = () => {
@@ -101,6 +144,7 @@
           }; choices.append(apply);
         };
         draw(); position();
+        if (verification?.active) poll = setTimeout(reload, 2000);
         (choices.querySelector('[aria-checked="true"]') || choices.querySelector("button"))?.focus({ preventScroll: true });
       } catch (err) {
         if (ticket === opening && panel.matches(":popover-open")) { error.textContent = err.message; position(); panel.focus(); }
@@ -119,6 +163,7 @@
     panel.addEventListener("toggle", event => {
       trigger.setAttribute("aria-expanded", String(event.newState === "open"));
       if (event.newState === "closed") {
+        clearTimeout(poll);
         opening++;
         if (!trigger.disabled && (panel.contains(document.activeElement) || document.activeElement === document.body)) trigger.focus({ preventScroll: true });
       }

@@ -30,6 +30,10 @@ def skill_handler(base):
             path = urlparse(self.path).path
             if path == "/model-settings-catalog-data.js":
                 from src.model_settings import local_catalog
+                from src.codex_models import discover
+                try:
+                    if codex_enabled(): discover()
+                except (ValueError, OSError, TimeoutError, KeyError): pass
                 body = ("globalThis.AriadneModelSettingsCatalog = " + json.dumps(local_catalog()) + ";").encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/javascript; charset=utf-8")
@@ -66,11 +70,20 @@ def skill_handler(base):
             try:
                 if not codex_enabled(): raise ValueError("CODEX_UNAVAILABLE")
                 rows = discover()
+                from src.codex_verification import service
+                try:
+                    verification = service().refresh(rows)
+                except (ValueError, OSError, KeyError, TypeError):
+                    verification = {'available': False, 'enabled': False, 'active': False, 'models': {},
+                        'message': '无法读取验证记录；已有模型仍可使用，请检查本机存储。'}
                 models, settings, unavailable = [], [], []
                 for row in rows:
                     item = available_settings(row)
                     if not item:
-                        unavailable.append({"model": row["model"], "display_name": row["display_name"], "reason": "尚未完成 Ariadne 图片与 PDF 验证"})
+                        state = verification['models'].get(row['model'], {})
+                        unavailable.append({"model": row["model"], "display_name": row["display_name"],
+                            "reason": state.get('reason', '尚未完成 Ariadne 图片与 PDF 验证'),
+                            "status": state.get('status', 'PENDING'), "can_retry": state.get('can_retry', False)})
                         continue
                     descriptor = deepseek_model_descriptors(["deepseek-flash"])[0].to_public_dict()
                     descriptor.update(provider_id="codex", model_id=row["model"], display_name=row["display_name"],
@@ -79,6 +92,7 @@ def skill_handler(base):
                     models.append(descriptor); settings.append(item)
                 self.send_json(200, {"provider": "codex", "models": models, "settings_catalog": settings,
                     "unavailable_models": unavailable, "local_preference": None,
+                    "verification": verification,
                     "network_call_made": True, "career_data_sent": False,
                     "effort_note": "Ultra 包含自动委派，当前资料对话不启用该档位。" if any("ultra" in row["unsupported_efforts"] for row in rows) else ""})
             except (ValueError, OSError, TimeoutError, KeyError):
@@ -88,6 +102,24 @@ def skill_handler(base):
             if not self.local_request_allowed():
                 return
             path = urlparse(self.path).path
+            if path == '/api/codex-verification':
+                try:
+                    length = int(self.headers.get('Content-Length', '0'))
+                    if not 0 < length <= 1000: raise ValueError('VERIFICATION_REQUEST_INVALID')
+                    body = json.loads(self.rfile.read(length))
+                    if not isinstance(body, dict): raise ValueError('VERIFICATION_REQUEST_INVALID')
+                    if not codex_enabled(): raise ValueError('CODEX_UNAVAILABLE')
+                    from src.codex_models import discover
+                    from src.codex_verification import service
+                    state = service().configure(body, discover(force=True))
+                    self.send_json(200, {'ok': True, 'verification': state, 'career_data_sent': False})
+                except (ValueError, OSError, TimeoutError, KeyError, TypeError) as error:
+                    code = str(error)
+                    allowed = {'VERIFICATION_ACCOUNT_REQUIRED', 'VERIFICATION_CONSENT_REQUIRED',
+                        'VERIFICATION_MODEL_INVALID', 'VERIFICATION_RETRY_INVALID', 'VERIFICATION_REQUEST_INVALID',
+                        'CODEX_UNAVAILABLE', 'VERIFICATION_STATE_INVALID'}
+                    self.send_json(400, {'error': code if code in allowed else 'VERIFICATION_UNAVAILABLE', 'career_data_sent': False})
+                return
             if path.startswith("/api/runtime-") or path in {"/api/model-updates/verify", "/api/local-vision-config", "/api/ai-career-ingestion-config"}:
                 self.send_json(403, {"error": "SKILL_AGENT_ONLY", "network_call_made": False})
                 return

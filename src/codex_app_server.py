@@ -189,6 +189,10 @@ def execute(directory, prompt, images, schema, payload, timeout, runtime):
     try:
         channel.request("initialize", {"clientInfo": {"name": "ariadne", "version": "2"}, "capabilities": {"experimentalApi": True}})
         channel.send({"method": "initialized"})
+        if payload.get('_verification_identity'):
+            from src.codex_models import identity_for_account
+            if identity_for_account(channel.request('account/read', {'refreshToken': False}).get('account')) != payload['_verification_identity']:
+                raise ValueError('ACCOUNT_CHANGED')
         config = channel.request("config/read", {"includeLayers": False})["config"]
         if any(config.get("features", {}).get(k) != settings[f"features.{k}"] for k in runtime.DISABLED_FEATURES):
             raise ValueError("CODEX_ISOLATION_NOT_CONFIRMED")

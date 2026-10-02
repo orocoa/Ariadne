@@ -1,8 +1,10 @@
 """Codex discovery describes availability; reviewed visual checks grant eligibility."""
 import copy
+import hashlib
 import json
 from pathlib import Path
 import subprocess
+import shutil
 import tempfile
 import threading
 import time
@@ -13,23 +15,52 @@ EFFORT_LABELS = {'low': '低', 'medium': '中', 'high': '高', 'xhigh': '超高'
 _lock = threading.Lock()
 _cache = None
 _checked = 0
+_identity = None
+
+
+def account_identity(account):
+    """Hash public account metadata; never open credential files."""
+    if not isinstance(account, dict) or account.get('type') != 'chatgpt' or not account.get('email'):
+        return None
+    fields = {key: account.get(key) for key in ('type', 'email', 'planType', 'id', 'accountId')}
+    return hashlib.sha256(json.dumps(fields, sort_keys=True).encode()).hexdigest()
+
+
+def identity_for_account(account):
+    from src.codex_runtime import codex_binary
+    identity = account_identity(account)
+    if not identity: return None
+    path = Path(shutil.which(codex_binary()) or codex_binary()).resolve()
+    stat = path.stat()
+    binary = hashlib.sha256(f'{path}:{stat.st_size}:{stat.st_mtime_ns}'.encode()).hexdigest()
+    return {'account': identity, 'binary': binary}
+
+
+def discovery_identity():
+    return copy.deepcopy(_identity)
+
+
+def qualification_records():
+    if not _identity: return QUALIFICATIONS['models']
+    from src.codex_verification import service
+    return {**QUALIFICATIONS['models'], **service().records()}
 
 
 def qualified(model):
-    value = QUALIFICATIONS['models'].get(model, {})
+    value = qualification_records().get(model, {})
     return value.get('status') == 'VERIFIED' and value.get('adapter') == 'codex-bounded-app-server-v1'
 
 
 def settings_entries():
     entries = []
-    for model, record in QUALIFICATIONS['models'].items():
-        if not qualified(model): continue
+    for model, record in qualification_records().items():
+        if record.get('status') != 'VERIFIED' or record.get('adapter') != 'codex-bounded-app-server-v1': continue
         legacy = model == 'gpt-5.6-sol'
         entries.append({'provider': 'codex', 'model': model, 'protocol': 'CODEX_APP_SERVER',
             'short_label': record['display_name'], 'compact_label': record['display_name'],
             'connection_id': 'local-codex-v1',
-            'descriptor_revision': 'codex-sol-20260910' if legacy else 'codex-models-20260928-' + model,
-            'settings_schema_version': 'codex-effort-v1', 'qualification': QUALIFICATIONS['check_version'],
+            'descriptor_revision': record.get('descriptor_revision') or ('codex-sol-20260910' if legacy else 'codex-models-20260928-' + model),
+            'settings_schema_version': 'codex-effort-v1', 'qualification': record.get('check_version', QUALIFICATIONS['check_version']),
             'parameters': {'reasoning_effort': {'label': '推理强度',
                 'default': 'medium' if legacy else record['default_effort'],
                 'options': [{'value': effort, 'label': EFFORT_LABELS[effort]} for effort in record['efforts'] if effort in EFFORT_LABELS]}}})
@@ -53,7 +84,7 @@ def normalize_listing(rows):
 
 
 def discover(force=False):
-    global _cache, _checked
+    global _cache, _checked, _identity
     with _lock:
         if not force and _cache is not None and time.monotonic() - _checked < 300: return copy.deepcopy(_cache)
         from src.codex_runtime import codex_binary, DISABLED_FEATURES
@@ -68,6 +99,10 @@ def discover(force=False):
                 channel = Channel(process, 20)
                 channel.request('initialize', {'clientInfo': {'name': 'ariadne-models', 'version': '1'}, 'capabilities': {'experimentalApi': True}})
                 channel.send({'method': 'initialized'})
+                try:
+                    identity = identity_for_account(channel.request('account/read', {'refreshToken': False}).get('account'))
+                except (ValueError, OSError, KeyError):
+                    identity = None
                 rows, cursor = [], None
                 for _ in range(5):
                     response = channel.request('model/list', {'limit': 100, 'includeHidden': False, **({'cursor': cursor} if cursor else {})})
@@ -76,7 +111,7 @@ def discover(force=False):
                 if cursor: raise ValueError('CODEX_MODEL_LIST_LIMIT')
                 result = normalize_listing(rows)
                 if not result: raise ValueError('CODEX_MODEL_LIST_EMPTY')
-                _cache, _checked = result, time.monotonic()
+                _cache, _checked, _identity = result, time.monotonic(), identity
                 return copy.deepcopy(result)
             finally:
                 process.terminate()
@@ -97,8 +132,9 @@ def available_settings(row):
 
 
 def assert_available(model, effort):
+    rows = discover(force=True) if model not in QUALIFICATIONS['models'] else discover()
+    row = next((x for x in rows if x['model'] == model), None)
     if not qualified(model): raise ValueError('CODEX_MODEL_NOT_QUALIFIED')
-    row = next((x for x in discover() if x['model'] == model), None)
     entry = available_settings(row) if row else None
     if not entry or effort not in [x['value'] for x in entry['parameters']['reasoning_effort']['options']]:
         raise ValueError('CODEX_MODEL_OR_EFFORT_UNAVAILABLE')

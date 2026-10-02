@@ -1,5 +1,9 @@
 # Ariadne 项目上下文
 
+## 2026-10-03：Skill 新型号自动验证
+
+Codex 新型号不再依赖人工修改内置清单：用户在模型菜单一次授权后，系统用合成图片、完整两页 PDF、结构化结果与隔离检查自动验证，成功后加入目录，仍需明确应用才能切换。资格与账号摘要、CLI、adapter/check 版本绑定，本机持久化、每日最多 3 次、失败显式重试。GPT-6.1-Sol 已通过真实 low 验证；本机 Skill 已备份更新并写入已核验记录，运行中的旧窗口需重开生效。详见[模型选择契约](docs/current/MODEL_SELECTION_AND_TUNING_ARCHITECTURE.md)。
+
 ## 2026-10-03：完整 Skill 发布并同步 GitHub
 
 按用户要求，将已验收源码 `0994b11` 构建为[完整 Skill Release](https://github.com/orocoa/Ariadne/releases/tag/skill-20261003-card-return)，包含卡片收回修复及此前已提交的可靠性优化；本机完整 Skill 已备份更新，234 个运行文件和依赖检查通过，资料、绑定与登录目录不变。GitHub 源码及 CI 已核对，公开 ZIP 实取与本地一致；新版安装信息见 [Skill 指南](docs/current/ARIADNE_SKILL.md)。官网/API 与官网安装指令保持旧版，本轮未部署。其他任务尚未提交的模型配置代码不纳入本次发布。
