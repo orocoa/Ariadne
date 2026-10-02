@@ -1,4 +1,4 @@
-"""Opt-in, bounded synthetic qualification for newly discovered Codex models.
+"""Automatic, bounded synthetic qualification for newly discovered Codex models.
 
 Records live outside the installation. Discovery alone never grants eligibility.
 No credentials, career data, client prompts or client images enter this worker.
@@ -127,8 +127,8 @@ class Verification:
             with lockpath.open('a+') as lock:
                 fcntl.flock(lock, fcntl.LOCK_EX)
                 if target.exists() and target.stat().st_size > 1_000_000: raise ValueError('VERIFICATION_STATE_INVALID')
-                data = json.loads(target.read_text()) if target.exists() else {'consents': {}, 'records': {}, 'attempts': []}
-                if not isinstance(data, dict) or not isinstance(data.get('consents'), dict) or not isinstance(data.get('records'), dict) or not isinstance(data.get('attempts'), list):
+                data = json.loads(target.read_text()) if target.exists() else {'records': {}, 'attempts': []}
+                if not isinstance(data, dict) or not isinstance(data.get('records'), dict) or not isinstance(data.get('attempts'), list):
                     raise ValueError('VERIFICATION_STATE_INVALID')
                 if (any(not isinstance(r, dict) or not isinstance(r.get('model'), str) or not isinstance(r.get('started'), (int, float)) for r in data['records'].values())
                         or any(type(t) not in (int, float) or not math.isfinite(t) for t in data['attempts'])):
@@ -161,30 +161,21 @@ class Verification:
         from src.codex_models import QUALIFICATIONS
         ctx = context()
         if not ctx: raise ValueError('VERIFICATION_ACCOUNT_REQUIRED')
-        if set(body) == {'enabled', 'consent'} and type(body['enabled']) is bool:
-            if body['enabled'] and body['consent'] is not True: raise ValueError('VERIFICATION_CONSENT_REQUIRED')
-            with self.state() as data: data['consents'][ctx['account']] = body['enabled']
-            if not body['enabled']:
-                with self.lock:
-                    for cancellation in self.jobs.values(): cancellation.cancel()
-        elif set(body) == {'retry', 'consent'} and body['consent'] is True:
-            row = next((x for x in rows if x['model'] == body['retry']), None)
-            if not row or not eligible(row) or row['model'] in QUALIFICATIONS['models']: raise ValueError('VERIFICATION_MODEL_INVALID')
-            with self.state() as data:
-                if data['consents'].get(ctx['account']) is not True: raise ValueError('VERIFICATION_CONSENT_REQUIRED')
-                record = data['records'].get(key_for(ctx, row['model']))
-                if not record or record.get('status') not in ('FAILED', 'INTERRUPTED'): raise ValueError('VERIFICATION_RETRY_INVALID')
-                record['status'] = 'PENDING'
-        else: raise ValueError('VERIFICATION_REQUEST_INVALID')
+        if set(body) != {'retry'}: raise ValueError('VERIFICATION_REQUEST_INVALID')
+        row = next((x for x in rows if x['model'] == body['retry']), None)
+        if not row or not eligible(row) or row['model'] in QUALIFICATIONS['models']: raise ValueError('VERIFICATION_MODEL_INVALID')
+        with self.state() as data:
+            record = data['records'].get(key_for(ctx, row['model']))
+            if not record or record.get('status') not in ('FAILED', 'INTERRUPTED'): raise ValueError('VERIFICATION_RETRY_INVALID')
+            record['status'] = 'PENDING'
         return self.refresh(rows)
 
     def refresh(self, rows):
         from src.codex_models import QUALIFICATIONS
         ctx = context()
-        if not ctx: return {'available': False, 'enabled': False, 'active': False, 'models': {}, 'message': '请先确认 Ariadne Codex 已登录'}
+        if not ctx: return {'available': False, 'active': False, 'models': {}, 'message': '请先确认 Ariadne Codex 已登录'}
         now = time.time()
         with self.state() as data:
-            enabled = data['consents'].get(ctx['account']) is True
             data['attempts'] = [stamp for stamp in data['attempts'] if now - stamp < 86400]
             for record in data['records'].values():
                 if record.get('status') == 'RUNNING' and now - record.get('started', 0) > TIMEOUT + 180:
@@ -198,7 +189,7 @@ class Verification:
                 key = key_for(ctx, model)
                 record = data['records'].get(key, {})
                 status = record.get('status', 'PENDING')
-                if enabled and eligible(row) and status == 'PENDING' and remaining and not running and len(data['records']) < 256:
+                if eligible(row) and status == 'PENDING' and remaining and not running and len(data['records']) < 256:
                     from src.runtime_cancellation import Cancellation
                     cancellation = Cancellation()
                     attempt = secrets.token_hex(16)
@@ -211,11 +202,11 @@ class Verification:
                 reason = MESSAGES.get(record.get('error'), MESSAGES.get(status, '等待验证'))
                 if not eligible(row): reason = '该型号未声明图片输入或受支持的推理强度'
                 states[model] = {'status': status, 'reason': reason,
-                                 'can_retry': enabled and eligible(row) and status in ('FAILED', 'INTERRUPTED') and remaining > 0}
-            active = enabled and any(x['status'] == 'RUNNING' for x in states.values())
-            message = '自动验证已开启；每 24 小时最多 3 次，不自动切换模型。' if enabled else '允许后会用合成图片和两页 PDF 自动验证新型号，使用少量 Codex 额度，不发送个人资料。'
-            if enabled and not remaining: message = '已达到 24 小时内 3 次验证上限；当前验证会继续完成。'
-            return {'available': True, 'enabled': enabled, 'active': active, 'models': states, 'message': message}
+                                 'can_retry': eligible(row) and status in ('FAILED', 'INTERRUPTED') and remaining > 0}
+            active = any(x['status'] == 'RUNNING' for x in states.values())
+            message = '新型号会自动用合成图片和完整 PDF 验证；每 24 小时最多 3 次，使用少量 Codex 额度，不发送个人资料或切换模型。'
+            if not remaining: message = '已达到 24 小时内 3 次验证上限；当前验证会继续完成。'
+            return {'available': True, 'active': active, 'models': states, 'message': message}
 
     def run(self, row, ctx, key, attempt, cancellation):
         from src import codex_models as Models
@@ -223,12 +214,11 @@ class Verification:
         from src.runtime_cancellation import CANCEL
         token = CANCEL.set(cancellation)
         acquired = False
+        rows = []
         try:
             cancellation.check()
             rows = Models.discover(force=True)
             if context() != ctx or row not in rows: raise ValueError('ACCOUNT_CHANGED')
-            with self.state() as data:
-                if data['consents'].get(ctx['account']) is not True: cancellation.cancel()
             cancellation.check()
             acquired = EXECUTION_SLOTS.acquire(blocking=False)
             if not acquired: raise ValueError('CODEX_BUSY')
@@ -244,13 +234,14 @@ class Verification:
             CANCEL.reset(token)
         try:
             with self.state() as data:
-                if data['consents'].get(ctx['account']) is not True:
-                    result = {'status': 'INTERRUPTED', 'error': 'EXECUTION_CANCELLED'}
                 record = data['records'].get(key, {})
                 if record.get('attempt') == attempt and record.get('status') == 'RUNNING':
                     record.update(result, finished=time.time())
         finally:
             with self.lock: self.jobs.pop(attempt, None)
+        # Drain remaining discovered models even when the menu has closed.
+        if rows and context() == ctx:
+            self.refresh(rows)
 
 
 _service = None

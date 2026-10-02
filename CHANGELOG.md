@@ -1,5 +1,9 @@
 # 发布记录
 
+## 2026-10-03 — New Codex models verify automatically
+
+- Remove the verification opt-in switch. Skill startup and model-directory refresh automatically queue new models, including installations with an old disabled preference. The queue continues after the menu closes; cached results, the rolling daily limit, explicit failed-check retry, and the selected model are preserved.
+
 ## 2026-10-03 — Skill 新型号自动验证
 
 - 模型菜单新增一次授权的自动验证：用合成图片和完整 PDF 检查新 Codex 型号，通过后自动加入可选目录；保留当前选择，显示进度、失败与重试入口。

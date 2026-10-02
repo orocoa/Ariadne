@@ -88,7 +88,7 @@
           try {
             const response = await (root.AriadneTransport || root).fetch("/api/codex-verification", {
               method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-            if (!response.ok) throw Error("无法更新验证设置，请检查 Codex 登录或稍后重试。");
+            if (!response.ok) throw Error("无法重新验证，请检查 Codex 登录或稍后重试。");
             changingVerification = false;
             if (live()) await reload();
           } catch (err) { changingVerification = false; if (live()) { draw(); error.textContent = err.message; } }
@@ -124,17 +124,14 @@
             for (const entry of unavailable) {
               const hint = document.createElement("p"); hint.textContent = `${entry.display_name} · ${entry.reason}`; choices.append(hint);
               if (entry.can_retry) {
-                const retry = option(`重新验证 ${entry.display_name}`, false, () => changeVerification({ retry: entry.model, consent: true }));
+                const retry = option(`重新验证 ${entry.display_name}`, false, () => changeVerification({ retry: entry.model }));
                 retry.setAttribute("role", "menuitem"); retry.removeAttribute("aria-checked"); retry.disabled = changingVerification;
               }
             }
           }
           if (verification) {
             const hint = document.createElement("p"); hint.textContent = verification.message; choices.append(hint);
-            const toggle = option(verification.enabled ? "关闭自动验证" : "允许自动验证新型号", false,
-              () => changeVerification({ enabled: !verification.enabled, consent: true }));
-            toggle.setAttribute("role", "menuitem"); toggle.removeAttribute("aria-checked");
-            toggle.dataset.verificationToggle = ""; toggle.disabled = changingVerification || !verification.available;
+
           }
           const apply = document.createElement("button"); apply.type = "button"; apply.className = "v1-model-apply";
           apply.textContent = "应用"; apply.disabled = !selected; apply.onclick = () => {

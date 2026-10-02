@@ -1,4 +1,4 @@
-"""Offline qualification: consent, exact visual results, persistence and identity."""
+"""Offline qualification: automatic discovery, exact visual results, persistence and identity."""
 import base64
 from concurrent.futures import ThreadPoolExecutor
 import io
@@ -46,14 +46,47 @@ class VerificationTests(unittest.TestCase):
             return probe
 
     def enable(self):
-        return self.v.configure({'enabled': True, 'consent': True}, [ROW])
+        return self.v.refresh([ROW])
 
-    def test_discovery_and_missing_consent_never_start_inference(self):
-        self.assertFalse(self.v.refresh([ROW])['enabled'])
-        for body in ({'enabled': True, 'consent': False}, {'enabled': True}, {'prompt': 'anything'}):
+    def test_discovery_starts_without_switch_and_ignores_legacy_opt_out(self):
+        with self.v.state() as data: data['consents'] = {CTX['account']: False}
+        self.assertTrue(self.v.refresh([ROW])['active'])
+        self.assertEqual(len(self.threads), 1)
+        for body in ({'enabled': True, 'consent': True}, {'enabled': False}, {'prompt': 'anything'}):
             with self.assertRaises(ValueError): self.v.configure(body, [ROW])
-        self.assertEqual(self.threads, [])
         self.assertFalse(Models.qualified(ROW['model']))
+
+    def test_missing_account_never_starts(self):
+        with patch.object(V, 'context', return_value=None):
+            self.assertFalse(self.v.refresh([ROW])['available'])
+        self.assertEqual(self.threads, [])
+
+    def test_startup_catalog_automatically_starts_verification(self):
+        from src.product_application import skill_handler
+        class Base:
+            def local_request_allowed(self): return True
+            def send_response(self, status): self.status = status
+            def send_header(self, *args): pass
+            def end_headers(self): pass
+        handler = skill_handler(Base)()
+        handler.path = '/model-settings-catalog-data.js'
+        handler.wfile = io.BytesIO()
+        with patch('src.product_application.codex_enabled', return_value=True):
+            handler.do_GET()
+        self.assertEqual(handler.status, 200)
+        self.assertEqual(len(self.threads), 1)
+        self.assertIn(b'AriadneModelSettingsCatalog', handler.wfile.getvalue())
+
+    def test_queue_continues_without_menu_polling(self):
+        rows = [ROW, {**ROW, 'model': 'second-future-model'}]
+        with patch.object(Models, 'discover', return_value=rows):
+            self.v.refresh(rows)
+            self.assertEqual(len(self.threads), 1)
+            self.finish()
+            self.assertEqual(len(self.threads), 2)
+            self.finish()
+            self.assertEqual(len(self.threads), 2)
+        self.assertEqual(len(self.v.records()), 2)
 
     def test_concurrent_refresh_is_single_attempt_and_persistent(self):
         self.enable()
@@ -65,7 +98,7 @@ class VerificationTests(unittest.TestCase):
         self.assertTrue(Models.qualified(ROW['model']))
         validate(envelope('codex', ROW['model'], {'reasoning_effort': 'high'}), 'codex', ROW['model'])
         self.v = V.Verification(self.temp.name)
-        self.assertTrue(self.v.refresh([ROW])['enabled'])
+        self.assertFalse(self.v.refresh([ROW])['active'])
         self.assertTrue(Models.qualified(ROW['model']))
         self.assertEqual(len(self.threads), 1)
 
@@ -75,7 +108,7 @@ class VerificationTests(unittest.TestCase):
         self.assertEqual(state['status'], 'FAILED'); self.assertTrue(state['can_retry'])
         self.assertFalse(Models.qualified(ROW['model']))
         self.v.refresh([ROW]); self.assertEqual(len(self.threads), 1)
-        self.v.configure({'retry': ROW['model'], 'consent': True}, [ROW])
+        self.v.configure({'retry': ROW['model']}, [ROW])
         self.assertEqual(len(self.threads), 2)
 
     def test_new_model_execution_preserves_account_binding(self):
@@ -92,28 +125,24 @@ class VerificationTests(unittest.TestCase):
         self.enable()
         for _ in range(2):
             self.finish(error=TimeoutError('CODEX_TIMEOUT'))
-            self.v.configure({'retry': ROW['model'], 'consent': True}, [ROW])
+            self.v.configure({'retry': ROW['model']}, [ROW])
         self.finish(error=TimeoutError('CODEX_TIMEOUT'))
         self.v = V.Verification(self.temp.name)
         state = self.v.refresh([ROW])
         self.assertFalse(state['models'][ROW['model']]['can_retry'])
         self.assertEqual(len(self.threads), 3)
-        self.v.configure({'retry': ROW['model'], 'consent': True}, [ROW])
+        self.v.configure({'retry': ROW['model']}, [ROW])
         self.assertEqual(len(self.threads), 3)
 
-    def test_disable_cancels_and_never_grants_qualification(self):
-        self.enable(); self.v.configure({'enabled': False, 'consent': False}, [ROW])
-        probe = self.finish()
-        probe.assert_not_called()
-        self.assertFalse(Models.qualified(ROW['model']))
-        self.assertEqual(self.v.refresh([ROW])['models'][ROW['model']]['status'], 'INTERRUPTED')
-
-    def test_context_change_invalidates_and_requires_account_consent(self):
+    def test_context_change_invalidates_and_automatically_rechecks(self):
         self.enable(); self.finish()
-        for key in CTX:
+        with patch.object(V, 'context', return_value={**CTX, 'account': 'changed'}):
+            self.assertFalse(Models.qualified(ROW['model']))
+            self.assertTrue(self.v.refresh([ROW])['active'])
+        self.assertEqual(len(self.threads), 2)
+        for key in ('binary', 'adapter'):
             with patch.object(V, 'context', return_value={**CTX, key: 'changed'}):
                 self.assertFalse(Models.qualified(ROW['model']))
-                if key == 'account': self.assertFalse(self.v.refresh([ROW])['enabled'])
 
     def test_account_change_before_probe_is_rejected(self):
         self.enable()
@@ -123,7 +152,7 @@ class VerificationTests(unittest.TestCase):
 
     def test_text_only_and_unsupported_effort_do_not_run(self):
         rows = [{**ROW, 'input_modalities': ['text']}, {**ROW, 'model': 'ultra-only', 'efforts': []}]
-        self.v.configure({'enabled': True, 'consent': True}, rows)
+        self.v.refresh(rows)
         self.assertEqual(self.threads, [])
 
     def test_abandoned_attempt_requires_explicit_retry(self):

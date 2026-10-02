@@ -32,8 +32,10 @@ def skill_handler(base):
                 from src.model_settings import local_catalog
                 from src.codex_models import discover
                 try:
-                    if codex_enabled(): discover()
-                except (ValueError, OSError, TimeoutError, KeyError): pass
+                    if codex_enabled():
+                        from src.codex_verification import service
+                        service().refresh(discover())
+                except (ValueError, OSError, TimeoutError, KeyError, TypeError): pass
                 body = ("globalThis.AriadneModelSettingsCatalog = " + json.dumps(local_catalog()) + ";").encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/javascript; charset=utf-8")
@@ -74,7 +76,7 @@ def skill_handler(base):
                 try:
                     verification = service().refresh(rows)
                 except (ValueError, OSError, KeyError, TypeError):
-                    verification = {'available': False, 'enabled': False, 'active': False, 'models': {},
+                    verification = {'available': False, 'active': False, 'models': {},
                         'message': '无法读取验证记录；已有模型仍可使用，请检查本机存储。'}
                 models, settings, unavailable = [], [], []
                 for row in rows:
@@ -115,7 +117,7 @@ def skill_handler(base):
                     self.send_json(200, {'ok': True, 'verification': state, 'career_data_sent': False})
                 except (ValueError, OSError, TimeoutError, KeyError, TypeError) as error:
                     code = str(error)
-                    allowed = {'VERIFICATION_ACCOUNT_REQUIRED', 'VERIFICATION_CONSENT_REQUIRED',
+                    allowed = {'VERIFICATION_ACCOUNT_REQUIRED',
                         'VERIFICATION_MODEL_INVALID', 'VERIFICATION_RETRY_INVALID', 'VERIFICATION_REQUEST_INVALID',
                         'CODEX_UNAVAILABLE', 'VERIFICATION_STATE_INVALID'}
                     self.send_json(400, {'error': code if code in allowed else 'VERIFICATION_UNAVAILABLE', 'career_data_sent': False})
