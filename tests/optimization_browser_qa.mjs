@@ -10,6 +10,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkStorageQueryMigration } from './helpers/storage-query-migration.mjs';
+import { checkCardReturn } from './helpers/card-return-browser-checks.mjs';
 import { checkPersonalDraftRefresh, checkPersonalDraftConflict, checkPersonalPdfDownload, checkRepeatedSessionRecovery } from './helpers/optimization-browser-checks.mjs';
 
 const require = createRequire(import.meta.url);
@@ -90,6 +91,7 @@ try {
     evidence.checks.session = await page.evaluate(checkRepeatedSessionRecovery);
     await page.screenshot({ path: path.join(output, 'session-recovered.png'), fullPage: true });
     evidence.checks.storage = await page.evaluate(checkStorageQueryMigration);
+    evidence.checks.cardReturn = await checkCardReturn(page, base, output);
     assert.deepEqual(evidence.errors, [], 'browser runtime errors');
     assert.deepEqual(evidence.consoleErrors, [], 'browser console errors');
     assert.deepEqual(evidence.externalRequests, [], 'unexpected external requests');

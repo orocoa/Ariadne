@@ -349,6 +349,7 @@ button.danger { background: #9c2525; border-color: #9c2525; }
 }
 
 /* Ariadne Web-first V1 · STEP 02–03 object workspace */
+html:has(> .v1-body:not(.v1-embedded-detail)) { scrollbar-gutter: stable; }
 .v1-body { --ink: var(--vi-ink); --muted: var(--vi-muted); --line: var(--vi-line); --paper: var(--vi-canvas); --blue: var(--vi-focus); background: var(--paper); color: var(--ink); font-family: var(--vi-font-ui); min-height: 100vh; }
 .v1-body[data-v1-page="workspace"] { background: var(--vi-canvas); }
 .v1-body[data-v1-page="workspace"] .v1-page-shell { padding-left: 42px; padding-right: 42px; padding-top: 0; }
@@ -860,8 +861,9 @@ button.danger { background: #9c2525; border-color: #9c2525; }
 .v1-detail-overlay.hidden { display: none; }
 .v1-detail-overlay-backdrop { backdrop-filter: blur(10px); background: rgba(31,34,42,.2); border: 0; inset: 0; padding: 0; position: absolute; width: 100%; }
 .v1-detail-overlay-surface { background: var(--paper); border: 1px solid rgba(220,225,233,.94); box-shadow: var(--vi-shadow-dialog); contain: layout paint; overflow: hidden; position: fixed; will-change: left, top, width, height, border-radius; }
-.v1-detail-overlay-preview { inset: 0; opacity: 1; pointer-events: none; position: absolute; transition: opacity 180ms ease; z-index: 2; }
-.v1-detail-overlay-preview > .v1-candidate-card, .v1-detail-overlay-preview > .v1-add-guide-card { border-radius: inherit; box-shadow: none; height: 100%; margin: 0; max-width: none; min-height: 0; transform: none; width: 100%; }
+.v1-detail-overlay-preview { border-radius: inherit; inset: -1px; opacity: 1; pointer-events: none; position: absolute; transition: opacity 180ms ease; z-index: 2; }
+.v1-detail-overlay-preview > .v1-job-tracked-card { border-radius: inherit; height: 100%; width: 100%; }
+.v1-detail-overlay-preview > .v1-candidate-card, .v1-detail-overlay-preview > .v1-add-guide-card, .v1-detail-overlay-preview > .v1-job-tracked-card > .v1-candidate-card { border-radius: inherit; box-shadow: none; height: 100%; margin: 0; max-width: none; min-height: 0; transform: none; width: 100%; }
 .v1-detail-overlay-content { display: grid; grid-template-rows: 58px minmax(0, 1fr); height: 100%; min-height: 0; opacity: 0; position: relative; transition: opacity 220ms ease; z-index: 1; }
 .v1-detail-overlay-content > header { align-items: center; background: rgba(247,247,249,.96); border-bottom: 1px solid rgba(220,225,233,.8); display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); padding: 0 18px; }
 .v1-detail-overlay-content > header p { color: #505867; font-size: 12px; font-weight: 650; justify-self: center; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

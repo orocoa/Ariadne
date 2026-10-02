@@ -38,7 +38,14 @@ class Handler(JobRadarHandler):
         pass
 
 
+class BrowserQAServer(ThreadingHTTPServer):
+    # Chromium can request many fixture scripts at once. The stdlib backlog
+    # of five produces intermittent connection resets on the local QA host.
+    # This only configures the disposable test server, not the product server.
+    request_queue_size = 64
+
+
 if __name__ == "__main__":
-    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    server = BrowserQAServer(("127.0.0.1", 0), Handler)
     print(server.server_port, flush=True)
     server.serve_forever()

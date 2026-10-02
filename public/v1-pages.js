@@ -650,6 +650,7 @@
     const backdrop = overlay.querySelector(".v1-detail-overlay-backdrop");
     const surface = overlay.querySelector(".v1-detail-overlay-surface");
     const preview = overlay.querySelector(".v1-detail-overlay-preview");
+    preview.inert = true;
     const content = overlay.querySelector(".v1-detail-overlay-content");
     const title = content.querySelector("header p");
     const closeButton = overlay.querySelector(".v1-detail-overlay-close");
@@ -792,10 +793,17 @@
       const sourceRect = card.getBoundingClientRect();
       const destinationRect = targetRect();
       const sourceRadius = getComputedStyle(card).borderRadius;
-      const clone = card.cloneNode(true);
+      // Job metadata and link spacing belong to the tracked-card wrapper.
+      // Preserve that layout context in the visual copy used for the handoff.
+      const clone = (card.closest(".v1-job-tracked-card") || card).cloneNode(true);
       clone.removeAttribute("href");
       clone.removeAttribute("data-transition-key");
       clone.querySelectorAll("[id]").forEach((node) => node.removeAttribute("id"));
+      clone.querySelectorAll("[href], [data-job-stage], [data-transition-key]").forEach((node) => {
+        node.removeAttribute("href");
+        node.removeAttribute("data-job-stage");
+        node.removeAttribute("data-transition-key");
+      });
       if (isImport) {
         card.classList.add("v1-transition-light");
         clone.classList.add("v1-transition-light");
@@ -918,8 +926,11 @@
       overlay.classList.add("is-closing");
       const currentRect = surface.getBoundingClientRect();
       const currentTransform = getComputedStyle(surface).transform;
+      const currentShadow = getComputedStyle(surface).boxShadow;
       const destinationRect = sourceCard.getBoundingClientRect();
-      const destinationRadius = getComputedStyle(sourceCard).borderRadius;
+      const destinationStyle = getComputedStyle(sourceCard);
+      const destinationRadius = destinationStyle.borderRadius;
+      const destinationShadow = destinationStyle.boxShadow;
       surfaceAnimation?.cancel();
       const backdropOpacity = getComputedStyle(backdrop).opacity;
       backdrop.getAnimations().forEach((animation) => animation.cancel());
@@ -928,8 +939,8 @@
         { transform: currentTransform },
         { transform: aboutTransform(surface.getBoundingClientRect(), destinationRect) },
       ], { duration: aboutCloseDuration, easing: aboutEasing, fill: "both" }) : surface.animate([
-        rectFrame(currentRect, "28px"),
-        rectFrame(destinationRect, destinationRadius),
+        { ...rectFrame(currentRect, "28px"), boxShadow: currentShadow },
+        { ...rectFrame(destinationRect, destinationRadius), boxShadow: destinationShadow },
       ], { duration: 480, easing: "cubic-bezier(.16,1,.3,1)", fill: "both" });
       if (aboutWorkspace && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
         backdrop.getAnimations().forEach((animation) => animation.finish());
