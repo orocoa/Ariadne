@@ -1,5 +1,13 @@
 # AI Job Radar｜Phase 4 Status
 
+## 2026-10-03 — 完整 Skill 更新与 GitHub 同步（COMPLETE）
+
+- 用户要求更新 Skill 后同步 GitHub。以已验收提交 `0994b110afb712927d7b91d0d9758f55237cb899` 的独立干净本地 clone 构建，未使用工作区的未提交模型配置、验证模块或构建脚本改动。完整包纳入卡片收回修复和 9 月 29 日已提交的可靠性优化，不改变已选模型、传输确认、资料身份和人工保存边界。
+- 发布 [skill-20261003-card-return](https://github.com/orocoa/Ariadne/releases/tag/skill-20261003-card-return)，tag 绑定该源码；`Ariadne-Skill.zip` 为 2,907,949 bytes、234 个 runtime 文件，SHA-256 `02392f70a080b40c7529e42887d4bbb8ae12aac8524739126990e7cd6c96b26e`。`includes_working_changes=false`，ZIP 校验、全部 manifest hash 及 GitHub 下载与本地文件一致；旧 Release 保留。
+- 干净源码的 141/141 离线回归、VI、公开文件与完整包 doctor 通过；[GitHub CI 37042398738](https://github.com/orocoa/Ariadne/actions/runs/37042398738)全绿，含 141 项回归、浏览器验收（含 16 组收回场景）及全历史凭据扫描。依赖/合成验收未调用真实模型，不将其作为模型质量结论。
+- 本机原 Skill 完整备份后覆盖本次完整运行包；234 个运行文件与包内 manifest 一致，installed doctor 就绪，资料目录、工作区绑定和独立登录未修改。正在运行的旧窗口未强制退出，需重新打开加载完整新版。备份、构建、失败历史及下载回执留在 `work/skill-sync-20261003-card-return/`。
+- 源码 `0994b11` 已推送 `orocoa/Ariadne/main`，发布信息同步中英文 README、CHANGELOG 与 Skill 指南。官网、API 和官网旧安装指令未部署/修改，最新版从本次 GitHub Release 获取；原有并行未提交内容保持，记录提交仅包含本轮发布说明。
+
 ## 2026-10-03 — 个人/职位卡片收回闪动修复（本机已更新）
 
 - 用户指出卡片收回后像重新对齐一样闪动。浏览器逐帧证据确认预览受到浮窗边框的二次内缩：落位时比原卡片窄 2 px，标题偏移约 1 px；浮窗还在最后一帧保留较重阴影。修复预览边框盒/圆角对齐、收回阴影插值，以及主页面滚动条槽的稳定保留；嵌入详情不额外保留根滚动条槽。

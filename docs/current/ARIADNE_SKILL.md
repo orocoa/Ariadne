@@ -4,7 +4,7 @@
 
 ## 首次安装
 
-1. 打开[官网的本地 Agent 窗口](https://ariadne.kai-nex.com/#skill)，直接点击「复制安装指令」。完整包从 GitHub Releases 分发，指令绑定具体版本和 SHA-256；不用跳转到独立安装页。
+1. 当前新版请使用[2026-10-03 完整 GitHub Release](https://github.com/orocoa/Ariadne/releases/tag/skill-20261003-card-return)，下载完整 ZIP 和校验文件，并按下方版本信息交给 Codex 核验与安装。[官网的本地 Agent 窗口](https://ariadne.kai-nex.com/#skill)暂时仍提供 9 月 28 日旧版的固定安装指令。
 2. 将指令粘贴到 Codex 对话中并发送，等待包校验、安装和依赖检查完成。已有同名 Skill 先备份，资料目录不删除。
 3. 安装完成后，在 Codex 中发送 `$ariadne 打开 Ariadne`。独立窗口直接进入工作空间，不需要模型选择首页。
 4. 在窗口添加个人资料或职位材料，再围绕材料提问；发送需确认，结果由用户审阅保存。关闭最后窗口或 ⌘Q 停止本次服务，已保存资料保留。
@@ -12,6 +12,12 @@
 独立窗口要求 macOS 14+、Python 3.9+ 和 Apple 命令行开发工具；Codex 分析还需兼容 CLI、本人登录和 Poppler。缺依赖时明确提示，不切换到 API 或生成本地替代回答。当前仅 Codex adapter 已验收，其他 Agent 与操作系统不自动视为支持。
 
 2026-09-24 流式升级：首次使用或旧版升级，在安装的 Skill 目录运行 `python3 scripts/ariadne.py login`，由本人完成官方登录。Ariadne 使用独立 `~/Library/Application Support/Ariadne Codex` 目录（其他 POSIX 为 `~/.local/share/Ariadne Codex`），不再继承日常 Codex 的认证/配置/AGENTS.md；不要手动复制认证文件。日常 Codex 和个人资料不受影响。`doctor` 只检查依赖与登录，不代表模型质量认证。
+
+## 2026-10-03 完整 Skill 更新与升级
+
+[本次完整包](https://github.com/orocoa/Ariadne/releases/tag/skill-20261003-card-return)绑定源码 `0994b110afb712927d7b91d0d9758f55237cb899`，共 234 个运行文件、2,907,949 bytes；SHA-256 为 `02392f70a080b40c7529e42887d4bbb8ae12aac8524739126990e7cd6c96b26e`。包含个人/职位卡片收回的尺寸、圆角和阴影衔接修复，以及此前已提交的可靠性优化；模型资格、资料来源及人工保存规则不变。官网与 API 本轮未部署。
+
+先退出 Ariadne，下载该 Release 的完整 ZIP 与 `.sha256`，让 Codex 核对哈希和大小、保留旧 Skill 备份，再更新运行代码。保留原资料目录、工作区绑定与独立 Ariadne Codex 登录，不迁移或删除旧资料。重新打开后运行 `python3 scripts/ariadne.py doctor`；依赖检查不替代真实模型能力验收。
 
 ## 2026-09-28 更新与升级
 

@@ -4,7 +4,7 @@
 >
 > Ariadne · 衡是一个开源 AI 职业工作空间，用于整理个人资料、理解目标职位，并基于原始材料开展分析与讨论。项目保留来源与历史版本；AI 提出的修改须经用户审阅并明确保存。
 
-2026-09-29：源码已加入架构审核后的可靠性与负载优化，本轮尚未部署；官网与公开 Skill 安装包仍为 9 月 28 日版本。[源码更新记录](CHANGELOG.md) · [下载已发布的 9 月 28 日版本](https://github.com/orocoa/Ariadne/releases/tag/skill-20260928-workspace-changes)。
+2026-10-03：[完整 Skill 新版](https://github.com/orocoa/Ariadne/releases/tag/skill-20261003-card-return)已包含卡片收回动效修复及此前已提交的可靠性与负载优化；官网及其安装窗口仍为 9 月 28 日版本。[更新记录](CHANGELOG.md)。
 
 [English README](README.md) · [当前架构图](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.html) · [架构演进图](docs/architecture/archify/2026-09-12-project-evolution/07-architecture-evolution-six-stages.html) · [完整项目经历](PROJECT_HISTORY.md) · [运行时契约](docs/current/ARIADNE_RUNTIME_EXECUTION_CONTRACT.md) · [Skill 使用指南](docs/current/ARIADNE_SKILL.md)
 
@@ -49,7 +49,7 @@ Ariadne 帮你结合自己的经历，理解一个真正关心的岗位。你可
 - **本机启动不再依赖反向 DNS。** 固定回环服务直接绑定本机地址，保留退出、端口冲突和资料保留检查。
 - **每次进入对话先确认。** 六个对话入口统一显示本次范围和模型；切换模型或强度后重新确认。
 
-[网页](https://ariadne.kai-nex.com/)与[完整 Skill ZIP](https://github.com/orocoa/Ariadne/releases/tag/skill-20260928-workspace-changes)从同一发布源码构建。ZIP 包含启动器、页面、运行代码、契约和文件哈希清单；仓库中的 `skills/ariadne` 子目录本身不是完整安装包。升级时退出 Ariadne，将[安装窗口](https://ariadne.kai-nex.com/#skill)的最新指令粘贴到 Codex，保留既有资料目录。网页和 Skill 的用户资料不自动同步。
+最新[完整 Skill ZIP](https://github.com/orocoa/Ariadne/releases/tag/skill-20261003-card-return)绑定源码 `0994b11`，[网页](https://ariadne.kai-nex.com/)仍为 9 月 28 日版本。ZIP 包含启动器、页面、运行代码、契约和文件哈希清单；仓库中的 `skills/ariadne` 子目录本身不是完整安装包。本次升级请退出 Ariadne，让 Codex 从该 GitHub Release 安装完整 ZIP、核对公布的 SHA-256、备份旧 Skill，并保留既有资料目录与工作区绑定。网页和 Skill 的用户资料不自动同步。
 
 [整组变更架构与验收范围](docs/current/JOB_WORKSPACE_CHANGE_SETS.md) · [模型选择契约](docs/current/MODEL_SELECTION_AND_TUNING_ARCHITECTURE.md)
 
@@ -73,7 +73,7 @@ Mac 默认由 Skill 打开独立窗口，关闭最后窗口即停止服务，保
 
 在官网打开「通过本地 Agent 使用」，直接点击「复制安装指令」并粘贴给 Codex，等待安装与依赖检查完成；再发送 `$ariadne 打开 Ariadne`，直接进入工作空间。Skill 使用本机 Codex，网页版使用 API；两端不配对，资料不自动同步。资料来源和人工保存边界保持。
 
-[安装与构建说明](docs/current/ARIADNE_SKILL.md) · [Skill 源码](skills/ariadne/SKILL.md)。完整 ZIP 随 Pages 构建生成；本阶段已完成本机验收，官网入口统一为[安装 Skill](https://ariadne.kai-nex.com/#skill)，窗口内复制指令后由 Codex 从 GitHub Releases 获取完整包并安装。需要 Python 3.9+、兼容 Codex CLI 和 Poppler；不会因安装 Skill 自动支持任意 Agent 或所有操作系统。
+[安装与构建说明](docs/current/ARIADNE_SKILL.md) · [Skill 源码](skills/ariadne/SKILL.md)。完整 ZIP 可独立构建并从 GitHub Releases 分发；新版请使用上述 Release，官网安装窗口仍指向旧包。需要 Python 3.9+、兼容 Codex CLI 和 Poppler；不会因安装 Skill 自动支持任意 Agent 或所有操作系统。
 
 旧 Mac App 的历史构建和资料说明保留在[本地分发记录](docs/current/LOCAL_DISTRIBUTION.md)，当前本地入口统一为 Skill。
 

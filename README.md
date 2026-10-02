@@ -4,7 +4,7 @@
 >
 > Ariadne is an open-source AI career workspace for organizing personal materials, understanding target roles, and discussing both with reference to original sources. It preserves sources and version history; AI-proposed changes require your review and explicit save.
 
-2026-09-29: The source includes reliability and load optimizations following an architecture review. These changes have not been deployed: the website and published Skill package remain on the September 28 release. [Source changes](CHANGELOG.md) · [Download the published September 28 release](https://github.com/orocoa/Ariadne/releases/tag/skill-20260928-workspace-changes).
+2026-10-03: The [complete Skill release](https://github.com/orocoa/Ariadne/releases/tag/skill-20261003-card-return) includes the card-return animation fix and the previously committed reliability and load optimizations. The website and its installation dialog remain on the September 28 release. [Changes](CHANGELOG.md).
 
 [中文说明](README.zh-CN.md) · [Current architecture map (Chinese)](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.html) · [Architecture evolution](docs/architecture/archify/2026-09-12-project-evolution/07-architecture-evolution-six-stages.en.html) · [Project history](PROJECT_HISTORY.md) · [Runtime contract](docs/current/ARIADNE_RUNTIME_EXECUTION_CONTRACT.md) · [Skill guide](docs/current/ARIADNE_SKILL.md)
 
@@ -49,7 +49,7 @@ Offline regressions, desktop/mobile Chrome flows, real local Workerd/Pyodide sta
 - **Local startup works without reverse DNS.** The fixed loopback server binds directly; lifecycle and data-retention checks remain in place.
 - **Confirm each conversation entry.** All six conversation entry points show the current scope/model before entry. Changing the model or reasoning requires a fresh confirmation.
 
-The [website](https://ariadne.kai-nex.com/) and [full Skill ZIP](https://github.com/orocoa/Ariadne/releases/tag/skill-20260928-workspace-changes) are built from the same release source. The ZIP includes the launcher, pages, runtime, contracts, and file hash manifest; the repository's `skills/ariadne` folder alone is not an installable full package. To upgrade, quit Ariadne, copy the current instructions from [the installation dialog](https://ariadne.kai-nex.com/#skill) into Codex, and retain the existing data directory. Web/Skill data do not automatically synchronize.
+The latest [full Skill ZIP](https://github.com/orocoa/Ariadne/releases/tag/skill-20261003-card-return) is built from source `0994b11`; the [website](https://ariadne.kai-nex.com/) remains on the September 28 release. The ZIP includes the launcher, pages, runtime, contracts, and file hash manifest; the repository's `skills/ariadne` folder alone is not an installable full package. For this upgrade, quit Ariadne and ask Codex to install the complete ZIP from that GitHub Release, verify its published SHA-256, back up the existing Skill, and retain the data directory and workspace binding. Web/Skill data do not automatically synchronize.
 
 [Change-set architecture and verification](docs/current/JOB_WORKSPACE_CHANGE_SETS.md) · [Model selection contract](docs/current/MODEL_SELECTION_AND_TUNING_ARCHITECTURE.md)
 
