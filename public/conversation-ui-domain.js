@@ -149,6 +149,17 @@
       if (!input || !field) return;
       enhancedForms.add(form);
       const send = form.querySelector('button[type="submit"]');
+      let composing = false;
+      input.addEventListener("compositionstart", () => { composing = true; });
+      input.addEventListener("compositionend", () => { composing = false; });
+      input.addEventListener("keydown", event => {
+        if (event.defaultPrevented || event.key !== "Enter" || event.shiftKey || event.ctrlKey || event.metaKey || event.altKey
+            || composing || event.isComposing || event.keyCode === 229) return;
+        event.preventDefault();
+        if (event.repeat || input.disabled || input.readOnly || form.closest("[inert]")
+            || form.getAttribute("aria-busy") === "true" || !input.value.trim() || !send || send.disabled) return;
+        form.requestSubmit(send);
+      });
       if (send) field.append(send);
       form.classList.add("has-integrated-composer");
       const doc = form.ownerDocument, view = doc.defaultView;
