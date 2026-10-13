@@ -1,5 +1,7 @@
 # Ariadne：免费托管与腾讯域名部署
 
+更新：2026-10-13。Pages `b0c3e85f` 已同步[完整 Skill](https://github.com/orocoa/Ariadne/releases/tag/skill-20261013-source-icons)的下载包、校验文件及安装清单；源码 `3e5cec9`，2,918,838 bytes，SHA-256 `452e22f16946332d14809d47487b6b7f7dbd43dea4a54862a9ce989efb611aad`。本次 367 文件中仅三个下载资产改变，Web/API 产品运行保持 9 月 28 日源码 `126c775`；API Worker 未重新部署。官网安装按钮、公开 ZIP 与 GitHub 包一致，`/healthz` 正常。下方早期记录保留；当前 Skill 版本以上述链接为准。详见[本次发布回执](../../PROJECT_STATUS.md)。
+
 2026-09-29 本地候选更新：已增加静态资源指纹、上一代资产保留、显式连接续期和请求取消；尚未部署，下方线上版本仍有效。后续构建使用 `python3 scripts/build_cloudflare_release.py --pdfjs /path/to/pdfjs-dist --previous-pages /path/to/previous/pages`，其中 previous-pages 必须是保留的上一候选/发布包资产目录，构建器校验 manifest、路径与内容 hash。首次没有旧指纹包时省略此选项。hashed JS/MJS/CSS 使用 immutable；HTML、manifest 与原路径别名使用 no-cache。只保留一代旧资源，资源缺失时用户需先保留编辑文本再刷新，不自动重放付费操作。完整回执与限制见 [本轮优化记录](RUNTIME_OPTIMIZATION_20260929.md)。
 
 更新：2026-09-28。官网 **https://ariadne.kai-nex.com**、API 与完整 Skill 已同步到源码 `126c775150370c25bbdbd9cf8ad1fe9209936f21`。Pages `eaf6467c`，API Worker `a97ce0f0-a935-436e-9f3e-63f586c91ec8`；[完整 Skill 下载](https://github.com/orocoa/Ariadne/releases/tag/skill-20260928-workspace-changes)：2,893,474 bytes，SHA-256 `4a61ed3cbd4fb4fe63b5f197df66af6174a33c77890d68a05d9f42e68a4839cf`。新增职位完整变更集、Codex 模型/强度分别选择、六入口每次确认，以及不依赖反向 DNS 的本机启动。GitHub 129/129 回归、VI、公开文件与全历史凭据扫描均通过；线上 27 个路径及两处 ZIP 下载核验通过。详见[本次发布回执](../../PROJECT_STATUS.md)和[更新记录](../../CHANGELOG.md)。

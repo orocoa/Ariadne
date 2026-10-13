@@ -1,5 +1,13 @@
 # 发布记录
 
+## 2026-10-13 — 完整 Skill 与官网安装入口同步 / Complete Skill and website installation entry
+
+- 发布[完整 Skill `skill-20261013-source-icons`](https://github.com/orocoa/Ariadne/releases/tag/skill-20261013-source-icons)，源码 `3e5cec9538e529b130a4e1a62eaa83a9a858a002`，2,918,838 bytes，SHA-256 `452e22f16946332d14809d47487b6b7f7dbd43dea4a54862a9ce989efb611aad`。官网只同步下载包、校验信息和安装入口；Web/API 产品运行仍为 `126c775`。
+- 包含新 Codex 型号的自动图片/PDF 资格验证、六入口 Enter 发送与 Shift+Enter 换行，以及职位原件可辨认命名、恢复和下载；保存名称与下载原件采用无底色图标。修复来源切换等待期间误操作旧来源、Model 直接导入丢失原件名称，并统一启动额度说明。
+- 保留已选型号、导入默认、来源、独立登录与人工保存权限；升级不自动同步两端职业资料。本轮未调用真实业务模型，模型质量和全新机器安装不因发布而视为已验证。
+- The full Skill includes automatic qualification of new Codex models, Enter to send / Shift+Enter for a newline, and named Job-source recovery/downloads with unfilled save/download icon actions. It fixes stale-source actions during a switch and lost names in direct Model imports. The website installation entry points to this package; the Web/API product runtime stays on September 28 source `126c775`.
+- Existing model choices, the import default, original sources and explicit human save are preserved. Startup may use Codex quota for synthetic qualification; no career materials are analyzed automatically. This release does not add a real business-model quality evaluation or cross-product data synchronization.
+
 ## 2026-10-03 — New Codex models verify automatically
 
 - Remove the verification opt-in switch. Skill startup and model-directory refresh automatically queue new models, including installations with an old disabled preference. The queue continues after the menu closes; cached results, the rolling daily limit, explicit failed-check retry, and the selected model are preserved.

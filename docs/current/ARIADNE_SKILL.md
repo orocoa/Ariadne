@@ -4,7 +4,7 @@
 
 ## 首次安装
 
-1. 当前新版请使用[2026-10-03 完整 GitHub Release](https://github.com/orocoa/Ariadne/releases/tag/skill-20261003-card-return)，下载完整 ZIP 和校验文件，并按下方版本信息交给 Codex 核验与安装。[官网的本地 Agent 窗口](https://ariadne.kai-nex.com/#skill)暂时仍提供 9 月 28 日旧版的固定安装指令。
+1. 当前新版为[2026-10-13 完整 GitHub Release](https://github.com/orocoa/Ariadne/releases/tag/skill-20261013-source-icons)。[官网的本地 Agent 窗口](https://ariadne.kai-nex.com/#skill)已同步此版本的安装指令；也可下载完整 ZIP 和校验文件，按下方版本信息交给 Codex 核验与安装。
 2. 将指令粘贴到 Codex 对话中并发送，等待包校验、安装和依赖检查完成。已有同名 Skill 先备份，资料目录不删除。
 3. 安装完成后，在 Codex 中发送 `$ariadne 打开 Ariadne`。独立窗口直接进入工作空间，不需要模型选择首页。
 4. 在窗口添加个人资料或职位材料，再围绕材料提问；发送需确认，结果由用户审阅保存。关闭最后窗口或 ⌘Q 停止本次服务，已保存资料保留。
@@ -12,6 +12,19 @@
 独立窗口要求 macOS 14+、Python 3.9+ 和 Apple 命令行开发工具；Codex 分析还需兼容 CLI、本人登录和 Poppler。缺依赖时明确提示，不切换到 API 或生成本地替代回答。当前仅 Codex adapter 已验收，其他 Agent 与操作系统不自动视为支持。
 
 2026-09-24 流式升级：首次使用或旧版升级，在安装的 Skill 目录运行 `python3 scripts/ariadne.py login`，由本人完成官方登录。Ariadne 使用独立 `~/Library/Application Support/Ariadne Codex` 目录（其他 POSIX 为 `~/.local/share/Ariadne Codex`），不再继承日常 Codex 的认证/配置/AGENTS.md；不要手动复制认证文件。日常 Codex 和个人资料不受影响。`doctor` 只检查依赖与登录，不代表模型质量认证。
+
+## 2026-10-13 完整 Skill 更新与升级
+
+[本次完整包](https://github.com/orocoa/Ariadne/releases/tag/skill-20261013-source-icons)绑定源码 `3e5cec9538e529b130a4e1a62eaa83a9a858a002`，ZIP 大小为 2,918,838 bytes；SHA-256 为 `452e22f16946332d14809d47487b6b7f7dbd43dea4a54862a9ce989efb611aad`。官网本轮只同步完整包、校验文件及下载/安装入口，Web/API 产品运行继续使用 9 月 28 日源码 `126c775150370c25bbdbd9cf8ad1fe9209936f21`。
+
+- 新 Codex 型号自动验证合成图片、完整两页 PDF、结构化输出与隔离边界，通过后加入对话模型目录；每 24 小时最多 3 次，失败需显式重试，关闭菜单后队列继续。启动可能消耗验证额度，不分析职业资料；不自动切换已有选择或修改导入默认。
+- 六个对话入口支持 Enter 发送、Shift+Enter 换行，并保留输入法、空消息和忙态保护。
+- 职位原件可命名、恢复及下载，保存名称和下载入口使用无底色图标；Model 直接导入也保留填写的名称。恢复另一组原件期间阻断对旧来源的操作，原件内容、顺序、来源身份和人工保存边界保持。
+- 修正 Skill 启动的额度说明，保留此前卡片动效和可靠性优化。本轮未新增真实业务模型质量验收；离线与合成浏览器检查不等于语义质量认证。
+
+先退出 Ariadne，再从官网复制安装指令，或下载该 Release 的完整 ZIP 与 `.sha256`。让 Codex 核对哈希和大小、备份旧 Skill 后更新完整运行代码；保留资料目录、工作区绑定和独立 Ariadne Codex 登录。重新打开并执行 `python3 scripts/ariadne.py doctor`；依赖检查不替代模型质量验收。网页与 Skill 的资料不自动同步。
+
+以下 10 月 3 日和 9 月 28 日记录保留当时的发布与升级信息；当前下载以上方 10 月 13 日版本为准。
 
 ## 2026-10-03 完整 Skill 更新与升级
 

@@ -4,7 +4,9 @@
 >
 > Ariadne is an open-source AI career workspace for organizing personal materials, understanding target roles, and discussing both with reference to original sources. It preserves sources and version history; AI-proposed changes require your review and explicit save.
 
-2026-10-03: The [complete Skill release](https://github.com/orocoa/Ariadne/releases/tag/skill-20261003-card-return) includes the card-return animation fix and the previously committed reliability and load optimizations. The website and its installation dialog remain on the September 28 release. [Changes](CHANGELOG.md).
+2026-10-13: The latest [complete Skill release](https://github.com/orocoa/Ariadne/releases/tag/skill-20261013-source-icons) adds automatic qualification of new Codex models, Enter to send / Shift+Enter for a newline, and recognizable Job-source names and original downloads with unfilled icon actions. It also fixes source-switch races and preserves names during direct Model imports. The website installation entry now provides this release; the Web/API product runtime remains on September 28 (`126c775`). Existing model choices and the import default are preserved. [Changes](CHANGELOG.md).
+
+Historical release status recorded on 2026-10-03: The [complete Skill release](https://github.com/orocoa/Ariadne/releases/tag/skill-20261003-card-return) includes the card-return animation fix and the previously committed reliability and load optimizations. The website and its installation dialog remain on the September 28 release. [Changes](CHANGELOG.md).
 
 [中文说明](README.zh-CN.md) · [Current architecture map (Chinese)](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.html) · [Architecture evolution](docs/architecture/archify/2026-09-12-project-evolution/07-architecture-evolution-six-stages.en.html) · [Project history](PROJECT_HISTORY.md) · [Runtime contract](docs/current/ARIADNE_RUNTIME_EXECUTION_CONTRACT.md) · [Skill guide](docs/current/ARIADNE_SKILL.md)
 
@@ -28,7 +30,7 @@ Ariadne helps you understand your experience in relation to a job you care about
 
 You can keep the original documents, review suggestions, and save the changes you agree with as new versions. The model does not decide your career goal or automatically submit applications.
 
-## September 29 source update — not yet deployed
+## September 29 optimizations — included in Skill; Web/API runtime unchanged
 
 - **Bounded work with complete inputs.** PDF preparation checks the full input budget before expensive rendering, reuses preparation within a request, and fails explicitly when complete delivery is not possible. Local conversation attachments reuse the saved original after identity, consent, and hash checks.
 - **Less repeated work.** Public reply streaming, previews, history rendering, and PDF export avoid repeated whole-output work. Job journals fetch the selected Job's records once and batch their images. Independent reads use targeted APIs; write transactions retain their complete read set, version checks, and atomic save.
@@ -37,7 +39,7 @@ You can keep the original documents, review suggestions, and save the changes yo
 
 One reproducible synthetic journal case—1,000 records, with 100 records and 100 images belonging to the selected Job—fell from **301 requests / 135,361,847 response bytes to 2 requests / 665,254 response bytes**. These are uncompressed JSON transport counts, not production latency or model-speed measurements. The server still scans and verifies the journal store once.
 
-Offline regressions, desktop/mobile Chrome flows, real local Workerd/Pyodide startup and an invalid domain request, and actual Pages cache headers were checked. These product checks made no real paid Provider calls; the new semantic-review suite remains **NOT_RUN** without real outputs and human review. Production load, installation on a new machine, and general semantic quality are not established by these checks. Candidate packages were built and inspected locally; the public website and downloadable Skill still contain September 28 code.
+Offline regressions, desktop/mobile Chrome flows, real local Workerd/Pyodide startup and an invalid domain request, and actual Pages cache headers were checked. These product checks made no real paid Provider calls; the new semantic-review suite remains **NOT_RUN** without real outputs and human review. Production load, installation on a new machine, and general semantic quality are not established by these checks. At that September 29 checkpoint, candidate packages were inspected locally and both public products still contained September 28 code. Those optimizations are now included in the complete Skill releases; the public Web/API product runtime remains on September 28 code.
 
 [Optimization details and limits](docs/current/RUNTIME_OPTIMIZATION_20260929.md) · [Architecture review (Chinese)](docs/current/ARCHITECTURE_REVIEW_20260929.md) · [Verification record](PROJECT_STATUS.md)
 
@@ -49,7 +51,7 @@ Offline regressions, desktop/mobile Chrome flows, real local Workerd/Pyodide sta
 - **Local startup works without reverse DNS.** The fixed loopback server binds directly; lifecycle and data-retention checks remain in place.
 - **Confirm each conversation entry.** All six conversation entry points show the current scope/model before entry. Changing the model or reasoning requires a fresh confirmation.
 
-The latest [full Skill ZIP](https://github.com/orocoa/Ariadne/releases/tag/skill-20261003-card-return) is built from source `0994b11`; the [website](https://ariadne.kai-nex.com/) remains on the September 28 release. The ZIP includes the launcher, pages, runtime, contracts, and file hash manifest; the repository's `skills/ariadne` folder alone is not an installable full package. For this upgrade, quit Ariadne and ask Codex to install the complete ZIP from that GitHub Release, verify its published SHA-256, back up the existing Skill, and retain the data directory and workspace binding. Web/Skill data do not automatically synchronize.
+The October 3 [full Skill ZIP](https://github.com/orocoa/Ariadne/releases/tag/skill-20261003-card-return) was built from source `0994b11` and remains available as a historical release. Use the October 13 release linked above for the current Skill. The [website](https://ariadne.kai-nex.com/) installation entry is current; its Web/API product runtime remains on September 28 code. The ZIP includes the launcher, pages, runtime, contracts, and file hash manifest; the repository's `skills/ariadne` folder alone is not an installable full package. For the current upgrade, quit Ariadne and ask Codex to install the complete ZIP from the October 13 GitHub Release linked above, verify its published SHA-256, back up the existing Skill, and retain the data directory and workspace binding. Web/Skill data do not automatically synchronize.
 
 [Change-set architecture and verification](docs/current/JOB_WORKSPACE_CHANGE_SETS.md) · [Model selection contract](docs/current/MODEL_SELECTION_AND_TUNING_ARCHITECTURE.md)
 
@@ -85,7 +87,7 @@ The September 29 source architecture keeps one content authority with controlled
 
 [![Ariadne September 29 source architecture — Chinese architecture map](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.png)](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.html)
 
-[Chinese interactive architecture map](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.html) · [Editable diagram specification](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.architecture.json) · [Diagram review record](docs/architecture/archify/2026-09-29-optimized/review.json) · [Architecture analysis (Chinese)](docs/current/ARCHITECTURE_REVIEW_20260929.md) · [Product boundaries](docs/current/TWO_PRODUCT_ARCHITECTURE.md). The current map is in Chinese and documents source changes not yet deployed. Download its HTML and open it locally for interaction; GitHub displays HTML as source. The [September 20 English diagram](docs/architecture/archify/2026-09-20-web-skill/ariadne-en.html), [September 20 Chinese diagram](docs/architecture/archify/2026-09-20-web-skill/ariadne-zh.html), and earlier [Web/Mac App diagram](docs/architecture/archify/2026-09-19-current/ariadne.html) remain historical snapshots.
+[Chinese interactive architecture map](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.html) · [Editable diagram specification](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.architecture.json) · [Diagram review record](docs/architecture/archify/2026-09-29-optimized/review.json) · [Architecture analysis (Chinese)](docs/current/ARCHITECTURE_REVIEW_20260929.md) · [Product boundaries](docs/current/TWO_PRODUCT_ARCHITECTURE.md). The current map is in Chinese and documents September 29 source changes now included in Skill; the public Web/API runtime has not been upgraded to those changes. Download its HTML and open it locally for interaction; GitHub displays HTML as source. The [September 20 English diagram](docs/architecture/archify/2026-09-20-web-skill/ariadne-en.html), [September 20 Chinese diagram](docs/architecture/archify/2026-09-20-web-skill/ariadne-zh.html), and earlier [Web/Mac App diagram](docs/architecture/archify/2026-09-19-current/ariadne.html) remain historical snapshots.
 
 ## Why move from a web UI to an installer, then a Skill?
 

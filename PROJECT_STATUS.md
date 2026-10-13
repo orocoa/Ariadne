@@ -1,5 +1,14 @@
 # AI Job Radar｜Phase 4 Status
 
+## 2026-10-13 — 完整 Skill、GitHub 与官网安装入口同步（COMPLETE）
+
+- 最终源码 `3e5cec9538e529b130a4e1a62eaa83a9a858a002` 已推送 main；[GitHub CI 38347716893](https://github.com/orocoa/Ariadne/actions/runs/38347716893)全绿，包含 143 项离线回归、VI、合成浏览器验收、公开文件及全历史 Gitleaks。此前修复提交 `2f352f5` 的 CI 同样通过。未调用真实业务模型、读取私人职业资料或声称全新机器验收。
+- 从独立干净源码构建并发布 [skill-20261013-source-icons](https://github.com/orocoa/Ariadne/releases/tag/skill-20261013-source-icons)：2,918,838 bytes，237 个 runtime / 244 个文件，SHA-256 `452e22f16946332d14809d47487b6b7f7dbd43dea4a54862a9ce989efb611aad`，`includes_working_changes=false`。独立 agent 核对清单、ZIP、精确提交及解包内容一致，无额外/重复/私有路径；GitHub 公开下载与构建字节一致。先前来源修复 Release 与所有旧版本保留。
+- 官网 Pages 发布 `b0c3e85f`：复用已逐项核对的 9 月 28 日线上基线，367 个文件中只变更 `downloads/Ariadne-Skill.zip`、`.zip.sha256` 与 `downloads/skill.json`。Web/API 产品运行仍为源码 `126c775`，ARIADNE_API 绑定未改；本轮未部署 API Worker。
+- egolite 在正式域名实际点击「复制安装指令」，指令已绑定最终 tag 与 SHA；官网下载 ZIP 的大小、SHA 和 237 项 manifest 与 GitHub/构建包一致。六个关键产品页面/脚本仍与线上基线一致，`/healthz` 为 200 / web。保存名称和下载原件无底图标在桌面与 390 px 验收；保存/下载、中英文提示、焦点/禁用、普通缓存重载通过。
+- 本机 Skill 受影响旧文件已备份后同步，全部 237 项 hash 一致、doctor ready；不改资料、绑定或登录，未强制打断正在运行的旧窗口，重开即可完整加载。所有审计、备份、候选包、失败与成功截图及下载回执保留在 `work/audit-20261013/`。
+- README 双语、CHANGELOG、Skill 指南、部署文档与审核报告已更新；本次仅同步完整 Skill 与官网下载安装入口，不将不同产品的资料自动同步。未解决问题及验证限制见[审核报告](docs/current/AUDIT_20261013.md)。阶段提交只纳入本轮文件与新增状态条目，原有历史文档未提交改动及其他产物原地保留。
+
 ## 2026-10-13 — 原件操作使用无底色图标
 
 - 按用户补充要求，将「保存名称」「下载原件」改为无底色图标按钮；复用现有详情操作的透明底、焦点与禁用状态，44 px 点击热区、20 px 图标，保留中英文 title / aria-label。专用 save/download 图标由 VI manifest 生成，不改变保存或下载权限。
