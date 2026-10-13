@@ -8,7 +8,7 @@
   function runtime() {
     const gate = Gate.operationGate("job_overview"), current = gate.authority.runtime;
     el("job-overview-runtime").textContent = current.mode === "local" ? "Local · 查看已保存概况" : `${current.provider} · ${current.model}`;
-    el("job-overview-consent-copy").textContent = current.mode === "local" ? "当前为 Local。选择可用模型后，可以汇总与讨论职位。" : `对话会将当前个人资料、已保存补充、职位与相关历史发送至 ${current.provider === "codex" ? "Codex / OpenAI" : current.provider} · ${current.model}；可能消耗额度。会尝试读取本轮消息中的公开链接，并将网页内容交给模型；不自动保存为个人事实。`;
+    el("job-overview-consent-copy").textContent = current.mode === "local" ? "当前为 Local。选择可用模型后，可以汇总与讨论职位。" : `对话会将当前个人资料、已保存补充、职位与相关历史发送至 ${current.provider === "codex" ? "Codex" : `${current.provider} · ${current.model}`}；可能消耗额度。会尝试读取本轮消息中的公开链接，并将网页内容交给模型；不自动保存为个人事实。`;
     el("job-overview-consent").disabled = busy || !gate.allowed;
     const disabled = busy || !gate.allowed;
     el("refresh-job-overview").disabled = disabled; el("job-overview-form").querySelector('button[type="submit"]').disabled = disabled; return gate;

@@ -199,7 +199,7 @@
     const key = `ariadne-model-consent:${snapshot.execution_settings.scope}`;
     const fingerprint = JSON.stringify([Settings.identity(snapshot), snapshot.execution_settings.selection_revision]);
     if (root.sessionStorage?.getItem(key) !== fingerprint) {
-      const accepted = root.confirm(`本轮将把当前对话所需的资料上下文、相关历史、来源摘录及已确认的附件发送给 ${snapshot.provider === "codex" ? "Codex / OpenAI" : snapshot.provider} / ${snapshot.model}（${Settings.label(snapshot, true)}）。可能消耗额度；修改仍须由你保存。是否继续？`);
+      const accepted = root.confirm(`本轮将把当前对话所需的资料上下文、相关历史、来源摘录及已确认的附件发送给 ${snapshot.provider === "codex" ? "Codex" : `${snapshot.provider} / ${snapshot.model}（${Settings.label(snapshot, true)}）`}。可能消耗额度；修改仍须由你保存。是否继续？`);
       if (!accepted) fail("RUNTIME_SELECTION_DECLINED");
       root.sessionStorage?.setItem(key, fingerprint);
     }

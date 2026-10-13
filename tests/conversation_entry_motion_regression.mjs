@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 const source = readFileSync(new URL('../public/conversation-entry-consent.js', import.meta.url), 'utf8');
-function fixture(id = 'personal-conversation-form', reduced = false, remembered = false) {
+function fixture(id = 'personal-conversation-form', reduced = false, remembered = false, runtime = { provider: 'codex', model: 'gpt-5.6-sol' }) {
   const animations = [], events = {}, elements = new Map();
   class Element {
     constructor() {
@@ -28,7 +28,7 @@ function fixture(id = 'personal-conversation-form', reduced = false, remembered 
   const pane = new Element(), form = new Element(), input = new Element(), history = new Element(), reserved = new Element();
   reserved.inert = true; pane.append(history, form, reserved);
   form.id = id; form.closest = () => pane; elements.set(id, form);
-  let state = { scope: 'scope-a', fingerprint: 'fp-a', token: 'a', accepted: remembered, runtime: { provider: 'codex', model: 'model' } };
+  let state = { scope: 'scope-a', fingerprint: 'fp-a', token: 'a', accepted: remembered, runtime };
   const root = { document: { documentElement: { lang: 'zh' }, body: {}, head: new Element(), createElement: () => new Element(), getElementById: id => elements.get(id) },
     AriadneRuntimeSelection: { entryConsent: () => state, acceptEntryConsent: (_operation, token) => { accepts++; if (rejectConsent || token !== state.token) throw Error('changed'); state.accepted = true; } },
     matchMedia: () => ({ matches: reduced }), getComputedStyle: () => ({ getPropertyValue: name => ({ '--vi-motion-close': '480ms', '--vi-motion-open': '540ms', '--vi-ease-standard': 'ease', '--vi-ease-reveal': 'ease' })[name] }),
@@ -93,3 +93,14 @@ for (const file of ['candidate-detail.html','job-detail.html','personal-import.h
   assert.match(readFileSync(new URL('../public/'+file,import.meta.url),'utf8'),/data-entry-confirmation="visit"/);
 }
 console.log('Every entry PASS: remembered consent, re-render, model return, page restore, six-page boot guard');
+
+for (const id of ['personal-conversation-form','job-overview-form','candidate-workspace-composer','candidate-conversation-form','job-workspace-composer','job-conversation-form']) {
+  const f = fixture(id);
+  assert.match(f.gate.children[1].textContent, /发送至 Codex，/);
+  assert.doesNotMatch(f.gate.children[1].textContent, /OpenAI|gpt-5.6-sol/);
+  f.root.document.documentElement.lang = 'en'; f.root.AriadneConversationEntry.refresh();
+  assert.match(f.gate.children[1].textContent, /sent to Codex,/);
+}
+const external = fixture('personal-conversation-form',false,false,{provider:'deepseek',model:'deepseek-flash'});
+assert.match(external.gate.children[1].textContent, /deepseek · deepseek-flash/);
+console.log('Codex entry recipient: six forms, both languages and other-provider identity PASS');

@@ -87,7 +87,7 @@
     const gate = Gate.operationGate("personal_understanding");
     const runtime = gate.authority.runtime;
     byId("personal-runtime").textContent = runtime.mode === "local" ? "Local · 查看已保存内容" : `${runtime.provider === "codex" ? "Codex / OpenAI" : runtime.provider} · ${runtime.model}`;
-    byId("personal-consent-copy").textContent = runtime.mode === "local" ? "当前为 Local。切换到已验证的模型后，可以综合资料与对话。" : `问题、相关个人资料及对话历史将发送至 ${runtime.provider === "codex" ? "Codex / OpenAI" : runtime.provider} · ${runtime.model}；更新理解可能分批调用并产生 API 费用。`;
+    byId("personal-consent-copy").textContent = runtime.mode === "local" ? "当前为 Local。切换到已验证的模型后，可以综合资料与对话。" : `问题、相关个人资料及对话历史将发送至 ${runtime.provider === "codex" ? "Codex" : `${runtime.provider} · ${runtime.model}`}；更新理解可能分批调用并产生 API 费用。`;
     byId("personal-model-consent").disabled = !gate.allowed || busy;
     const allowed = gate.allowed && !busy;
     byId("personal-conversation-form").querySelector('button[type="submit"]').disabled = !allowed;
