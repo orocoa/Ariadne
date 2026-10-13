@@ -1997,7 +1997,11 @@
   }
 
   async function selectSavedJobSources(archiveId) {
-    const selectionVersion = ++jobSelectionVersion;
+    // A newly selected archive must never leave the previous source actionable
+    // while its bytes are loading, or after restoration fails.
+    byId("job-link-input").value = "";
+    configureJobImportType("Document");
+    const selectionVersion = jobSelectionVersion;
     const database = await Truth.openDatabase();
     let restored;
     try {
@@ -2013,12 +2017,14 @@
           import_state: await jobSourceImportState(document.source_document_id, database, modelMode) });
       }
       if (selectionVersion !== jobSelectionVersion) return;
-      configureJobImportType("Document");
       selectedJobSources = sources;
       selectedJobArchiveId = archiveId;
       byId("saved-job-source-select").value = archiveId;
       byId("job-source-name").value = byId("saved-job-source-select").selectedOptions[0]?.dataset.displayName || "";
       byId("job-link-input").value = restored.source_url || "";
+    } catch (error) {
+      if (selectionVersion !== jobSelectionVersion) return;
+      throw error;
     } finally { database.close(); }
     jobModelConsentBundle = null;
     const restoredVersion = jobSelectionVersion;
@@ -3361,9 +3367,10 @@
     if (!JobModel || !selectedJobSource || !selectedJobSources.length) throw new Error("job_model_source_bundle_invalid");
     const gate = JobModel.assertEligibleGate(refreshJobImportGate());
     const selectionVersion = jobSelectionVersion;
+    const displayName = RawSource.archiveName(byId("job-source-name").value);
     const sources = selectedJobSources.map(source => ({ ...source, source_url: byId("job-link-input").value.trim() || null }));
     const database = await Truth.openDatabase();
-    let sourceDocuments;
+    let sourceDocuments, archive;
     try {
       sourceDocuments = await SourceInput.persistDurableBundle({
         database,
@@ -3371,10 +3378,12 @@
         sourceDocumentFor: LocalJob.sourceDocumentFor,
         persistDurableSource: LocalJob.persistCanonicalSource,
       });
-      await RawSource.persistArchive(database, sourceDocuments, sources[0]?.source_url || null);
+      archive = await RawSource.persistArchive(database, sourceDocuments, sources[0]?.source_url || null, displayName);
     } finally { database.close(); }
     const currentGate = refreshJobImportGate();
     if (selectionVersion !== jobSelectionVersion || currentGate.authority.runtime.mode !== "model") throw new Error("job_model_consent_mismatch");
+    selectedJobArchiveId = archive.source_document_id;
+    refreshJobImportGate();
     JobModel.assertEligibleGate(gate);
     if (jobImportLifecycle?.state === ModelImportLifecycle.STATES.SOURCE_SELECTED) transitionJobImportLifecycle(ModelImportLifecycle.STATES.SOURCE_STORED);
     jobModelConsentSelectionVersion = selectionVersion;
@@ -3672,13 +3681,14 @@
     if (jobProcessingInProgress || !selectedJobArchiveId) return;
     const name = RawSource.archiveName(byId("job-source-name").value);
     if (!name) { byId("job-source-name").focus(); return; }
-    const sources = [...selectedJobSources], version = jobSelectionVersion;
+    const sources = [...selectedJobSources], version = jobSelectionVersion, archiveId = selectedJobArchiveId;
     jobProcessingInProgress = true; refreshJobImportGate();
     let database;
     try {
       database = await Truth.openDatabase();
+      if (version !== jobSelectionVersion || archiveId !== selectedJobArchiveId) return;
       let archive;
-      if (selectedJobArchiveId?.startsWith("source-archive-v1::")) archive = await RawSource.renameArchive(database, selectedJobArchiveId, name);
+      if (archiveId.startsWith("source-archive-v1::")) archive = await RawSource.renameArchive(database, archiveId, name);
       else {
         const documents = await Promise.all(sources.map(source => RawSource.sourceDocumentForId(database, source.source_document_id)));
         archive = await RawSource.persistArchive(database, documents, byId("job-link-input").value.trim() || null, name);
@@ -3715,7 +3725,9 @@
     jobSharedWorkspace();
     renderSavedSources("job").catch(showJobError);
     byId("saved-job-source-select").addEventListener("change", event => {
-      if (event.target.value && !jobProcessingInProgress) selectSavedJobSources(event.target.value).catch(showJobError);
+      if (jobProcessingInProgress) return;
+      if (event.target.value) selectSavedJobSources(event.target.value).catch(showJobError);
+      else configureJobImportType("Document");
     });
     byId("job-source-name").addEventListener("input", refreshJobImportGate);
     byId("save-job-source-name").addEventListener("click", () => saveJobSourceName().catch(showJobError));

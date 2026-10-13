@@ -13,7 +13,7 @@ description: 打开 Ariadne 独立 Mac 窗口，显示个人资料与职位工�
 
 1. 在可保留终端运行 `python3 scripts/ariadne.py window`。首次用本机 Swift 编译器生成轻量窗口程序，后续复用缓存。需要 macOS 14+、Apple Command Line Tools 和 Python 3.9+；缺依赖明确报告，不自动安装或降级为浏览器。
 2. 脚本返回 `opening_window` 后，用返回的完整 `application` 路径核对该独立窗口实际显示工作空间；不要只按应用名或 bundle id 选择窗口，因为保留的旧构建/QA App 可能同名。不要调用 Codex 内置浏览器或系统浏览器打开本地 URL。窗口已运行时直接使用它，不再创建一份或接管未知端口。
-3. 直接进入工作空间，使用已验证的 Codex 配置，无需选择模型首页。Codex/PDF 依赖不足仍可保存原件，但不能声称 AI 就绪；`doctor` 可复查。首次提示未登录时，经用户同意运行 `python3 scripts/ariadne.py login`，由用户完成官方登录；不读取或复制认证文件。启动不发模型请求。
+3. 直接进入工作空间，使用已验证的 Codex 配置，无需选择模型首页。Codex/PDF 依赖不足仍可保存原件，但不能声称 AI 就绪；`doctor` 可复查。首次提示未登录时，经用户同意运行 `python3 scripts/ariadne.py login`，由用户完成官方登录；不读取或复制认证文件。启动不会自动分析职业材料；发现新型号时会按下文规则自动发送合成图片与 PDF 验证请求，使用用户 Codex 额度。
 4. 关闭最后一个 Ariadne 窗口或按 ⌘Q，即退出本次窗口和其专属本地服务；窗口异常退出也会收回服务。最小化不会退出，已保存资料保留，不安装开机启动或自动化。终端仅等待窗口结束，不需要用户手动结束服务。
 
 独立窗口使用自己的 WebKit profile，旧 Codex/普通浏览器 profile 的工作区身份不自动迁移。缓存窗口程序只用于此 Skill 启动，不替换 `/Applications/Ariadne.app`，不固定 Dock。
