@@ -593,6 +593,20 @@
       "usage": "选择器选中；不暗示事实经过外部核验"
     },
     {
+      "name": "save",
+      "body": "<path d=\"M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z\"/><path d=\"M7 3v6h9V3M7 21v-8h10v8\"/>",
+      "stroke": 1.8,
+      "label": "保存",
+      "usage": "明确保存当前输入；按钮须提供具体保存对象的无障碍名称"
+    },
+    {
+      "name": "download",
+      "body": "<path d=\"M12 3v12m-5-5 5 5 5-5M5 16v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4\"/>",
+      "stroke": 1.8,
+      "label": "下载",
+      "usage": "下载文件；不用页内导航箭头代替，按钮须说明下载对象"
+    },
+    {
       "name": "arrow-up-right",
       "body": "<path d=\"M6 18 18 6M6 6h12v12\"/>",
       "stroke": 1.8,

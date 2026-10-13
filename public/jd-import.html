@@ -8,7 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="/i18n.js?v=1"></script>
     <title>Ariadne · 添加职位描述</title>
-    <link rel="stylesheet" href="/styles.css?v=candidate-job-parity-v1&amp;vi=1&amp;composer=4&amp;loading-center=1&amp;wave=1&amp;archive=1">
+    <link rel="stylesheet" href="/styles.css?v=candidate-job-parity-v1&amp;vi=1&amp;composer=4&amp;loading-center=1&amp;wave=1&amp;archive=1&amp;source-actions=1">
     <link rel="stylesheet" href="/personal-understanding.css">
     <link rel="stylesheet" href="/wave-physics-loader.css?v=2">
   </head>
@@ -41,7 +41,7 @@
           <section id="job-file-section" class="v1-file-picker"><button id="job-dropzone" class="v1-file-dropzone" type="button" aria-controls="job-file-input"><span id="job-dropzone-copy">点击上传文件或直接拖拽文件至此</span></button><input id="job-file-input" class="v1-file-input" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.docx,application/pdf,image/png,image/jpeg,application/vnd.openxmlformats-officedocument.wordprocessingml.document"></section>
           <section id="job-paste-section" class="v1-paste-input hidden"><label for="job-paste-input">职位描述</label><textarea id="job-paste-input" placeholder="在此粘贴职位描述…"></textarea></section>
           <section class="v1-link-input"><label for="job-link-input">职位链接 <span>选填</span></label><input id="job-link-input" type="url" inputmode="url" placeholder="https://example.com/jobs/…"></section>
-          <section class="v1-link-input"><label for="job-source-name">原件名称</label><input id="job-source-name" type="text" maxlength="160" placeholder="例如：某公司 · 产品经理" aria-describedby="job-source-name-hint"><p id="job-source-name-hint" class="v1-runtime-summary">用于查找和下载。已有确认职位会自动带入名称；尚未识别时，请在保存前填写。</p><div class="v1-button-row"><button id="save-job-source-name" type="button" disabled>保存名称</button><button id="download-job-sources" type="button" disabled>下载原件</button></div></section>
+          <section class="v1-link-input"><label for="job-source-name">原件名称</label><input id="job-source-name" type="text" maxlength="160" placeholder="例如：某公司 · 产品经理" aria-describedby="job-source-name-hint"><p id="job-source-name-hint" class="v1-runtime-summary">用于查找和下载。已有确认职位会自动带入名称；尚未识别时，请在保存前填写。</p><div class="v1-button-row"><button id="save-job-source-name" class="v1-detail-edit-button v1-source-action" type="button" aria-label="保存名称" title="保存名称" disabled><span class="vi-icon" data-icon="save" aria-hidden="true"></span></button><button id="download-job-sources" class="v1-detail-edit-button v1-source-action" type="button" aria-label="下载原件" title="下载原件" disabled><span class="vi-icon" data-icon="download" aria-hidden="true"></span></button></div></section>
           <section id="job-file-preview" class="v1-file-preview hidden" aria-label="已选择的来源"><ol id="job-source-preview-list" class="v1-source-preview-list"></ol><button id="replace-job-file" type="button">添加来源</button></section>
           <section id="job-processing" class="v1-processing v1-processing-indicator hidden" aria-live="polite"></section>
           <button id="start-job-processing" class="v1-primary-button v1-sheet-primary" type="button" disabled>保存原件</button>

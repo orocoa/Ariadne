@@ -114,7 +114,7 @@ VI 页面提供 `vi-resume-sheet/row/label/content/heading` 的**合成排版样
 
 ## 5. 图标系统
 
-15 个普通图标共用 24×24 SVG 母版、圆端点、圆转角、currentColor。图标视觉尺寸与点击热区分开：行内 14 px，返回/发送 20 px，添加/关闭 24 px；新独立控件建议 44 px 热区；既有 36 px 返回/关闭保留。
+17 个普通图标共用 24×24 SVG 母版、圆端点、圆转角、currentColor。图标视觉尺寸与点击热区分开：行内 14 px，返回/发送 20 px，添加/关闭 24 px；新独立控件建议 44 px 热区；既有 36 px 返回/关闭保留。
 
 | 资源名 | 用途 | 线宽 / 禁止混用 |
 |---|---|---|
@@ -122,6 +122,7 @@ VI 页面提供 `vi-resume-sheet/row/label/content/heading` 的**合成排版样
 | close | 关闭界面、退出临时态 | 1.8；不删除数据 |
 | plus / minus | 添加 / FAQ 收起 | 1.8；不能表示保存或删除 |
 | send | 提交对话 | 1.8；短杆向上，与回到顶部区分 |
+| save / download | 保存当前输入 / 下载文件 | 1.8；必须用 title 与无障碍名称说明操作对象 |
 | check | 选择器已选择 | 2.6；不证明资料真实性 |
 | arrow-up-right / down / up | 介绍链接 / 页内下移 / 页顶 | 1.8；跨站链接仍需文案说明 |
 | check-circle / loader | 技术操作完成 / 等待 | 2；必须配状态文案 |
@@ -129,6 +130,8 @@ VI 页面提供 `vi-resume-sheet/row/label/content/heading` 的**合成排版样
 | menu | 两线导航 | 1.8；现有 CSS 两线图形保留 |
 
 这些线宽差异是既有光学校正，不是“误差”。静态 HTML 推荐 `<span class="vi-icon" data-icon="close" aria-hidden="true"></span>`；按钮提供具体中文 `aria-label`。CSS 伪元素直接引用 `/vi/icons/close.svg`。不要将 `×`、`↗`、emoji 或其他字体字符当作新的 UI 图标；普通正文的乘号、方向说明不在此禁令内。
+
+2026-10-13 原件名称的保存与下载改为无底色图标：复用详情编辑操作的透明底、焦点及禁用状态，使用 44 px 热区与 20 px 图标。保存与下载分别使用 manifest 的专用资源，title / aria-label 随中英文切换，保存权限和下载行为不变。
 
 已接入：返回、关闭、添加、发送、选择勾的重复 CSS mask；介绍页全部方向字符与 FAQ 加减号。Runtime HTML/JS 内既有折线、连接状态和 sliders SVG 暂保留为库存例外，与 manifest 的几何核对；后续不再新增副本。
 

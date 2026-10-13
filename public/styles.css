@@ -1,5 +1,5 @@
 @import url("/vi/tokens.css?v=wave-1");
-@import url("/vi/icons.css?v=1.0.0");
+@import url("/vi/icons.css?v=source-actions-1");
 @import url("/vi/layout.css?v=1.0.0");
 @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@400&family=Inter:wght@400..800&family=Recursive:wght@300..1000&display=swap");
 
@@ -756,6 +756,7 @@ html:has(> .v1-body:not(.v1-embedded-detail)) { scrollbar-gutter: stable; }
 .v1-detail-remove-button:hover, .v1-detail-remove-button:focus-visible { background: transparent; border-color: transparent; box-shadow: none; }
 .v1-detail-remove-button:active { box-shadow: none; transform: none; }
 .v1-detail-edit-button:disabled, .v1-detail-remove-button:disabled { box-shadow: none; cursor: not-allowed; opacity: .48; transform: none; }
+.v1-detail-edit-button.v1-source-action { align-items: center; display: inline-flex; height: var(--vi-target-comfort); justify-content: center; padding: 0; text-decoration: none; width: var(--vi-target-comfort); }
 .v1-button-row.v1-edit-actions { align-items: center; flex-wrap: nowrap; gap: var(--vi-space-24); justify-content: space-between; }
 .v1-edit-secondary-actions { align-items: center; display: inline-flex; gap: var(--vi-space-24); justify-content: flex-end; margin-left: auto; }
 .v1-journal-edit-section .v1-edit-text-action,

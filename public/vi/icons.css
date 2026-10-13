@@ -8,6 +8,8 @@
 .vi-icon[data-icon="minus"] { --vi-icon-image: url("/vi/icons/minus.svg"); }
 .vi-icon[data-icon="send"] { --vi-icon-image: url("/vi/icons/send.svg"); }
 .vi-icon[data-icon="check"] { --vi-icon-image: url("/vi/icons/check.svg"); }
+.vi-icon[data-icon="save"] { --vi-icon-image: url("/vi/icons/save.svg"); }
+.vi-icon[data-icon="download"] { --vi-icon-image: url("/vi/icons/download.svg"); }
 .vi-icon[data-icon="arrow-up-right"] { --vi-icon-image: url("/vi/icons/arrow-up-right.svg"); }
 .vi-icon[data-icon="arrow-down"] { --vi-icon-image: url("/vi/icons/arrow-down.svg"); }
 .vi-icon[data-icon="arrow-up"] { --vi-icon-image: url("/vi/icons/arrow-up.svg"); }
