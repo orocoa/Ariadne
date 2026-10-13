@@ -241,7 +241,8 @@
 
   // This index remembers a user's ordered selection. It contains no extracted
   // content or conclusions; the original SourceDocuments remain authoritative.
-  async function persistArchive(database, documents, sourceUrl = null) {
+  async function persistArchive(database, documents, sourceUrl = null, displayName = "") {
+    const name = archiveName(displayName);
     const sources = documents.map(Truth.validateSourceDocument);
     if (!sources.length || new Set(sources.map(source => source.material_type)).size !== 1
       || new Set(sources.map(source => source.source_document_id)).size !== sources.length) {
@@ -258,12 +259,13 @@
         || JSON.stringify(existing.source_document_ids) !== JSON.stringify(sourceIds) || existing.source_url !== sourceUrl) {
         throw new RawSourceStorageError("source_archive_invalid");
       }
-      return existing;
+      return name ? renameArchive(database, key, name) : existing;
     }
     const archive = {
       contract_id: ARCHIVE_CONTRACT, source_document_id: key,
       material_type: sources[0].material_type, source_document_ids: sourceIds,
       source_url: sourceUrl, created_at: new Date().toISOString(),
+      ...(name ? { display_name: name } : {}),
     };
     await new Promise((resolve, reject) => {
       const transaction = database.transaction(STORE_NAME, "readwrite");
@@ -291,19 +293,75 @@
     return { sources, source_url: record?.contract_id === ARCHIVE_CONTRACT ? record.source_url : sources[0].source_document.provenance?.source_url || null };
   }
 
+  function archiveName(value) {
+    if (typeof value !== "string" || value.trim().length > 160 || /[\u0000-\u001f\u007f]/u.test(value)) throw new RawSourceStorageError("source_archive_name_invalid");
+    return value.trim();
+  }
+
+  async function renameArchive(database, key, value) {
+    const name = archiveName(value);
+    if (!name) throw new RawSourceStorageError("source_archive_name_required");
+    return new Promise((resolve, reject) => {
+      let updated, error;
+      const transaction = database.transaction(STORE_NAME, "readwrite"), store = transaction.objectStore(STORE_NAME);
+      const request = store.get(key);
+      request.onsuccess = () => {
+        const record = request.result;
+        if (record?.contract_id !== ARCHIVE_CONTRACT || record.material_type !== "JOB") {
+          error = new RawSourceStorageError("source_archive_invalid"); transaction.abort(); return;
+        }
+        updated = { ...record, display_name: name };
+        store.put(updated);
+      };
+      request.onerror = () => { error = request.error; transaction.abort(); };
+      transaction.oncomplete = () => resolve(updated);
+      transaction.onerror = transaction.onabort = () => reject(error || transaction.error || new RawSourceStorageError("raw_source_persistence_failed"));
+    });
+  }
+
+  function jobArchiveName(ids, revisions) {
+    const matches = revisions.filter(record => record.authority === Truth.AUTHORITY.revision
+      && JSON.stringify(record.provenance?.source_document_ids) === JSON.stringify(ids) && record.payload?.title)
+      .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)) || (b.version || 0) - (a.version || 0));
+    const payload = matches[0]?.payload;
+    return payload ? [payload.company, payload.title].filter(Boolean).join(" · ").slice(0, 160) : "";
+  }
+
+  function archiveDownloadName(name, filename, position, count) {
+    const safe = archiveName(name).replace(/[<>:"/\\|?*]/g, "-").replace(/[. ]+$/g, "");
+    if (!safe) throw new RawSourceStorageError("source_archive_name_required");
+    const extension = String(filename).match(/\.[a-z0-9]{1,10}$/i)?.[0] || "";
+    let stem = "", bytes = 0;
+    for (const character of safe) {
+      const size = new TextEncoder().encode(character).length;
+      if (bytes + size > 180) break;
+      stem += character; bytes += size;
+    }
+    return `${stem}${count > 1 ? `-${position + 1}` : ""}${extension}`;
+  }
+
   function isArchiveRecordFor(record, sourceId) {
     return record?.contract_id === ARCHIVE_CONTRACT && Array.isArray(record.source_document_ids) && record.source_document_ids.includes(sourceId);
   }
 
-  function archiveOptions(records, materialType) {
+  function archiveOptions(records, materialType, revisions = []) {
     const sources = records.filter(record => record.contract_id === "ariadne-source-document-v1" && record.material_type === materialType && record.local_reference);
     const byId = new Map(sources.map(source => [source.source_document_id, source]));
     const archives = records.filter(record => record.contract_id === ARCHIVE_CONTRACT && record.material_type === materialType
       && Array.isArray(record.source_document_ids) && record.source_document_ids.length && record.source_document_ids.every(id => byId.has(id)));
     const groupedIds = new Set(archives.flatMap(archive => archive.source_document_ids));
-    return [...archives.map(archive => ({ id: archive.source_document_id, label: archive.source_document_ids.map(id => byId.get(id).filename).join("、"), created_at: archive.created_at })),
-      ...sources.filter(source => !groupedIds.has(source.source_document_id)).map(source => ({ id: source.source_document_id, label: source.filename, created_at: source.created_at }))]
+    const options = [...archives.map(archive => ({ id: archive.source_document_id, ids: archive.source_document_ids,
+      display_name: archive.display_name || "", created_at: archive.created_at })),
+      ...sources.filter(source => !groupedIds.has(source.source_document_id)).map(source => ({ id: source.source_document_id,
+        ids: [source.source_document_id], display_name: "", created_at: source.created_at }))]
       .sort((a, b) => b.created_at.localeCompare(a.created_at));
+    return options.map((option, index) => {
+      const name = option.display_name || (materialType === "JOB" ? jobArchiveName(option.ids, revisions) : "");
+      const filenames = option.ids.map(id => byId.get(id).filename).join("、");
+      const date = option.created_at ? new Date(option.created_at).toLocaleString("zh-CN", { hour12: false }) : "";
+      return { id: option.id, display_name: name, created_at: option.created_at,
+        label: materialType === "JOB" ? `${name || "未命名职位"} · ${option.ids.length} 份 · ${date} · #${index + 1}` : filenames };
+    });
   }
 
   return Object.freeze({
@@ -324,5 +382,6 @@
     resolveRawSource,
     persistDurableSource,
     ARCHIVE_CONTRACT, persistArchive, resolveArchive, archiveOptions, isArchiveRecordFor,
+    archiveName, renameArchive, jobArchiveName, archiveDownloadName,
   });
 }));

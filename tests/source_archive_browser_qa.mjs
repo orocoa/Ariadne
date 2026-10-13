@@ -70,7 +70,7 @@ try {
  await page.click('[data-job-import-type="Paste"]');await page.fill('#job-paste-input',text);
  await page.waitForFunction(()=>!document.querySelector('#start-job-processing').disabled);
  await page.fill('#job-link-input','https://example.test/jobs/raw');
- await page.click('#start-job-processing');await page.waitForFunction(()=>document.querySelector('#start-job-processing').textContent==='原件已保存');
+ await page.fill('#job-source-name','合成公司 · 职位原件');await page.click('#start-job-processing');await page.waitForFunction(()=>document.querySelector('#start-job-processing').textContent==='原件已保存');
  data=await noConclusions();
  let jobArchives=data.source_documents.filter(record=>record.contract_id==='ariadne-source-archive-v1'&&record.material_type==='JOB');
  assert.equal(jobArchives.length,1);
@@ -84,7 +84,7 @@ try {
  await page.reload();
  await page.setInputFiles('#job-file-input',[{name:'职位附件.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4\nsynthetic original, archive only')},image]);
  await page.waitForFunction(()=>document.querySelectorAll('#job-source-preview-list li').length===2);
- await page.click('#start-job-processing');await page.waitForFunction(()=>document.querySelector('#start-job-processing').textContent==='原件已保存');
+ await page.fill('#job-source-name','合成公司 · 职位原件');await page.click('#start-job-processing');await page.waitForFunction(()=>document.querySelector('#start-job-processing').textContent==='原件已保存');
  data=await noConclusions();jobArchives=data.source_documents.filter(record=>record.contract_id==='ariadne-source-archive-v1'&&record.material_type==='JOB');
  const bundle=jobArchives.find(record=>record.source_document_ids.length===2);assert(bundle);
  await page.reload();await page.selectOption('#saved-job-source-select',bundle.source_document_id);
@@ -95,25 +95,25 @@ try {
  const count=data.source_documents.length;
  await page.reload();await page.setInputFiles('#job-file-input',[{name:'职位附件.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4\nsynthetic original, archive only')},image]);
  await page.waitForFunction(()=>document.querySelectorAll('#job-source-preview-list li').length===2);
- await page.click('#start-job-processing');await page.waitForFunction(()=>document.querySelector('#start-job-processing').textContent==='原件已保存');
+ await page.fill('#job-source-name','合成公司 · 职位原件');await page.click('#start-job-processing');await page.waitForFunction(()=>document.querySelector('#start-job-processing').textContent==='原件已保存');
  assert.equal((await records()).source_documents.length,count);
  evidence.checks.push('Job ordered bundle, duplicate save, desktop and narrow viewport');
  // Storage failure is visible; no success state or semantic data is manufactured.
  await page.reload();await page.click('[data-job-import-type="Paste"]');await page.fill('#job-paste-input','仅供失败测试的原文');
  await page.waitForFunction(()=>!document.querySelector('#start-job-processing').disabled);
  failStorage = true;
- await page.click('#start-job-processing');await page.waitForFunction(()=>document.querySelector('#job-page-message').textContent.includes('原件保存未完成'));
+ await page.fill('#job-source-name','合成公司 · 职位原件');await page.click('#start-job-processing');await page.waitForFunction(()=>document.querySelector('#job-page-message').textContent.includes('原件保存未完成'));
  assert.equal(await page.locator('#start-job-processing').isEnabled(),true);
  assert.equal((await records()).source_documents.length,count);
  failStorage = false;
- await page.click('#start-job-processing');await page.waitForFunction(()=>document.querySelector('#start-job-processing').textContent==='原件已保存');
+ await page.fill('#job-source-name','合成公司 · 职位原件');await page.click('#start-job-processing');await page.waitForFunction(()=>document.querySelector('#start-job-processing').textContent==='原件已保存');
  evidence.checks.push('Storage failure gives retry and never shows saved; retry succeeds');
  // An unavailable Model never blocks raw storage and is never silently invoked.
  await mode({mode:'model',provider:'deepseek',model:'unavailable-qa-model'});
  await page.click('[data-job-import-type="Paste"]');await page.fill('#job-paste-input','模型不可用时也能保存的合成原文');
  await page.waitForFunction(()=>!document.querySelector('#start-job-processing').disabled);
  assert.equal(await page.locator('#start-job-processing').textContent(),'保存原件');
- await page.click('#start-job-processing');await page.waitForFunction(()=>document.querySelector('#start-job-processing').textContent==='原件已保存');
+ await page.fill('#job-source-name','合成公司 · 职位原件');await page.click('#start-job-processing');await page.waitForFunction(()=>document.querySelector('#start-job-processing').textContent==='原件已保存');
  await noConclusions();
  evidence.checks.push('Unavailable model allows explicit raw archive without analysis fallback');
  await mode({mode:'model',provider:'deepseek',model:'deepseek-flash'});

@@ -198,7 +198,7 @@ assert.equal(failingDatabase.records.get("source_documents").size, 0);
 
 const rawModuleText = fs.readFileSync(path.join(root, "public", "raw-source-storage-domain.js"), "utf8");
 assert.doesNotMatch(rawModuleText, /\bfetch\s*\(|XMLHttpRequest|Provider|MODEL_CALL/);
-assert.match(fs.readFileSync(path.join(root, "public", "v1-pages.js"), "utf8"), /RawSource\.persistArchive\(database, documents, sourceUrl\)/);
+assert.match(fs.readFileSync(path.join(root, "public", "v1-pages.js"), "utf8"), /RawSource\.persistArchive\(database, documents, sourceUrl, displayName\)/);
 
 console.log(JSON.stringify({
   raw_write_read_types: fixtures.length,
@@ -255,3 +255,40 @@ console.log('source_archive_order_identity_scope_failures_no_semantic_writes=pas
 const archiveDeletePlan = Review.sourceHardDeletePlan({ source_documents: [sources[0].source, { contract_id: RawSource.ARCHIVE_CONTRACT, source_document_id: 'archive-index-for-delete', source_document_ids: [sources[0].source.source_document_id] }, { contract_id: RawSource.ARCHIVE_CONTRACT, source_document_id: 'unrelated-archive', source_document_ids: ['another-source'] }] }, sources[0].source.source_document_id);
 assert(archiveDeletePlan.source_documents.includes('archive-index-for-delete'), 'explicit source deletion includes its archive index');
 assert(!archiveDeletePlan.source_documents.includes('unrelated-archive'));
+
+// Display metadata never changes the original payload, content identity or order.
+const namesDatabase = memoryDatabase();
+const nameDocuments = [];
+for (const source of [other, pasted]) nameDocuments.push((await RawSource.persistDurableSource(namesDatabase, JobSource.sourceDocumentFor(source), source.file)).source_document);
+const named = await RawSource.persistArchive(namesDatabase, nameDocuments, pasted.source_url, '公司甲 · 产品经理');
+const rawBefore = nameDocuments.map(d => structuredClone(namesDatabase.records.get('source_documents').get(d.source_document_id)));
+const renamed = await RawSource.renameArchive(namesDatabase, named.source_document_id, '公司乙 · 产品负责人');
+assert.equal(renamed.source_document_id, named.source_document_id);
+assert.deepEqual(renamed.source_document_ids, named.source_document_ids);
+assert.equal(renamed.source_url, named.source_url);
+assert.deepEqual(nameDocuments.map(d => namesDatabase.records.get('source_documents').get(d.source_document_id)), rawBefore);
+assert.equal((await RawSource.resolveArchive(namesDatabase, named.source_document_id, 'JOB')).sources[1].file.size, pasted.file.size);
+const options = RawSource.archiveOptions([...namesDatabase.records.get('source_documents').values()], 'JOB');
+assert.match(options[0].label, /公司乙 · 产品负责人/);
+assert.equal(options[0].display_name, '公司乙 · 产品负责人');
+const namingRevision = {authority: Truth.AUTHORITY.revision, created_at:'2026-10-13T00:00:00Z', provenance:{source_document_ids:named.source_document_ids}, payload:{company:'确认公司',title:'设计师'}};
+assert.equal(RawSource.jobArchiveName(named.source_document_ids, [namingRevision]), '确认公司 · 设计师');
+assert.equal(RawSource.jobArchiveName([...named.source_document_ids].reverse(), [namingRevision]), '', 'do not borrow another bundle title');
+assert.equal(RawSource.jobArchiveName(named.source_document_ids, [{...namingRevision,authority:Truth.AUTHORITY.proposal}]), '', 'unconfirmed model inference is not a confirmed title');
+const legacyOptions = RawSource.archiveOptions(nameDocuments, 'JOB', [{...namingRevision,provenance:{source_document_ids:[nameDocuments[0].source_document_id]}}]);
+assert.equal(legacyOptions.find(o=>o.id===nameDocuments[0].source_document_id).display_name, '确认公司 · 设计师');
+assert.equal(legacyOptions.find(o=>o.id===nameDocuments[1].source_document_id).display_name, '');
+assert.match(legacyOptions.find(o=>o.id===nameDocuments[1].source_document_id).label, /未命名职位/);
+assert.equal(RawSource.archiveOptions([...namesDatabase.records.get('source_documents').values()], 'JOB', [namingRevision])[0].display_name, '公司乙 · 产品负责人', 'manual naming wins');
+assert.equal(RawSource.archiveDownloadName('公司/岗位:名称', 'original.png', 1, 2), '公司-岗位-名称-2.png');
+assert.equal(RawSource.archiveDownloadName('产品经理', 'pasted-job-description.txt', 0, 1), '产品经理.txt');
+await assert.rejects(RawSource.renameArchive(namesDatabase, named.source_document_id, '  '), /source_archive_name_required/);
+await assert.rejects(RawSource.renameArchive(namesDatabase, named.source_document_id, 'x'.repeat(161)), /source_archive_name_invalid/);
+await assert.rejects(RawSource.renameArchive(namesDatabase, nameDocuments[0].source_document_id, '不改原件'), /source_archive_invalid/);
+namesDatabase.failWrites = true;
+await assert.rejects(RawSource.renameArchive(namesDatabase, named.source_document_id, '失败名称'), /synthetic_raw_storage_failure/);
+namesDatabase.failWrites = false;
+assert.equal((await RawSource.readRecord(namesDatabase, named.source_document_id)).display_name, '公司乙 · 产品负责人');
+console.log('archive display names, exact confirmed context, download names, atomic failures and original preservation PASS');
+
+assert.ok(new TextEncoder().encode(RawSource.archiveDownloadName('岗'.repeat(160),'original.png',0,1)).length<255);

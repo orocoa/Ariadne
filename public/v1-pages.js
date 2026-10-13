@@ -44,6 +44,7 @@
   let selectedCandidateType = "Resume";
   let selectedJobSource = null;
   let selectedJobSources = [];
+  let selectedJobArchiveId = null;
   let selectedJobImportType = "Document";
   let activeCandidate = null;
   let activeJob = null;
@@ -207,6 +208,8 @@
       document_size_limit_exceeded: "每个文件最大支持 30 MB；请压缩后重试。",
       image_size_limit_exceeded: "每个文件最大支持 30 MB；请压缩后重试。",
       source_archive_invalid: "保存的来源组无效；操作已停止。",
+      source_archive_name_invalid: "原件名称最多 160 字，不能包含换行或控制字符。",
+      source_archive_name_required: "请填写原件名称。",
       raw_source_reference_missing: "原始文件的本地引用不存在；操作已停止。",
       raw_source_reference_invalid: "原始文件的本地引用无效；操作已停止。",
       raw_source_reference_unsupported: "原始文件的本地引用无法由当前版本解析；操作已停止。",
@@ -372,7 +375,9 @@
     byId("job-file-input").multiple = true;
     byId("job-dropzone").disabled = jobProcessingInProgress;
     byId("job-dropzone").setAttribute("aria-disabled", String(jobProcessingInProgress));
-    ["job-paste-input", "job-link-input", "saved-job-source-select"].forEach(id => { byId(id).disabled = jobProcessingInProgress; });
+    ["job-paste-input", "job-link-input", "saved-job-source-select", "job-source-name"].forEach(id => { byId(id).disabled = jobProcessingInProgress; });
+    byId("save-job-source-name").disabled = jobProcessingInProgress || !selectedJobArchiveId || !byId("job-source-name").value.trim();
+    byId("download-job-sources").disabled = jobProcessingInProgress || !selectedJobArchiveId;
     byId("job-import-types")?.querySelectorAll("button").forEach((item) => { item.disabled = jobProcessingInProgress; });
     byId("job-runtime-summary").textContent = runtime.mode === "local"
       ? "仅保存原件，不识别、不分析。接入 AI 后可继续。"
@@ -1948,14 +1953,17 @@
     const section = byId(`saved-${kind}-sources`);
     if (!section) return;
     const database = await Truth.openDatabase();
-    let records;
-    try { records = await (kind === "candidate" ? LocalCandidateReview : JobContext).getAll(database, "source_documents"); }
+    let records, revisions = [];
+    try {
+      records = await (kind === "candidate" ? LocalCandidateReview : JobContext).getAll(database, "source_documents");
+      if (kind === "job") revisions = await JobContext.getAll(database, "job_context_revisions");
+    }
     finally { database.close(); }
     // Candidate analysis still operates on one document; Job restores an ordered bundle.
-    const options = RawSource.archiveOptions(kind === "candidate" ? records.filter(record => record.contract_id !== RawSource.ARCHIVE_CONTRACT) : records, kind === "candidate" ? "CANDIDATE" : "JOB");
+    const options = RawSource.archiveOptions(kind === "candidate" ? records.filter(record => record.contract_id !== RawSource.ARCHIVE_CONTRACT) : records, kind === "candidate" ? "CANDIDATE" : "JOB", revisions);
     const select = byId(`saved-${kind}-source-select`);
     const previous = select.value;
-    select.innerHTML = '<option value="">选择已保存的原件</option>' + options.map(option => `<option value="${escapeHtml(option.id)}">${escapeHtml(option.label)}</option>`).join("");
+    select.innerHTML = '<option value="">选择已保存的原件</option>' + options.map(option => `<option value="${escapeHtml(option.id)}" data-display-name="${escapeHtml(option.display_name || "")}">${escapeHtml(option.label)}</option>`).join("");
     if (options.some(option => option.id === previous)) select.value = previous;
     section.classList.toggle("hidden", !options.length);
   }
@@ -2007,6 +2015,9 @@
       if (selectionVersion !== jobSelectionVersion) return;
       configureJobImportType("Document");
       selectedJobSources = sources;
+      selectedJobArchiveId = archiveId;
+      byId("saved-job-source-select").value = archiveId;
+      byId("job-source-name").value = byId("saved-job-source-select").selectedOptions[0]?.dataset.displayName || "";
       byId("job-link-input").value = restored.source_url || "";
     } finally { database.close(); }
     jobModelConsentBundle = null;
@@ -2150,6 +2161,11 @@
     const prefix = candidate ? "personal" : "job";
     const adapter = candidate ? LocalCandidate : LocalJob;
     const sourceUrl = candidate ? null : byId("job-link-input").value.trim() || null;
+    const displayName = candidate ? "" : byId("job-source-name").value.trim();
+    if (!candidate && !displayName) {
+      byId("job-page-message").textContent = "请填写原件名称，例如：公司 · 职位，方便以后查找。";
+      byId("job-source-name").focus(); return;
+    }
     if (candidate) candidateProcessingInProgress = true;
     else jobProcessingInProgress = true;
     const refresh = candidate ? refreshCandidateImportGate : refreshJobImportGate;
@@ -2160,12 +2176,12 @@
       const documents = await SourceInput.persistDurableBundle({ database,
         sources: sources.map(source => ({ ...source, source_url: candidate ? source.source_url : sourceUrl })),
         sourceDocumentFor: adapter.sourceDocumentFor, persistDurableSource: adapter.persistCanonicalSource });
-      await RawSource.persistArchive(database, documents, sourceUrl);
+      const archive = await RawSource.persistArchive(database, documents, sourceUrl, displayName);
       const currentSources = candidate ? selectedCandidateSources : selectedJobSources;
       const selectionUnchanged = JSON.stringify(currentSources.map(source => source.source_document_id)) === JSON.stringify(sources.map(source => source.source_document_id));
       if (selectionUnchanged) {
         if (candidate) candidateExecutionState = "ARCHIVED";
-        else beginJobImportLifecycle(ModelImportLifecycle.STATES.SOURCE_STORED);
+        else { selectedJobArchiveId = archive.source_document_id; beginJobImportLifecycle(ModelImportLifecycle.STATES.SOURCE_STORED); }
       }
       byId(`${prefix}-page-message`).textContent = selectionUnchanged
         ? `已保存 ${documents.length} 份原件，未识别或分析。接入 AI 后可从上方选择原件继续。`
@@ -3200,6 +3216,7 @@
     jobSelectionVersion += 1;
     selectedJobSource = null;
     selectedJobSources = [];
+    selectedJobArchiveId = null;
     jobModelConsentBundle = null;
     byId("job-file-preview").classList.add("hidden");
     byId("job-page-message").textContent = "";
@@ -3211,6 +3228,7 @@
 
   function configureJobImportType(type) {
     selectedJobImportType = type;
+    byId("job-source-name").value = "";
     byId("job-import-types").querySelectorAll("button").forEach((item) => item.setAttribute("aria-pressed", String(item.dataset.jobImportType === type)));
     byId("job-paste-section").classList.toggle("hidden", type !== "Paste");
     byId("job-file-section").classList.toggle("hidden", type === "Paste");
@@ -3237,6 +3255,9 @@
 
   async function acceptJobFiles(files, { replace = false, captured_via: capturedVia = "FILE_PICKER" } = {}) {
     const selectionVersion = ++jobSelectionVersion;
+    selectedJobArchiveId = null;
+    byId("saved-job-source-select").value = "";
+    if (replace) byId("job-source-name").value = "";
     jobModelConsentBundle = null;
     const selectedFiles = Array.from(files || []);
     const modelMode = refreshJobImportGate().authority.runtime.mode === "model";
@@ -3647,6 +3668,48 @@
     return promise;
   }
 
+  async function saveJobSourceName() {
+    if (jobProcessingInProgress || !selectedJobArchiveId) return;
+    const name = RawSource.archiveName(byId("job-source-name").value);
+    if (!name) { byId("job-source-name").focus(); return; }
+    const sources = [...selectedJobSources], version = jobSelectionVersion;
+    jobProcessingInProgress = true; refreshJobImportGate();
+    let database;
+    try {
+      database = await Truth.openDatabase();
+      let archive;
+      if (selectedJobArchiveId?.startsWith("source-archive-v1::")) archive = await RawSource.renameArchive(database, selectedJobArchiveId, name);
+      else {
+        const documents = await Promise.all(sources.map(source => RawSource.sourceDocumentForId(database, source.source_document_id)));
+        archive = await RawSource.persistArchive(database, documents, byId("job-link-input").value.trim() || null, name);
+      }
+      if (version === jobSelectionVersion) selectedJobArchiveId = archive.source_document_id;
+      await renderSavedSources("job");
+      if (version === jobSelectionVersion) byId("saved-job-source-select").value = archive.source_document_id;
+      byId("job-page-message").textContent = "原件名称已保存。";
+      return archive;
+    } finally { database?.close(); jobProcessingInProgress = false; refreshJobImportGate(); }
+  }
+
+  async function downloadJobSources() {
+    if (jobProcessingInProgress || !selectedJobArchiveId) return;
+    const name = RawSource.archiveName(byId("job-source-name").value);
+    if (!name) { byId("job-page-message").textContent = "请先填写并保存原件名称，再下载。"; byId("job-source-name").focus(); return; }
+    const version = jobSelectionVersion;
+    const archive = await saveJobSourceName();
+    if (!archive || version !== jobSelectionVersion) return;
+    const database = await Truth.openDatabase();
+    try {
+      const { sources } = await RawSource.resolveArchive(database, archive.source_document_id, "JOB");
+      if (version !== jobSelectionVersion) return;
+      sources.forEach((source, index) => {
+        const url = URL.createObjectURL(source.file), link = document.createElement("a");
+        link.href = url; link.download = RawSource.archiveDownloadName(name, source.source_document.filename, index, sources.length);
+        document.body.append(link); link.click(); link.remove(); window.setTimeout(() => URL.revokeObjectURL(url), 30000);
+      });
+    } finally { database.close(); }
+  }
+
   function initJobImport() {
     ProductShell.bindImportShell(document);
     jobSharedWorkspace();
@@ -3654,9 +3717,12 @@
     byId("saved-job-source-select").addEventListener("change", event => {
       if (event.target.value && !jobProcessingInProgress) selectSavedJobSources(event.target.value).catch(showJobError);
     });
+    byId("job-source-name").addEventListener("input", refreshJobImportGate);
+    byId("save-job-source-name").addEventListener("click", () => saveJobSourceName().catch(showJobError));
+    byId("download-job-sources").addEventListener("click", () => downloadJobSources().catch(showJobError));
     byId("save-job-source").addEventListener("click", () => runJobProcessing().catch(showJobError));
     byId("job-link-input").addEventListener("input", () => {
-      if (selectedJobSources.length) { jobSelectionVersion += 1; jobModelConsentBundle = null; beginJobImportLifecycle(); refreshJobImportGate(); }
+      if (selectedJobSources.length) { jobSelectionVersion += 1; selectedJobArchiveId = null; jobModelConsentBundle = null; beginJobImportLifecycle(); refreshJobImportGate(); }
     });
     byId("job-import-types").addEventListener("click", (event) => {
       const button = event.target.closest("[data-job-import-type]");
@@ -3682,6 +3748,8 @@
       const button = event.target.closest("[data-source-remove]");
       if (!button || jobProcessingInProgress || selectedJobImportType === "Paste") return;
       selectedJobSources.splice(Number(button.dataset.sourceRemove), 1);
+      selectedJobArchiveId = null;
+      byId("saved-job-source-select").value = "";
       jobSelectionVersion += 1;
       selectedJobSource = selectedJobSources[0] || null;
       if (selectedJobSource) { beginJobImportLifecycle(); showJobSource(selectedJobSource); }
