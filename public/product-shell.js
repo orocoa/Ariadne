@@ -5,7 +5,8 @@
   root.AriadneProduct = Object.freeze({
     ...config,
     runtime(stored) {
-      if (config.kind === "skill") return { ...config.runtime };
+      if (config.kind === "skill") return stored?.mode === "model" && stored.provider === config.runtime.provider && stored.model
+        ? stored : { ...config.runtime };
       if (stored?.mode === "local" || !stored) return { mode: "local" };
       return config.providers.includes(stored.provider) ? stored : { mode: "local" };
     },

@@ -61,10 +61,30 @@ await Selection.update({scope:'new-model',runtime:chosen(luna,'max'),expectedRev
 const selected=Selection.resolve('personal_understanding','new-model');
 assert.equal(selected.model,luna.model);
 assert.equal(selected.execution_settings.effective_settings.reasoning_effort,'max');
-assert.equal(Selection.resolve('personal_understanding','different-scope').model,sol.model);
+assert.equal(Selection.resolve('personal_understanding','different-scope').model,luna.model);
+assert.equal(Selection.resolve('personal_understanding','different-scope').execution_settings.effective_settings.reasoning_effort,'max');
+assert.equal(JSON.parse(storage.getItem(Gate.CURRENT_RUNTIME_STORAGE_KEY)).model,luna.model);
 assert.equal(Gate.modelDescriptorForRuntime(luna,'job_conversation').model_id,luna.model);
 assert.equal(Gate.isModelRuntimeEligible({...luna,model:'unqualified'}),false);
 assert.throws(()=>Settings.validate(Settings.envelope({...luna,model:'gpt-5.5'},{reasoning_effort:'max'}),'codex','gpt-5.5'),/unsupported/);
 await Selection.beforeDispatch(selected,'personal_understanding');
 assert.equal(confirmations,2,'new model requires new consent');
 console.log('dynamic_models_scope_effort_consent=PASS');
+
+// The real Skill product adapter restores the stored choice after a new page boot.
+const vm = await import('node:vm');
+const fs = await import('node:fs');
+const shell = { AriadneProductConfig:{kind:'skill',providers:['codex'],runtime:sol},document:{documentElement:{dataset:{}},addEventListener(){}} };
+vm.runInNewContext(fs.readFileSync(new URL('../public/product-shell.js',import.meta.url),'utf8'),shell);
+globalThis.AriadneProduct=shell.AriadneProduct;
+assert.equal(Selection.resolve('personal_understanding','after-reopen').model,luna.model);
+assert.equal(Selection.resolve('personal_understanding','after-reopen').execution_settings.effective_settings.reasoning_effort,'max');
+assert.equal(shell.AriadneProduct.runtime(ds).provider,'codex','Skill cannot inherit a different service');
+assert.equal(shell.AriadneProduct.runtime({mode:'local'}).model,sol.model,'first Skill visit uses its configured default');
+console.log('Skill last model/effort, new scope, restart restoration and provider boundary PASS');
+
+storage.setItem(Gate.CURRENT_RUNTIME_STORAGE_KEY,JSON.stringify(sol));
+storage.setItem('ariadne-model-selection-v2',JSON.stringify({default:{provider:'codex',model:sol.model,settings:{reasoning_effort:'medium'},revision:'old'},overrides:{previous:{provider:'codex',model:luna.model,settings:{reasoning_effort:'high'},revision:'last-choice'}},revision:'last-choice'}));
+assert.equal(Selection.resolve('personal_understanding','migrated-new-scope').model,luna.model);
+assert.equal(Selection.resolve('personal_understanding','migrated-new-scope').execution_settings.effective_settings.reasoning_effort,'high');
+console.log('Previous Skill scoped selection restored by exact latest revision PASS');

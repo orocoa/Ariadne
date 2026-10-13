@@ -65,8 +65,10 @@
     const differingLegacy = !state?.inherit?.[scope] && legacy && (legacy.provider !== raw.provider || legacy.model !== raw.model);
     // Provider is owned by the homepage. Preserve incompatible stored preferences
     // for history/revisiting, but never let them route a turn to another service.
+    const recent = root.AriadneProduct?.kind === "skill" && (state?.default?.revision === state?.revision ? state?.default
+      : Object.values(state?.overrides || {}).find(value => value?.revision === state?.revision && value?.provider === raw.provider));
     const chosen = [(scope && state?.overrides?.[scope]), (differingLegacy && legacy),
-      (matches && state.default), (!state?.inherit?.[scope] && legacy), raw]
+      recent, (matches && state.default), (!state?.inherit?.[scope] && legacy), raw]
       .find(value => value && value.provider === raw.provider);
     const runtime = { mode: "model", provider: chosen.provider, model: Settings.currentModel(chosen.provider, chosen.model) };
     const rev = chosen.revision || `legacy:${runtime.provider}:${runtime.model}`;
@@ -91,7 +93,7 @@
       else {
         delete state.inherit[scope];
         const selected = { provider: runtime.provider, model: runtime.model, settings: runtime.execution_settings.effective_settings, revision: next };
-        if (makeDefault) {
+        if (makeDefault || root.AriadneProduct?.kind === "skill") {
           state.default = selected;
           delete state.overrides[scope];
           storage.setItem(CURRENT, JSON.stringify({ mode: "model", provider: selected.provider, model: selected.model }));
