@@ -20,7 +20,7 @@
     if (!outputModule) outputModule = new Promise(resolve => {
       const css = document.createElement("link"); css.rel = "stylesheet"; css.href = "/conversation-output.css?v=2"; document.head.append(css);
       if (globalThis.AriadneConversationOutput) { resolve(globalThis.AriadneConversationOutput); return; }
-      const script = document.createElement("script"); script.src = "/conversation-output.js?v=3";
+      const script = document.createElement("script"); script.src = "/conversation-output.js?v=4";
       script.onload = () => resolve(globalThis.AriadneConversationOutput);
       script.onerror = () => resolve(null);
       document.head.append(script);

@@ -108,7 +108,7 @@ try {
   const changed = { ...message, deliverable: { ...message.deliverable, body: 'Changed full content' } };
   Output.decorate(target, [changed]); await settle();
   assert.equal(encodes.length, 2); assert.deepEqual(revoked, ['blob:test-0'], 'changed content invalidates only its old URL');
-  failEncode = true; Output.decorate(target, [{ ...changed, deliverable: { ...changed.deliverable, title: 'Retry' } }]); await settle();
+  failEncode = true; Output.decorate(target, [{ ...changed, deliverable: { ...changed.deliverable, title: 'Retry.pdf' } }]); await settle();
   assert.match(target.textContent, /图片生成失败/);
   failEncode = false; target.querySelector('button').listeners.get('click')(); await settle();
   assert.equal(target.querySelector('a').download, 'Retry.pdf', 'failed generation remains retryable');
