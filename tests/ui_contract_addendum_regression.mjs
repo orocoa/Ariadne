@@ -19,7 +19,7 @@ function assertCurrentConversationScripts(html) {
   };
   const pages = loaded("/v1-pages.js"), ui = loaded("/conversation-ui-domain.js"), shell = loaded("/product-shell-domain.js");
   for (const { url } of [pages, ui]) {
-    assert.deepEqual(url.searchParams.getAll("v"), ["chat-history-20261014"]);
+    assert.deepEqual(url.searchParams.getAll("v"), [url.pathname === "/v1-pages.js" ? "understanding-consistency-20261014" : "chat-history-20261014"]);
     assert.deepEqual(url.searchParams.getAll("resume-stage"), ["1"]);
   }
   assert(ui.index < pages.index, "shared conversation UI must load before the page binding");

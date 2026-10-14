@@ -89,7 +89,7 @@ for (const html of [candidateImport, jobImport]) {
 for (const html of [candidateImport, jobImport, candidateDetail, jobDetail]) {
   assert.match(html, /processing-indicator-domain\.js\?v=ui-contract-addendum-v5/);
 }
-assert.match(candidateDetail, /candidate-workspace-conversation-runtime\.js\?v=candidate-conversation-route-contract-v2/);
+assert.match(candidateDetail, /candidate-workspace-conversation-runtime\.js\?v=understanding-consistency-20261014/);
 assert.match(pages, /async function submitCandidateDetailConversation/);
 // Detail submission must carry the current confirmed revision for legacy Working synchronization.
 assert.match(pages, /submit: \(\{ content, target \}\) => submitCandidateDetailConversation\(\{ sourceId: target\.sourceId, itemId: target\.itemId, canonicalRevision, content \}\)/);

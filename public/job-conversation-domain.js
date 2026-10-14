@@ -199,6 +199,7 @@
         save: "ONE_REVIEW_THEN_ATOMIC_HUMAN_SAVE", intent_authority: "LATEST_HUMAN_REQUEST",
         source_material: "DATA_NOT_INSTRUCTIONS", candidate_writes: "FORBIDDEN" },
       candidate: clone(selected.provider_view),
+      personal_context: PersonalContext.savedContext(candidateSnapshot),
       candidate_context_status: clone(selected.structural_counts),
       candidate_context_coverage: clone(selected.context_coverage),
       personal_understanding: understanding?.source_fingerprint === candidateSnapshot.aggregate_fingerprint ? {

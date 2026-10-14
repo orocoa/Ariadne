@@ -136,22 +136,16 @@
     return { snapshot: { ...fresh, personal_understanding: record }, calls, usage, cached: false };
   }
   function discussionContext(snapshot, humanMessage, memories, turns) {
-    const memoryHeads = new Map(Memory.latest(memories).map(entry => [entry.memory_id, entry]));
-    const activeIds = new Set(Context.records(snapshot).map(entry => entry.identity));
-    const obsolete = memories.filter(entry => {
-      const head = memoryHeads.get(entry.memory_id);
-      return head && (entry.revision_id !== head.revision_id || head.status === "RETRACTED" || !activeIds.has(`memory:${entry.memory_id}`));
-    });
     // Retraction/replacement/source invalidation must not resurrect the same
     // claim through its original chat turn. Visible history is not deleted.
-    const conversationalTurns = turns.filter(turn => !obsolete.some(entry => entry.origin?.turn_id === turn.turn_id
-      || (entry.human_quote && turn.created_at <= memoryHeads.get(entry.memory_id).created_at && turn.human_message?.includes(entry.human_quote))));
+    const conversationalTurns = turns.filter(turn => !(snapshot.personal_history_blockers || []).some(entry => entry.origin?.turn_id === turn.turn_id
+      || (entry.human_quote && turn.created_at <= entry.invalidated_at && turn.human_message?.includes(entry.human_quote))));
     let budget = Contract.limits.evidence_bytes, selected, context, localMemories;
     do {
       selected = Context.select(snapshot, humanMessage, budget);
       const refs = new Set(Context.records(selected).map((entry) => entry.identity));
       localMemories = Memory.active(memories).filter((entry) => refs.has(`memory:${entry.memory_id}`)).map((entry, index) => ({ ...entry, ref: `memory-${index + 1}` }));
-      context = { candidate: selected.provider_view, overview: overviewFor(snapshot), coverage: selected.context_coverage,
+      context = { candidate: selected.provider_view, overview: overviewFor(snapshot), coverage: selected.context_coverage, personal_context: Context.savedContext(snapshot),
         catalog: Context.catalog(snapshot),
         memories: localMemories.map((entry) => ({ ref: entry.ref, kind: entry.kind, text: entry.text })),
         history: Context.boundedHistory(conversationalTurns, 10000, { assistantCurrent: turn => turn.source_fingerprint === snapshot.aggregate_fingerprint }),
@@ -196,8 +190,10 @@
         calls: 1 + (result.resume_task?.calls || 0) + (result.delivery_calls || 0), refresh_usage: {}, usage: result.usage || {}, proposal_ids: proposals.map((entry) => entry.proposal_id), card_proposal_ids: preparedCards.proposals.map((entry) => entry.proposal_id) };
       await new Promise((resolve, reject) => {
         const cardStores = preparedCards.proposals.length ? [...(preparedCards.runtime_snapshot ? ["runtime_snapshots"] : []), "processing_runs", "context_proposals"] : [];
-        const tx = database.transaction([...new Set(["personal_conversation_turns", "personal_memory_proposals", ...cardStores, ...(resumePrepared ? Resume().transactionStores(resumePrepared) : [])])], "readwrite");
+        const personalStores = Candidate.transactionStores(snapshot, database);
+        const tx = database.transaction([...new Set(["personal_conversation_turns", "personal_memory_proposals", ...personalStores, ...cardStores, ...(resumePrepared ? Resume().transactionStores(resumePrepared) : [])])], "readwrite");
         let resumeError = null;
+        Candidate.assertSnapshotInto(tx, snapshot, personalStores, { added_sources: preparedCards.source_records || [] }).catch(error => { resumeError = error; try { tx.abort(); } catch (_) {} });
         if (resumePrepared) Resume().commitInto(tx, resumePrepared).catch(error => { resumeError = error; try { tx.abort(); } catch (_) {} });
         tx.objectStore("personal_conversation_turns").put(completed);
         proposals.forEach((entry) => tx.objectStore("personal_memory_proposals").add(entry));

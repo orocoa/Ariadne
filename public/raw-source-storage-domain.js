@@ -236,7 +236,7 @@
       transaction.onabort = () => reject(contractError || transaction.error || new RawSourceStorageError("raw_source_persistence_failed"));
     });
 
-    return resolveRawSource(database, canonicalToPersist);
+    return Object.freeze({ ...await resolveRawSource(database, canonicalToPersist), source_records: [structuredClone(canonicalToPersist), structuredClone(existingPayload || payloadToPersist)] });
   }
 
   // This index remembers a user's ordered selection. It contains no extracted

@@ -6,6 +6,13 @@
   else root.AriadnePersonalContext = api;
 }(typeof globalThis !== "undefined" ? globalThis : this, function create() {
   const bytes = (value) => new TextEncoder().encode(typeof value === "string" ? value : JSON.stringify(value)).length;
+  function errorCopy(error) {
+    const code = String(error?.code || error?.message || error || "");
+    if (code === "PERSONAL_SAVED_CONTEXT_LIMIT") return "已保存的更正或补充及其必要依据超过本轮处理预算。本轮未发送模型，也未截断这些内容；请缩小相关资料范围后重试。";
+    if (code === "PERSONAL_CONTEXT_CHANGED") return "相关资料或已保存的更正已经变化，本次结果未保存。请基于当前资料重试。";
+    if (code === "PERSONAL_SAVED_CONTEXT_INVALID") return "本轮个人更正上下文未通过校验，结果未保存。请刷新并基于当前资料重试。";
+    return null;
+  }
   function runtimeIdentity(snapshot) {
     const settings = snapshot.execution_settings;
     return JSON.stringify([snapshot.provider, snapshot.model, snapshot.protocol, settings?.connection_id,
@@ -41,6 +48,20 @@
     item.uncertainties = (item.uncertainties || []).slice(0, 8).map((entry) => ({ question: String(entry.question || "").slice(0, 500), affects: String(entry.affects || "").slice(0, 100), status: entry.status }));
     return item;
   }
+  function savedContext(snapshot, { source_document_id = null, item_ids = null, card_ref_by_item = null } = {}) {
+    const sourceScoped = source_document_id !== null;
+    const matches = related => related.manifest.source_ids.includes(source_document_id)
+      && (!item_ids || item_ids.includes(related.item_id));
+    const memories = (snapshot.saved_personal_memories || []).filter(memory => !sourceScoped || !memory.related.length || memory.related.some(matches)).map((memory, index) => {
+      const related = sourceScoped ? memory.related.filter(matches) : memory.related;
+      const related_refs = related.map(entry => sourceScoped ? card_ref_by_item?.[entry.item_id] : entry.content.candidate_ref).filter(Boolean);
+      return { ref: sourceScoped ? `saved-memory-${index + 1}` : memory.ref, kind: memory.kind, text: memory.text, version: memory.version,
+        revision_token: memory.revision_token, version_token: memory.version_token, human_quote: memory.human_quote, saved_at: memory.saved_at,
+        related_refs: [...new Set(related_refs)], related_evidence: memory.related.map(entry => structuredClone(entry.content)) };
+    });
+    return { contract_id: "ariadne-saved-personal-context-v1", authority: "HUMAN_CONFIRMED_PERSONAL_MEMORY",
+      source_token: snapshot.aggregate_fingerprint.replace(/^sha256:/, ""), scope: sourceScoped ? "CANDIDATE_SOURCE" : "PROFILE", memories };
+  }
   function select(snapshot, query, budget = 24000) {
     const all = records(snapshot), tokens = terms(query), seenSources = new Set();
     const complete = all.reduce((sum, entry) => sum + bytes(entry.semantic) + 1, 0) <= budget;
@@ -62,6 +83,16 @@
     ordered.push(...remainder);
     const selected = new Map(), truncated = new Set();
     let used = 0;
+    // Saved self-reports and their bound evidence stay whole. Retrieval may
+    // select other details, but cannot hide or truncate a saved correction.
+    for (const memory of all.filter(entry => entry.semantic.item_type === "PERSONAL_MEMORY")) {
+      for (const item of [memory, ...(memory.semantic.related_candidate_refs || []).map(ref => all.find(entry => entry.ref === ref)).filter(Boolean)]) {
+        if (selected.has(item.ref)) continue;
+        selected.set(item.ref, { ...item, semantic: structuredClone(item.semantic), was_truncated: false });
+        used += bytes(item.semantic) + 1;
+      }
+    }
+    if (used > budget) throw new Error("PERSONAL_SAVED_CONTEXT_LIMIT");
     for (const entry of ordered) {
       const group = [entry, ...(entry.semantic.related_candidate_refs || []).map((ref) => all.find((item) => item.ref === ref)).filter(Boolean)];
       const additions = group.filter((item) => !selected.has(item.ref)).map((item) => {
@@ -134,5 +165,5 @@
     if (part) chunks.push(part);
     return chunks;
   }
-  return Object.freeze({ bytes, runtimeIdentity, batches, terms, records, limited, select, boundedHistory, catalog, splitText });
+  return Object.freeze({ bytes, errorCopy, runtimeIdentity, batches, terms, records, savedContext, limited, select, boundedHistory, catalog, splitText });
 }));

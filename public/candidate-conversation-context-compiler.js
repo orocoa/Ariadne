@@ -151,7 +151,7 @@
       && action?.observed_working_model?.fingerprint === observation.fingerprint;
   }
 
-  function completeHistory(messages, actions, currentMessage, focus, observation) {
+  function completeHistory(messages, actions, currentMessage, focus, observation, personalContext = null, historyBlockers = []) {
     const Delivery = globalThis.AriadneConversationOutput || (typeof module === "object" ? require("./conversation-output.js") : null);
     const relevantActions = (actions || []).filter((entry) => entry?.conversation_id === currentMessage.conversation_id && actionMatchesFocus(entry, focus, observation));
     const actionsByTurn = new Map(relevantActions.map((entry) => [entry.turn_id, entry]));
@@ -166,10 +166,14 @@
       byTurn.set(message.turn_id, turn);
     });
     const complete = [...byTurn.entries()].filter(([turnId, pair]) => pair.user && pair.assistant
-      && (focus.type === "CANDIDATE" || actionsByTurn.has(turnId))).map(([turnId, pair]) => ({
+      && (focus.type === "CANDIDATE" || actionsByTurn.has(turnId))
+      && !historyBlockers.some(blocker => blocker.origin?.turn_id === turnId || blocker.origin?.message_id === pair.user.message_id
+        || blocker.human_quote && pair.user.created_at <= blocker.invalidated_at && pair.user.text.includes(blocker.human_quote))).map(([turnId, pair]) => ({
       turn_id: turnId,
       user: { message_id: pair.user.message_id, text: pair.user.text, created_at: pair.user.created_at },
-      assistant: { message_id: pair.assistant.message_id, text: Delivery ? Delivery.historyText(pair.assistant).slice(0, 8000) : pair.assistant.text, created_at: pair.assistant.created_at },
+      assistant: personalContext && pair.assistant.personal_context_token !== personalContext.source_token ? null
+        : { message_id: pair.assistant.message_id, text: Delivery ? Delivery.historyText(pair.assistant).slice(0, 8000) : pair.assistant.text, created_at: pair.assistant.created_at,
+          ...(personalContext ? { personal_context_token: pair.assistant.personal_context_token } : {}) },
       action_result: actionsByTurn.get(turnId)?.normalized_action ? {
         status: actionsByTurn.get(turnId).application_result.status,
         action: actionsByTurn.get(turnId).normalized_action.action,
@@ -201,7 +205,7 @@
     return context;
   }
 
-  function compileContext({ session: rawSession, working_model: rawWorking, observation, draft = null, messages = [], actions = [], current_user_message: rawCurrent, max_serialized_bytes: maxBytes = DEFAULT_MAX_SERIALIZED_BYTES }) {
+  function compileContext({ session: rawSession, working_model: rawWorking, observation, draft = null, messages = [], actions = [], current_user_message: rawCurrent, personal_context = null, personal_history_blockers = [], max_serialized_bytes: maxBytes = DEFAULT_MAX_SERIALIZED_BYTES }) {
     const session = Persistence.validateSession(rawSession);
     const working = Truth.validateCandidateWorkingModel(rawWorking);
     const current = Persistence.validateMessage(rawCurrent);
@@ -210,7 +214,7 @@
       || observation.version !== working.version || observation.fingerprint !== working.fingerprint) throw new CandidateConversationContextError("STALE_WORKING_OBSERVATION");
     const focus = Conversation.validateFocus(observation.focus, working);
     const candidateData = compileCandidateData(working, focus, draft);
-    const historySelection = completeHistory(messages, actions, current, focus, observation);
+    const historySelection = completeHistory(messages, actions, current, focus, observation, personal_context, personal_history_blockers);
     const history = historySelection.turns;
     const latestAction = (actions || []).filter((entry) => entry?.conversation_id === current.conversation_id && actionMatchesFocus(entry, focus, observation)).sort((left, right) => String(left.created_at).localeCompare(String(right.created_at))).at(-1);
     const protectedClarificationTurnId = latestAction?.application_result?.status === "NEEDS_CLARIFICATION" ? latestAction.turn_id : null;
@@ -219,7 +223,7 @@
       : (focus.type === "ITEM_DRAFT" ? candidateData.draft_item : candidateData.current_item).open_uncertainties.map((entry) => ({ item_id: focus.item_id, ...entry }));
     const context = {
       contract_id: CONTRACT_ID,
-      compiler_version: COMPILER_VERSION,
+      compiler_version: personal_context ? "candidate-conversation-context-compiler-v3" : COMPILER_VERSION,
       conversation_subject: { conversation_id: session.conversation_id, subject_type: "CANDIDATE", candidate_context_id: session.subject_id, source_document_id: session.source_document_id },
       observed_working_model: { working_model_id: working.working_model_id, version: working.version, fingerprint: working.fingerprint },
       focus: clone(focus),
@@ -228,13 +232,14 @@
       bounded_history: history,
       current_user_message: { message_id: current.message_id, turn_id: current.turn_id, text: current.text, created_at: current.created_at },
       summary: null,
+      ...(personal_context ? { personal_context: clone(personal_context) } : {}),
       diagnostics: {
         serialized_size_bytes: 0,
         estimated_tokens: 0,
         history_turn_count: history.length,
         candidate_item_count: (working.payload.items || []).length,
         focus_type: focus.type,
-        compiler_version: COMPILER_VERSION,
+        compiler_version: personal_context ? "candidate-conversation-context-compiler-v3" : COMPILER_VERSION,
         history_turn_limit: HISTORY_TURN_LIMIT,
         trimmed_history_turn_count: Math.max(0, historySelection.total - history.length),
         trimmed_directory_item_count: 0,
@@ -255,7 +260,7 @@
       context.diagnostics.history_turn_count = context.bounded_history.length;
       finalizeDiagnostics(context);
     }
-    if (context.diagnostics.serialized_size_bytes > maxBytes) throw new CandidateConversationContextError("CONTEXT_LIMIT_EXCEEDED");
+    if (context.diagnostics.serialized_size_bytes > maxBytes) throw new CandidateConversationContextError(personal_context?.memories?.length ? "PERSONAL_SAVED_CONTEXT_LIMIT" : "CONTEXT_LIMIT_EXCEEDED");
     assertSafe(context);
     return Object.freeze(clone(context));
   }

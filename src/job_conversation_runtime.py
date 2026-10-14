@@ -185,6 +185,12 @@ def validate_job_conversation_request(payload: Any) -> JobConversationRequest:
         raise JobConversationRuntimeError("CANDIDATE_SNAPSHOT_REQUIRED", "context")
     if compiled_context.get("candidate_context_status") != candidate_summary:
         raise JobConversationRuntimeError("CANDIDATE_SNAPSHOT_REQUIRED", "context")
+    if "personal_context" in compiled_context:
+        from src.saved_personal_context import validate_saved_context
+        try:
+            validate_saved_context(compiled_context["personal_context"], source_token=observation["candidate_aggregate_fingerprint"], candidate=candidate_context)
+        except ValueError as error:
+            raise JobConversationRuntimeError("PERSONAL_SAVED_CONTEXT_INVALID", "context") from error
     try:
         snapshot = validate_runtime_snapshot(value["runtime_snapshot"])
     except ExecutionContractError as error:
@@ -243,9 +249,11 @@ def semantic_output_schema() -> str:
 
 
 def job_conversation_prompt() -> str:
+    from src.saved_personal_context import INSTRUCTION as SAVED_CONTEXT_INSTRUCTION
     from src.conversation_semantics import HUMAN_CONVERSATION_PRINCIPLES
     return f"""You are Ariadne's Job Intelligence semantic reasoning adapter.
 {HUMAN_CONVERSATION_PRINCIPLES}
+{SAVED_CONTEXT_INSTRUCTION}
 Return exactly one JSON object, no Markdown and no chain-of-thought.
 Use this schema: {semantic_output_schema()}
 Use only the supplied Job, Candidate and source excerpts. Never invent Candidate experience, projects, skills or source evidence.

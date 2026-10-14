@@ -1759,7 +1759,7 @@
       return outcome;
     } catch (error) {
       const failureCode = String(error?.code || error?.message);
-      terminalCopy = window.AriadneResumeTaskSupport?.errorCopy(error) || window.AriadneRuntimeSelection?.errorCopy(error) || (failureCode === "STALE_WORKING_OBSERVATION"
+      terminalCopy = window.AriadnePersonalContext?.errorCopy(error) || window.AriadneResumeTaskSupport?.errorCopy(error) || window.AriadneRuntimeSelection?.errorCopy(error) || (failureCode === "STALE_WORKING_OBSERVATION"
         ? "候选人信息已发生变化，请基于最新内容重试。"
         : failureCode === "FOCUS_VIOLATION"
           ? "这个请求超出了当前卡片范围；候选人信息未修改。"
@@ -1872,7 +1872,7 @@
       return outcome;
     } catch (error) {
       const code = String(error?.code || error?.message || "");
-      terminalCopy = window.AriadneResumeTaskSupport?.errorCopy(error) || window.AriadneRuntimeSelection?.errorCopy(error) || (code === "RUNTIME_CONTRACT_VERSION_MISMATCH"
+      terminalCopy = window.AriadnePersonalContext?.errorCopy(error) || window.AriadneResumeTaskSupport?.errorCopy(error) || window.AriadneRuntimeSelection?.errorCopy(error) || (code === "RUNTIME_CONTRACT_VERSION_MISMATCH"
         ? "服务版本已更新，请刷新页面后重试。"
         : code === "EMPTY_RESPONSE"
           ? "模型这次没有返回可用内容，请重试。"
@@ -4037,7 +4037,7 @@
         revision: activeJobRevision, application, entries: journalEntries, changes: result.output.changes,
         analysisId: analysis.analysis_id, messageId: userMessage.message_id,
       }) : null;
-      await JobConversationPersistence.persistSuccessfulTurn(database, { execution, analysis, assistant_message: assistantMessage, change_proposal: proposal, resume_task: resumePrepared });
+      await JobConversationPersistence.persistSuccessfulTurn(database, { execution, analysis, assistant_message: assistantMessage, change_proposal: proposal, resume_task: resumePrepared, personal_snapshot: candidateSnapshot });
       if (resumePrepared) window.dispatchEvent(new Event("ariadne-resume-saved"));
       if (proposal) showJobChangeProposal(proposal);
       renderJobConversationMessages(await JobConversationPersistence.messages(database, session.conversation_id));
@@ -4048,7 +4048,7 @@
         try { await JobConversationPersistence.persistExecution(database, JobConversationPersistence.transitionExecution(execution, "HARD_FAILED", String(error?.code || error?.message).slice(0, 160))); }
         catch (_persistenceError) { /* Preserve the original failure. */ }
       }
-      const copy = window.AriadneResumeTaskSupport?.errorCopy(error) || window.AriadneRuntimeSelection?.errorCopy(error) || (error?.code === "RUNTIME_CONTRACT_VERSION_MISMATCH" ? "服务版本已更新，请刷新页面后重试。" : "这次模型分析失败；没有使用本地替代结果，也没有修改职位或个人资料。");
+      const copy = window.AriadnePersonalContext?.errorCopy(error) || window.AriadneResumeTaskSupport?.errorCopy(error) || window.AriadneRuntimeSelection?.errorCopy(error) || (error?.code === "RUNTIME_CONTRACT_VERSION_MISMATCH" ? "服务版本已更新，请刷新页面后重试。" : "这次模型分析失败；没有使用本地替代结果，也没有修改职位或个人资料。");
       if (pageMessage) { pageMessage.textContent = copy; pageMessage.classList.add("error"); }
       else status.textContent = copy;
       if (activeJobConversationSession) {

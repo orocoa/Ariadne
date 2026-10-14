@@ -360,12 +360,26 @@ def _assert_compiled_context_safe(value: Any) -> None:
 
 
 def _validate_compiled_context(value: Any, conversation: dict[str, Any], observation: dict[str, Any], working_model: dict[str, Any], human_message: str) -> dict[str, Any]:
+    from src.saved_personal_context import validate_saved_context
     context = _exact(value, {
         "contract_id", "compiler_version", "conversation_subject", "observed_working_model", "focus",
         "candidate", "open_uncertainties", "bounded_history", "current_user_message", "summary", "diagnostics",
-    }, "COMPILED_CONTEXT_INVALID")
-    if context.get("contract_id") != "ariadne-candidate-conversation-context-v1" or context.get("compiler_version") != "candidate-conversation-context-compiler-v2":
+    } | ({"personal_context"} if isinstance(value, Mapping) and "personal_context" in value else set()), "COMPILED_CONTEXT_INVALID")
+    if context.get("contract_id") != "ariadne-candidate-conversation-context-v1" or context.get("compiler_version") not in ("candidate-conversation-context-compiler-v2", "candidate-conversation-context-compiler-v3"):
         raise CandidateConversationRuntimeError("COMPILED_CONTEXT_INVALID", "context")
+    if context.get("compiler_version") == "candidate-conversation-context-compiler-v3" or "personal_context" in context:
+        focus = observation["focus"]
+        allowed = {f"card-{index}" for index, item in enumerate(working_model["payload"].get("items", []), 1)
+                   if focus["type"] == "CANDIDATE" or item["item_id"] == focus["item_id"]}
+        try:
+            binding = {"source_document_id": working_model["source_document_id"], "observed_working_model": {key: observation[key] for key in ("working_model_id", "version", "fingerprint")}, "focus": focus}
+            validate_saved_context(context.get("personal_context"), scope="CANDIDATE_SOURCE", scope_token=_fingerprint(binding).removeprefix("sha256:"), card_refs=allowed)
+            history = context.get("bounded_history")
+            if not isinstance(history, list) or any(not isinstance(turn, Mapping) or turn.get("assistant") is not None
+                    and (not isinstance(turn["assistant"], Mapping) or turn["assistant"].get("personal_context_token") != context["personal_context"]["source_token"]) for turn in history):
+                raise ValueError("PERSONAL_SAVED_CONTEXT_INVALID")
+        except ValueError as error:
+            raise CandidateConversationRuntimeError("PERSONAL_SAVED_CONTEXT_INVALID", "context") from error
     subject = _exact(context.get("conversation_subject"), {"conversation_id", "subject_type", "candidate_context_id", "source_document_id"}, "COMPILED_CONTEXT_INVALID")
     observed = _exact(context.get("observed_working_model"), {"working_model_id", "version", "fingerprint"}, "COMPILED_CONTEXT_INVALID")
     current = _exact(context.get("current_user_message"), {"message_id", "turn_id", "text", "created_at"}, "COMPILED_CONTEXT_INVALID")
@@ -675,9 +689,28 @@ def validate_semantic_candidate_action(raw_action: Any) -> dict[str, Any]:
 
 
 _AUTHORITY_ESCALATION = re.compile(
-    r"(?:已保存到个人资料|已确认|已写入正式资料|confirmed\s+profile|saved\s+to\s+(?:the\s+)?profile)",
+    r"(?:已(?:自动)?保存到(?:你的)?个人资料|已(?:自动)?写入(?:你的)?正式资料"
+    r"|(?:我|我们|系统|Ariadne)\s*(?:已|已经|现已)(?:确认|保存|写入)"
+    r"|(?:更正|修改|更新|补充|资料|记录|事实)(?:已|已经|现已)(?:被)?(?:确认|保存|写入)"
+    r"|(?:^|[。！？；\n.!?;])\s*已确认(?=[。！？；，,\n.!?;]|$)"
+    r"|(?:I|we|Ariadne|the system)\s+(?:(?:have|has)\s+)?(?:already\s+)?confirmed\s+(?:(?:the|your)\s+)?(?:profile|record|facts?)"
+    r"|saved\s+to\s+(?:(?:the|your)\s+)?profile)",
     re.IGNORECASE,
 )
+
+
+def _authority_copy_escalates(text: str) -> bool:
+    # Guard completed persistence/confirmation claims, rather than the label
+    # "confirmed" itself. Discussion may cite Human-saved records or explain
+    # that a result lacks confirmed evidence without pretending to save it.
+    for match in _AUTHORITY_ESCALATION.finditer(text):
+        prefix = re.split(r"[。！？；\n.!?;]", text[:match.start()])[-1]
+        if re.search(r"(?:你|用户|人类)(?:此前|之前|曾经|曾|当时)?\s*$|\byou\s+(?:previously\s+|already\s+)?$", prefix, re.IGNORECASE):
+            continue
+        if re.search(r"(?:未|没有|并未|不会|不能|不应|尚未|\bnot\b|\bnever\b)[^，,。！？；\n.!?;]{0,10}$", prefix, re.IGNORECASE):
+            continue
+        return True
+    return False
 _HUMAN_COPY_CARD_REFERENCE = re.compile(
     r"(?:\s*[（(]card-[0-9]+[）)])|(?:\bcard-[0-9]+\b)",
     re.IGNORECASE,
@@ -881,7 +914,7 @@ def resolve_semantic_candidate_action_with_verifications(raw_action: Any, reques
     if semantic["clarification"]:
         semantic["clarification"] = _human_copy(semantic["clarification"])
     user_copy = semantic["clarification"] if action_type == "ASK_CLARIFICATION" else semantic["message"]
-    if _AUTHORITY_ESCALATION.search(user_copy or ""):
+    if _authority_copy_escalates(user_copy or ""):
         raise _failure("AUTHORITY_COPY_INVALID", "authority", "AUTHORITY", "semantic_action.user_copy", action_type)
     if action_type == "ASK_CLARIFICATION":
         # Preserve useful model questions, but never expose storage identities.
@@ -1105,7 +1138,8 @@ def _provider_candidate_context(request: CandidateConversationRequest) -> dict[s
             "other_item_directory": [],
         }
         provider_focus = {"type": focus["type"], "active_card_ref": active_ref}
-    return {"focus": provider_focus, "candidate": candidate, "capabilities": {
+    return {"focus": provider_focus, "candidate": candidate,
+        **({"personal_context": request.compiled_context["personal_context"]} if request.compiled_context and "personal_context" in request.compiled_context else {}), "capabilities": {
         "editable_scope": "current source Working cards only; ITEM_DRAFT cannot escape its focused card",
         "mutation_result": "reviewable Working, never automatically saved to confirmed personal information",
         "can_edit": "the supplied editable_fields; multiple current cards with user-authorized scope and exclusions",
@@ -1124,9 +1158,10 @@ def _model_input(request: CandidateConversationRequest) -> dict[str, Any]:
 
 
 def build_candidate_conversation_payload(request: CandidateConversationRequest) -> dict[str, Any]:
+    from src.saved_personal_context import INSTRUCTION as SAVED_CONTEXT_INSTRUCTION
     if request.compiled_context is None:
         messages = [
-            {"role": "system", "content": candidate_conversation_prompt() + MARKDOWN_CONTEXT_INSTRUCTION},
+            {"role": "system", "content": candidate_conversation_prompt() + MARKDOWN_CONTEXT_INSTRUCTION + SAVED_CONTEXT_INSTRUCTION},
             {"role": "user", "content": render_context(_model_input(request))},
         ]
     else:
@@ -1136,11 +1171,13 @@ def build_candidate_conversation_payload(request: CandidateConversationRequest) 
             "summary": request.compiled_context.get("summary"),
         }
         messages = [
-            {"role": "system", "content": candidate_conversation_prompt() + MARKDOWN_CONTEXT_INSTRUCTION},
+            {"role": "system", "content": candidate_conversation_prompt() + MARKDOWN_CONTEXT_INSTRUCTION + SAVED_CONTEXT_INSTRUCTION},
             {"role": "user", "content": render_context({"message_type": "COMPILED_CANDIDATE_CONTEXT", "context": context_only})},
         ]
         for index, turn in enumerate(request.compiled_context["bounded_history"], 1):
             messages.append({"role": "user", "content": json.dumps({"history_ref": f"history-{index}", "text": str(turn["user"]["text"])}, ensure_ascii=False)})
+            if turn.get("assistant") is None:
+                continue
             outcome = turn.get("action_result")
             if outcome:
                 titles = {item["item_id"]: item.get("title") for item in request.working_model["payload"].get("items", [])}

@@ -13,6 +13,34 @@
 
   const SNAPSHOT_CONTRACT = Manifest.candidate_snapshot_version;
   const DELTA_CONTRACT = Manifest.candidate_delta_version;
+  const READ_STORES = ["candidate_context_revisions", "candidate_context_lifecycle", "candidate_working_models", "candidate_workspace_acceptances", "career_entities", "career_evidence", "source_documents", "personal_memory_revisions"];
+  const readsets = new WeakMap();
+  function metadata(value) {
+    if (Array.isArray(value)) return value.map(metadata);
+    if (isObject(value)) return Object.fromEntries(Object.entries(value).filter(([, entry]) => !(typeof Blob !== "undefined" && entry instanceof Blob) && entry?.$blob !== "file").map(([key, entry]) => [key, metadata(entry)]));
+    return value;
+  }
+  function transactionStores(snapshot, database) { return READ_STORES.filter(name => database.objectStoreNames.contains(name)); }
+  function assertSnapshotInto(tx, snapshot, stores = READ_STORES, { added_sources = [] } = {}) {
+    const expected = readsets.get(snapshot);
+    if (!expected) return Promise.reject(new CandidateSnapshotError("PERSONAL_CONTEXT_GUARD_REQUIRED"));
+    return new Promise((resolve, reject) => {
+      const names = stores;
+      let remaining = names.length;
+      const abort = () => { const error = new CandidateSnapshotError("PERSONAL_CONTEXT_CHANGED"); reject(error); try { tx.abort(); } catch (_) {} };
+      if (!remaining) return resolve(true);
+      for (const name of names) {
+        const store = tx.objectStore(name), read = name === "source_documents" && store.getAllMetadata ? store.getAllMetadata() : store.getAll();
+        read.onerror = abort;
+        read.onsuccess = () => {
+          const accepted = name === "source_documents" ? [...(expected[name] || []), ...added_sources.filter(source => !(expected[name] || []).some(prior => prior.source_document_id === source.source_document_id)).map(metadata)] : expected[name] || [];
+          const order = entries => [...entries].sort((a, b) => JSON.stringify(canonical(a)).localeCompare(JSON.stringify(canonical(b))));
+          if (JSON.stringify(canonical(order(metadata(read.result || [])))) !== JSON.stringify(canonical(order(accepted)))) return abort();
+          if (--remaining === 0) resolve(true);
+        };
+      }
+    });
+  }
 
   class CandidateSnapshotError extends Error {
     constructor(code) { super(code); this.name = "CandidateSnapshotError"; this.code = code; }
@@ -96,6 +124,7 @@
         const itemSourceIds = [...new Set((item.grounding_refs || []).map((ref) => ref?.source_document_id).filter(Boolean))];
         canonicalRecords.push({
           identity: `canonical:${revision.context_id}:${item.item_id}`,
+          item_id: item.item_id,
           identity_stability: "CANONICAL",
           semantic: semanticItem(item),
           authority: "CONFIRMED",
@@ -128,7 +157,7 @@
       return {
         identity: `memory:${entry.memory_id}`, identity_stability: "CANONICAL", authority: "CONFIRMED", source_ids: [],
         semantic: { ...semanticItem({ item_type: "PERSONAL_MEMORY", item_subtype: entry.kind, title: entry.text, summary: entry.text }),
-          memory_kind: entry.kind },
+          memory_kind: entry.kind, memory_version: entry.version, memory_revision_token: null },
         related_identities: entry.related_identities,
         lineage: { memory_id: entry.memory_id, revision_id: entry.revision_id, version: entry.version },
       };
@@ -144,6 +173,7 @@
       if (accepted.has(`${working.working_model_id}|${working.fingerprint}`)) return [];
       return (working.payload?.items || []).filter((item) => isObject(item) && !removed.has(`${working.source_document_id}|${item.item_id}`)).map((item) => ({
         identity: `working:${working.source_document_id}:${item.item_id || "unstable"}`,
+        item_id: item.item_id || null,
         identity_stability: item.item_id ? "WORKING_LINEAGE_SCOPED" : "UNSTABLE",
         semantic: semanticItem(item),
         authority: "NON_AUTHORITATIVE",
@@ -160,13 +190,15 @@
 
   async function withHashes(records, sourceDocuments) {
     const availabilityPriority = ["ORIGINAL_AVAILABLE", "SOURCE_REFERENCE_ONLY", "LEGACY_PROVENANCE_UNKNOWN", "SOURCE_UNAVAILABLE"];
-    return Promise.all(records.map(async (entry) => ({
-      ...entry,
-      semantic_hash: await fingerprint(entry.semantic),
+    return Promise.all(records.map(async (entry) => {
+      const semantic = entry.semantic.item_type === "PERSONAL_MEMORY" ? { ...entry.semantic, memory_revision_token: (await fingerprint(entry.lineage)).slice(7) } : entry.semantic;
+      return ({
+      ...entry, semantic,
+      semantic_hash: await fingerprint(semantic),
       source_availability: entry.source_ids.length
         ? entry.source_ids.map((sourceId) => sourceAvailability(sourceId, sourceDocuments)).sort((left, right) => availabilityPriority.indexOf(left) - availabilityPriority.indexOf(right))[0]
         : "LEGACY_PROVENANCE_UNKNOWN",
-    })));
+    }); }));
   }
 
   function providerItems(records, prefix) {
@@ -226,7 +258,27 @@
       project_count: providerRecords.filter((entry) => String(entry.item_type || entry.item_subtype).toUpperCase() === "PROJECT").length,
       evidence_count: providerRecords.filter((entry) => (entry.facts || []).length || String(entry.summary || "").trim()).length,
     });
-    return Object.freeze({
+    const evidenceByIdentity = new Map([...confirmed, ...working].map((entry, index) => [entry.identity, { item_id: entry.item_id || null, manifest: manifestEntries([entry])[0], content: providerRecords[index] }]));
+    const savedMemories = await Promise.all((Memory ? Memory.active(input.personal_memory_revisions, [...confirmed, ...working].filter(entry => !entry.identity.startsWith("memory:"))) : []).map(async raw => {
+      const entry = Memory.validateRevision(raw);
+      const ref = refByIdentity.get(`memory:${entry.memory_id}`), related = entry.related_identities.map(identity => evidenceByIdentity.get(identity)).filter(Boolean);
+      const body = { kind: entry.kind, text: entry.text, version: entry.version,
+        revision_token: evidenceByIdentity.get(`memory:${entry.memory_id}`).content.memory_revision_token,
+        human_quote: entry.human_quote || null, saved_at: entry.created_at, related_evidence: related.map(item => item.content) };
+      return { ref, ...body, version_token: (await fingerprint(body)).slice(7), related };
+    }));
+    const activeMemoryIds = new Set(confirmed.filter(entry => entry.identity.startsWith("memory:")).map(entry => entry.lineage.revision_id));
+    const memoryHeadsById = new Map((Memory?.latest(input.personal_memory_revisions || []) || []).map(entry => [entry.memory_id, entry]));
+    const compilationTime = new Date().toISOString();
+    const historyBlockers = (input.personal_memory_revisions || []).filter(entry => entry.authority === Memory?.REVISION_AUTHORITY && !activeMemoryIds.has(entry.revision_id)).map(entry => ({
+      human_quote: entry.human_quote || null, origin: clone(entry.origin || {}),
+      // A still-ACTIVE memory can lose its evidence after Save. Its original
+      // Save time is not the invalidation time; exclude all older copies at
+      // this compile boundary, while the current Human turn stays separate.
+      invalidated_at: memoryHeadsById.get(entry.memory_id)?.revision_id === entry.revision_id && entry.status === "ACTIVE"
+        ? compilationTime : memoryHeadsById.get(entry.memory_id)?.created_at || entry.created_at,
+    }));
+    const snapshot = Object.freeze({
       contract_id: SNAPSHOT_CONTRACT,
       compiled_at: new Date().toISOString(),
       working_inclusion_policy: "INCLUDE_CURRENT_NON_AUTHORITATIVE",
@@ -235,6 +287,8 @@
       confirmed_fingerprint: confirmedFingerprint,
       working_fingerprint: workingFingerprint,
       aggregate_fingerprint: aggregateFingerprint,
+      saved_personal_memories: savedMemories,
+      personal_history_blockers: historyBlockers,
       structural_counts: structuralCounts,
       provider_view: Object.freeze({
         confirmed: providerConfirmed,
@@ -243,6 +297,8 @@
       }),
       uncertainties: [...confirmed, ...working].flatMap((entry) => entry.semantic.uncertainties.map((uncertainty) => ({ authority: entry.authority, ...uncertainty }))),
     });
+    readsets.set(snapshot, Object.fromEntries(READ_STORES.map(name => [name, clone(metadata(input[name] || []))])));
+    return snapshot;
   }
 
   function lineageContinues(previousEntry, currentEntry) {
@@ -334,13 +390,15 @@
   }
 
   async function buildSnapshotFromDatabase(database) {
-    const names = ["candidate_context_revisions", "candidate_context_lifecycle", "candidate_working_models", "candidate_workspace_acceptances", "career_entities", "career_evidence", "source_documents", "personal_memory_revisions", "personal_understanding_snapshots"];
+    const names = [...READ_STORES, "personal_understanding_snapshots"];
     const values = await Promise.all(names.map((name) => getAll(database, name)));
     const records = Object.fromEntries(names.map((name, index) => [name, values[index]]));
     const snapshot = await buildSnapshot(records);
     const understanding = records.personal_understanding_snapshots.filter((entry) => entry.authority === "NON_AUTHORITATIVE_PERSONAL_UNDERSTANDING" && PersonalContract && entry.prompt_version === PersonalContract.prompt_version && entry.source_fingerprint === snapshot.aggregate_fingerprint)
       .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0] || null;
-    return Object.freeze({ ...snapshot, memory_revision_count: records.personal_memory_revisions.length, personal_understanding: understanding });
+    const result = Object.freeze({ ...snapshot, memory_revision_count: records.personal_memory_revisions.length, personal_understanding: understanding });
+    readsets.set(result, readsets.get(snapshot));
+    return result;
   }
 
   function observationsMatch(left, right) {
@@ -351,7 +409,7 @@
   }
 
   return Object.freeze({
-    SNAPSHOT_CONTRACT, DELTA_CONTRACT, CandidateSnapshotError, canonical, fingerprint, latestBy,
+    SNAPSHOT_CONTRACT, DELTA_CONTRACT, READ_STORES, transactionStores, assertSnapshotInto, CandidateSnapshotError, canonical, fingerprint, latestBy,
     sourceAvailability, semanticItem, confirmedRecords, workingRecords, buildSnapshot, candidateDelta,
     buildSnapshotFromDatabase, observationsMatch,
   });

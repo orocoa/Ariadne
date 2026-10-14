@@ -249,7 +249,7 @@ for (const status of ["NEEDS_FACTS", "REVISION_REQUIRED"]) {
 }
 assert.match(jobSubmit, /const resumePrepared = await window\.AriadneResumeTaskSupport\.prepareResult\(database, request, result\);/);
 assert.match(jobSubmit, /const resumeMetadata = window\.AriadneResumeTaskSupport\.metadata\(resumePrepared\);/);
-assert.match(jobSubmit, /JobConversationPersistence\.persistSuccessfulTurn\(database, \{ execution, analysis, assistant_message: assistantMessage, change_proposal: proposal, resume_task: resumePrepared \}\)/);
+assert.match(jobSubmit, /JobConversationPersistence\.persistSuccessfulTurn\(database, \{ execution, analysis, assistant_message: assistantMessage, change_proposal: proposal, resume_task: resumePrepared, personal_snapshot: candidateSnapshot \}\)/);
 const prepareIndex = jobSubmit.indexOf("const resumePrepared ="), proofIndex = jobSubmit.indexOf("const resumeMetadata =");
 const assistantIndex = jobSubmit.indexOf("const assistantMessage ="), persistIndex = jobSubmit.indexOf("JobConversationPersistence.persistSuccessfulTurn(");
 assert(prepareIndex >= 0 && prepareIndex < proofIndex && proofIndex < assistantIndex && assistantIndex < persistIndex,

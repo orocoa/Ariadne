@@ -45,7 +45,7 @@ def validate_request(value):
     if not isinstance(context, dict) or len(json.dumps(context, ensure_ascii=False, separators=(",", ":")).encode()) > MANIFEST["limits"]["context_bytes"]:
         raise JobOverviewError("JOB_OVERVIEW_CONTEXT_LIMIT", "context")
     keys = {"DISTILL": {"scope", "evidence"}, "SYNTHESIZE": {"scope", "evidence", "previous", "traversal"}, "DISCUSS": {"scope", "evidence", "overview", "coverage", "history", "candidate", "candidate_coverage", "candidate_catalog", "candidate_status", "personal_understanding"}}[value["phase"]]
-    if set(context) != keys or context["scope"] != MANIFEST["discussion_scope" if value["phase"] == "DISCUSS" else "scope"]:
+    if set(context) - ({"personal_context"} if value["phase"] == "DISCUSS" else set()) != keys or context["scope"] != MANIFEST["discussion_scope" if value["phase"] == "DISCUSS" else "scope"]:
         raise JobOverviewError("JOB_OVERVIEW_SCOPE_INVALID", "context")
     evidence = context["evidence"]
     if not isinstance(evidence, list) or len(evidence) > 60 or (not evidence and value["phase"] != "DISCUSS"):
@@ -110,10 +110,14 @@ def validate_candidate_context(context):
     understanding = context["personal_understanding"]
     if understanding is not None and (not isinstance(understanding, dict) or understanding.get("authority") != "NON_AUTHORITATIVE_PERSONAL_UNDERSTANDING"):
         raise ValueError("personal understanding authority")
+    if "personal_context" in context:
+        from src.saved_personal_context import validate_saved_context
+        validate_saved_context(context["personal_context"], candidate=candidate)
 
 
 def prompt(phase):
-    common = HUMAN_CONVERSATION_PRINCIPLES + """You are Ariadne, helping the Human understand saved Jobs and their relationship to the Human's current career evidence.
+    from src.saved_personal_context import INSTRUCTION as SAVED_CONTEXT_INSTRUCTION
+    common = HUMAN_CONVERSATION_PRINCIPLES + SAVED_CONTEXT_INSTRUCTION + """You are Ariadne, helping the Human understand saved Jobs and their relationship to the Human's current career evidence.
 Your focus is roles, responsibilities, requirements, seniority, company/team context, work arrangements, shared patterns and differences ACROSS these JDs.
 For DISCUSS, current Candidate evidence, saved PERSONAL_MEMORY, their catalog/coverage and optional current personal understanding are provided. Use them to compare fit across Jobs in this conversation; do not send the Human away to a chosen JD before helping them choose. For DISTILL and SYNTHESIZE only Job evidence is supplied; keep those reusable summaries independent of the person.
 Read candidate summaries and facts before declaring something missing. Distinguish NO_ACTIVE_RECORDS from AVAILABLE with omitted/truncated details. The catalog lists saved records, not full evidence. Omission from this request is NOT absence from the user's saved materials. Never say the Human did not provide a resume, project or preference merely because it was not selected or the original PDF is not attached. Ask only for genuinely unresolved evidence.

@@ -96,6 +96,7 @@
     return gate;
   }
   function errorCopy(error) {
+    if (window.AriadnePersonalContext?.errorCopy(error)) return window.AriadnePersonalContext.errorCopy(error);
     if (window.AriadneResumeTaskSupport?.errorCopy(error)) return window.AriadneResumeTaskSupport.errorCopy(error);
     if (window.AriadneRuntimeSelection?.errorCopy(error)) return window.AriadneRuntimeSelection.errorCopy(error);
     const code = String(error?.message || error);

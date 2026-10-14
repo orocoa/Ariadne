@@ -17,6 +17,9 @@
   ].join(",");
 
   const EN = Object.freeze({
+    "已保存的更正或补充及其必要依据超过本轮处理预算。本轮未发送模型，也未截断这些内容；请缩小相关资料范围后重试。": "Saved corrections or additions and their required evidence exceed this turn's processing budget. Nothing was sent to the model or truncated. Narrow the related material scope and retry.",
+    "相关资料或已保存的更正已经变化，本次结果未保存。请基于当前资料重试。": "Related information or saved corrections have changed. This result was not saved. Retry with the current information.",
+    "本轮个人更正上下文未通过校验，结果未保存。请刷新并基于当前资料重试。": "The personal correction context did not pass validation. The result was not saved. Refresh and retry with the current information.",
     "这条建议或相关资料已变化；你的编辑仍保留，请复制需要的内容后重新核对。": "This suggestion or its supporting information has changed. Your edits are preserved; copy anything you need before reviewing the latest version.",
     "放弃这份编辑并读取最新建议": "Discard these edits and load the latest suggestion",
     "选择记录图片": "Choose entry images",

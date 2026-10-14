@@ -20,7 +20,7 @@ function assertCurrentConversationScripts(html) {
   };
   const pages = loaded("/v1-pages.js"), ui = loaded("/conversation-ui-domain.js"), shell = loaded("/product-shell-domain.js");
   for (const { url } of [pages, ui]) {
-    assert.deepEqual(url.searchParams.getAll("v"), ["chat-history-20261014"]);
+    assert.deepEqual(url.searchParams.getAll("v"), [url.pathname === "/v1-pages.js" ? "understanding-consistency-20261014" : "chat-history-20261014"]);
     assert.deepEqual(url.searchParams.getAll("resume-stage"), ["1"]);
   }
   assert(ui.index < pages.index, "shared conversation UI must load before the page binding");
@@ -66,7 +66,7 @@ assert(pageTag && shellTag, "negative load checks must target the actual script 
 for (const changed of [
   candidateDetail.replace(pageTag, `<!-- ${pageTag} -->`),
   candidateDetail.replace(pageTag, `${pageTag}\n${pageTag}`),
-  candidateDetail.replace(pageTag, pageTag.replace("chat-history-20261014", "computer-use-e2e-v3")),
+  candidateDetail.replace(pageTag, pageTag.replace("understanding-consistency-20261014", "computer-use-e2e-v3")),
   candidateDetail.replace(pageTag, pageTag.replace("&amp;resume-stage=1", "")),
   candidateDetail.replace(pageTag, pageTag.replace('src="/', 'src="https://other.invalid/')),
   candidateDetail.replace(shellTag, "").replace(pageTag, `${pageTag}\n${shellTag}`),

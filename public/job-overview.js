@@ -64,7 +64,7 @@
       await task(db, { runtime_snapshot: captured, consent: true, call, onProgress: (copy) => UI.setExecutionState({ form: el("job-overview-form"), status: el("job-overview-processing"), active: true, copy }) });
     } catch (error) {
       draft?.finish(true);
-      status(window.AriadneResumeTaskSupport?.errorCopy(error) || window.AriadneRuntimeSelection?.errorCopy(error) || (/CONTEXT_CHANGED/.test(error.message) ? "个人资料或职位已经变化，本次结果未保存。请基于最新资料重试。" : /RUNTIME|CONSENT|capability/.test(error.message) ? "运行方式或资料传输确认已变化，请核对后重试。" : "本次处理未完成，没有生成替代回答或修改任何职位描述。原始资料与历史保留，可以重试。"), true);
+      status(window.AriadnePersonalContext?.errorCopy(error) || window.AriadneResumeTaskSupport?.errorCopy(error) || window.AriadneRuntimeSelection?.errorCopy(error) || (/CONTEXT_CHANGED/.test(error.message) ? "个人资料或职位已经变化，本次结果未保存。请基于最新资料重试。" : /RUNTIME|CONSENT|capability/.test(error.message) ? "运行方式或资料传输确认已变化，请核对后重试。" : "本次处理未完成，没有生成替代回答或修改任何职位描述。原始资料与历史保留，可以重试。"), true);
     } finally {
       db?.close(); draft?.finish(); pendingMessage = null;
       try { await load(); }

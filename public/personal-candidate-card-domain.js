@@ -99,7 +99,7 @@
       provenance: { supplied_by: "USER", captured_via: "PERSONAL_UNDERSTANDING_CONVERSATION", raw_source_recoverability: "DURABLE_BROWSER_LOCAL", turn_id: turnId },
       authority: Truth.AUTHORITY.source,
     });
-    await RawSource.persistDurableSource(database, sourceDocument, file);
+    const archived = await RawSource.persistDurableSource(database, sourceDocument, file);
     const runId = id("run-personal-candidate-change"), proposalIds = checked.map((_entry, index) => `${runId}-proposal-${index + 1}`);
     const processingRun = Truth.validateProcessingRun({
       contract_id: "ariadne-processing-run-v1", run_id: runId, operation_type: OPERATION_TYPE, source_document_id: sourceId, batch_id: null,
@@ -130,7 +130,7 @@
     const validatedSnapshot = Truth.validateRuntimeSnapshotRecord(runtimeSnapshot);
     const existingSnapshot = (await readAll(database, "runtime_snapshots")).find((entry) => entry.snapshot_id === validatedSnapshot.snapshot_id);
     if (existingSnapshot && JSON.stringify(existingSnapshot) !== JSON.stringify(validatedSnapshot)) throw new Error("runtime_snapshot_identity_conflict");
-    return Object.freeze({ source_document: sourceDocument, processing_run: processingRun, runtime_snapshot: existingSnapshot ? null : validatedSnapshot, proposals });
+    return Object.freeze({ source_document: sourceDocument, source_records: archived.source_records, processing_run: processingRun, runtime_snapshot: existingSnapshot ? null : validatedSnapshot, proposals });
   }
 
   function readAll(database, storeName) {

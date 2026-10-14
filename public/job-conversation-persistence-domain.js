@@ -134,11 +134,14 @@
       .sort((left, right) => String(left.created_at).localeCompare(String(right.created_at)));
   }
 
-  async function persistSuccessfulTurn(database, { execution, analysis, assistant_message: assistantMessage, change_proposal: changeProposal = null, resume_task: resumePrepared = null }) {
+  async function persistSuccessfulTurn(database, { execution, analysis, assistant_message: assistantMessage, change_proposal: changeProposal = null, resume_task: resumePrepared = null, personal_snapshot: personalSnapshot = null }) {
     const completed = transitionExecution(execution, "SUCCEEDED");
+    const Candidate = globalThis.AriadneJobCandidateContext || (typeof module === "object" ? require("./job-candidate-context-domain.js") : null);
+    const personalStores = personalSnapshot ? Candidate.transactionStores(personalSnapshot, database) : [];
     return new Promise((resolve, reject) => {
-      const transaction = database.transaction([...new Set(["job_turn_executions", "job_analyses", "job_conversation_messages", ...(changeProposal ? ["job_change_proposals"] : []), ...(resumePrepared ? Resume().transactionStores(resumePrepared) : [])])], "readwrite");
+      const transaction = database.transaction([...new Set(["job_turn_executions", "job_analyses", "job_conversation_messages", ...personalStores, ...(changeProposal ? ["job_change_proposals"] : []), ...(resumePrepared ? Resume().transactionStores(resumePrepared) : [])])], "readwrite");
       let resumeError = null;
+      if (personalSnapshot) Candidate.assertSnapshotInto(transaction, personalSnapshot, personalStores).catch(error => { resumeError = error; try { transaction.abort(); } catch (_) {} });
       if (resumePrepared) Resume().commitInto(transaction, resumePrepared).catch(error => { resumeError = error; try { transaction.abort(); } catch (_) {} });
       if (changeProposal) transaction.objectStore("job_change_proposals").add(clone(changeProposal));
       transaction.objectStore("job_turn_executions").put(clone(completed));

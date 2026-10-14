@@ -37,6 +37,8 @@
 
   const ResumeSupport = () => globalThis.AriadneResumeTaskSupport || (typeof module === "object" ? require("./resume-task-support.js") : null);
   const Resume = () => globalThis.AriadneResumeTask || (typeof module === "object" ? require("./resume-task-domain.js") : null);
+  const Candidate = () => globalThis.AriadneJobCandidateContext || (typeof module === "object" ? require("./job-candidate-context-domain.js") : null);
+  const PersonalContext = () => globalThis.AriadnePersonalContext || (typeof module === "object" ? require("./personal-context-domain.js") : null);
   const RESULT_KEYS = Object.freeze([
     "contract_id", "execution_id", "generation", "conversation_id", "operation", "provider", "model", "protocol",
     "runtime_snapshot_id", "finish_reason", "usage", "action", "authority", "network_call_made", "persistence",
@@ -202,7 +204,12 @@
 
   function assertWorkingAuthorityCopy(action) {
     const text = action.action === "ASK_CLARIFICATION" ? action.clarification : action.message;
-    if (/(?:已保存到个人资料|已确认|已写入正式资料|confirmed\s+profile|saved\s+to\s+(?:the\s+)?profile)/iu.test(String(text || ""))) {
+    const escalation = /(?:已(?:自动)?保存到(?:你的)?个人资料|已(?:自动)?写入(?:你的)?正式资料|(?:我|我们|系统|Ariadne)\s*(?:已|已经|现已)(?:确认|保存|写入)|(?:更正|修改|更新|补充|资料|记录|事实)(?:已|已经|现已)(?:被)?(?:确认|保存|写入)|(?:^|[。！？；\n.!?;])\s*已确认(?=[。！？；，,\n.!?;]|$)|(?:I|we|Ariadne|the system)\s+(?:(?:have|has)\s+)?(?:already\s+)?confirmed\s+(?:(?:the|your)\s+)?(?:profile|record|facts?)|saved\s+to\s+(?:(?:the|your)\s+)?profile)/giu;
+    const copy = String(text || "");
+    for (const match of copy.matchAll(escalation)) {
+      const prefix = copy.slice(0, match.index).split(/[。！？；\n.!?;]/u).at(-1);
+      if (/(?:你|用户|人类)(?:此前|之前|曾经|曾|当时)?\s*$|\byou\s+(?:previously\s+|already\s+)?$/iu.test(prefix)) continue;
+      if (/(?:未|没有|并未|不会|不能|不应|尚未|\bnot\b|\bnever\b)[^，,。！？；\n.!?;]{0,10}$/iu.test(prefix)) continue;
       throw new CandidateWorkspaceConversationError("AUTHORITY_COPY_INVALID");
     }
   }
@@ -283,6 +290,7 @@
     "item_id", "fact_id", "uncertainty_id", "working_model_id", "source_document_id", "session_id",
     "conversation_id", "turn_id", "execution_id", "generation", "action_id", "candidate_action_id",
     "runtime_snapshot_id", "candidate_context_id", "fingerprint", "card_ref", "active_card_ref",
+    "version_token", "revision_token", "source_token", "scope_token", "ref",
   ]);
 
   function collectInternalIdentities(value, result = new Set()) {
@@ -371,6 +379,12 @@
       if (typeof onUserPersisted === "function") await onUserPersisted(Object.freeze({ session, user_message: userMessage, execution }));
 
       const restored = await Persistence.restoreConversation(database, session.conversation_id);
+      if (!Candidate() || !PersonalContext()) throw new CandidateWorkspaceConversationError("PERSONAL_CONTEXT_DEPENDENCY_REQUIRED");
+      const personalSnapshot = await Candidate().buildSnapshotFromDatabase(database);
+      const itemIds = observation.focus.type === "CANDIDATE" ? initialWorkingModel.payload.items.map(item => item.item_id) : [observation.focus.item_id];
+      const cardRefs = Object.fromEntries(initialWorkingModel.payload.items.map((item, index) => [item.item_id, `card-${index + 1}`]));
+      const personalContext = PersonalContext().savedContext(personalSnapshot, { source_document_id: sourceDocumentId, item_ids: itemIds, card_ref_by_item: cardRefs });
+      personalContext.scope_token = (await Candidate().fingerprint({ source_document_id: sourceDocumentId, observed_working_model: { working_model_id: initialWorkingModel.working_model_id, version: initialWorkingModel.version, fingerprint: initialWorkingModel.fingerprint }, focus: observation.focus })).slice(7);
       const compiledContext = Compiler.compileContext({
         session,
         working_model: initialWorkingModel,
@@ -378,6 +392,8 @@
         messages: restored.messages,
         actions: restored.actions,
         current_user_message: userMessage,
+        personal_context: personalContext,
+        personal_history_blockers: personalSnapshot.personal_history_blockers,
       });
       const request = createRuntimeRequest({
         session,
@@ -419,6 +435,7 @@
         await Persistence.persistFailedTurn(database, staleTurn);
         return Object.freeze({ status: "STALE", session, user_message: userMessage, turn: staleTurn, action: null, working_model: currentWorkingModel, runtime_result: result });
       }
+      if (!Candidate().observationsMatch(personalSnapshot, await Candidate().buildSnapshotFromDatabase(database))) throw new CandidateWorkspaceConversationError("PERSONAL_CONTEXT_CHANGED");
 
       const resultingWorkingModel = outcome.application.mutation === "NEW_WORKING_STATE" ? outcome.application.working_model : null;
       let appliedAction = verifiedAppliedAction(outcome.application.action, resolutionVerifications, currentWorkingModel, resultingWorkingModel);
@@ -458,6 +475,7 @@
         model: snapshot.model,
         runtime_snapshot_id: snapshot.snapshot_id,
         candidate_action_id: actionRecord.action_id,
+        personal_context_token: personalContext.source_token,
         resume_task: ResumeSupport().metadata(resumePrepared), deliverable: Delivery.fromResult(result), web_search: Delivery.searchFromResult(result),
         created_at: nowIso(now),
       });
@@ -469,6 +487,7 @@
           current_working_model: currentWorkingModel,
           resulting_working_model: resultingWorkingModel,
           resume_task: resumePrepared,
+          personal_snapshot: personalSnapshot,
         });
         if (resumePrepared) globalThis.dispatchEvent?.(new Event("ariadne-resume-saved"));
       } catch (error) {

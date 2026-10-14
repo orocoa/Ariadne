@@ -281,13 +281,8 @@
   function historyBlockers(collected, snapshot) {
     const Memory = dependency("AriadnePersonalMemory", "./personal-memory-domain.js"), Context = dependency("AriadnePersonalContext", "./personal-context-domain.js");
     if (!Memory || !Context) fail("RESUME_CONTEXT_DEPENDENCY_UNAVAILABLE");
-    const memories = (collected.personal_memory_revisions || []).filter(record => record.authority === Memory.REVISION_AUTHORITY);
-    const heads = new Map(Memory.latest(memories).map(record => [record.memory_id, record]));
-    const activeIds = new Set(Context.records(snapshot).map(record => record.identity));
-    return memories.filter(record => { const head = heads.get(record.memory_id); return head &&
-      (record.revision_id !== head.revision_id || head.status === "RETRACTED" || !activeIds.has(`memory:${record.memory_id}`));
-    }).map(record => {
-      const obsoleteAt = heads.get(record.memory_id).created_at;
+    return (snapshot.personal_history_blockers || []).map(record => {
+      const obsoleteAt = record.invalidated_at;
       if (typeof obsoleteAt !== "string" || !Number.isFinite(Date.parse(obsoleteAt))) fail("RESUME_HISTORY_SOURCE_INVALID");
       return { origin: clone(record.origin || {}), quote: typeof record.human_quote === "string" ? record.human_quote : null, obsolete_at: obsoleteAt };
     });

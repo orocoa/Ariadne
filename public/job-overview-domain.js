@@ -154,6 +154,7 @@
       history: Context.boundedHistory(turns.filter((entry) => entry.fingerprint === snapshot.fingerprint && entry.candidate_fingerprint === snapshot.candidate.aggregate_fingerprint && entry.prompt_version === Contract.prompt_version).map((entry) => ({ ...entry, output: entry.output ? { ...entry.output, message: [entry.output.message, ...(entry.output.insights || []).map((item) => item.text), ...(entry.output.uncertainties || [])].join("\n") } : null })), 4000) };
     const candidate = snapshot.candidate;
     if (!candidate) throw new Error("JOB_OVERVIEW_CANDIDATE_CONTEXT_REQUIRED");
+    context.personal_context = Context.savedContext(candidate);
     context.candidate_catalog = Context.catalog(candidate, 3000);
     const understanding = candidate.personal_understanding;
     context.personal_understanding = understanding?.source_fingerprint === candidate.aggregate_fingerprint ? {
@@ -193,16 +194,18 @@
       const resumePrepared = await ResumeSupport().prepareResult(db, request, result);
       const resumeMetadata = ResumeSupport().metadata(resumePrepared);
       const completed = { ...turn, runtime_snapshot: clone(options.runtime_snapshot), status: "SUCCEEDED", fingerprint: snapshot.fingerprint, candidate_fingerprint: snapshot.candidate.aggregate_fingerprint, prompt_version: Contract.prompt_version, candidate_coverage: context.candidate_coverage, web_sources: clone(result.web_sources || []), output: { message: output.summary, insights, uncertainties: output.uncertainties, deliverable: Delivery.fromResult(result), ...(resumeMetadata ? { resume_task: resumeMetadata } : {}), web_search: Delivery.searchFromResult(result) }, context_coverage: context.coverage, context_bytes: Context.bytes(context), calls: refreshed.calls + 1 + (result.resume_task?.calls || 0) + (result.delivery_calls || 0), usage: result.usage || {}, refresh_usage: refreshed.usage };
-      if (resumePrepared) {
+      {
         await new Promise((resolve, reject) => {
-          const tx = db.transaction(["job_overview_turns", ...Resume().transactionStores(resumePrepared)], "readwrite");
+          const personalStores = Candidate.transactionStores(snapshot.candidate, db);
+          const tx = db.transaction([...new Set(["job_overview_turns", ...personalStores, ...(resumePrepared ? Resume().transactionStores(resumePrepared) : [])])], "readwrite");
           let resumeError = null;
           tx.oncomplete = resolve; tx.onerror = tx.onabort = () => reject(resumeError || tx.error || Error("job_overview_turn_write_failed"));
-          Resume().commitInto(tx, resumePrepared).catch(error => { resumeError = error; try { tx.abort(); } catch (_) {} });
+          Candidate.assertSnapshotInto(tx, snapshot.candidate, personalStores).catch(error => { resumeError = error; try { tx.abort(); } catch (_) {} });
+          if (resumePrepared) Resume().commitInto(tx, resumePrepared).catch(error => { resumeError = error; try { tx.abort(); } catch (_) {} });
           tx.objectStore("job_overview_turns").put(clone(completed));
         });
-        globalThis.dispatchEvent?.(new Event("ariadne-resume-saved"));
-      } else await write(db, "job_overview_turns", completed, true);
+        if (resumePrepared) globalThis.dispatchEvent?.(new Event("ariadne-resume-saved"));
+      }
       return completed;
     } catch (error) { await write(db, "job_overview_turns", { ...turn, status: "FAILED", error_code: String(error.message).slice(0, 100) }, true); throw error; }
   }
