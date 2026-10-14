@@ -278,9 +278,9 @@ const current = Persistence.createUserMessage({ message_id: "message-user-curren
 const candidateContext = Compiler.compileContext({ session, working_model: working, observation: candidateObservation, messages: historicalMessages, current_user_message: current });
 assert.equal(candidateContext.candidate.candidate_items.length, 2);
 assert.deepEqual(candidateContext.open_uncertainties.map((entry) => entry.uncertainty_id).sort(), ["uncertain-education-001", "uncertain-work-001"]);
-assert.equal(candidateContext.bounded_history.length, Compiler.HISTORY_TURN_LIMIT);
-assert.equal(candidateContext.bounded_history[0].turn_id, "history-turn-2");
-assert.equal(candidateContext.diagnostics.trimmed_history_turn_count, 2);
+assert.equal(candidateContext.bounded_history.length, 10);
+assert.equal(candidateContext.bounded_history[0].turn_id, "history-turn-0");
+assert.equal(candidateContext.diagnostics.trimmed_history_turn_count, 0);
 assert.equal(candidateContext.current_user_message.text, current.text);
 assert.deepEqual(candidateContext.observed_working_model, { working_model_id: working.working_model_id, version: working.version, fingerprint: working.fingerprint });
 assert.equal(candidateContext.diagnostics.candidate_item_count, 2);

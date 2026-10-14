@@ -18,6 +18,7 @@
     "summary_characters": 2400,
     "memory_characters": 1200,
     "proposals_per_turn": 4,
-    "card_proposals_per_turn": 4
+    "card_proposals_per_turn": 4,
+    "discussion_context_bytes": 256000
   }
 }

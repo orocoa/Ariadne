@@ -15,8 +15,8 @@
 
   const CONTRACT_ID = "ariadne-candidate-conversation-context-v1";
   const COMPILER_VERSION = "candidate-conversation-context-compiler-v2";
-  const HISTORY_TURN_LIMIT = 8;
-  const DEFAULT_MAX_SERIALIZED_BYTES = 64 * 1024;
+  const HISTORY_TURN_LIMIT = 500;
+  const DEFAULT_MAX_SERIALIZED_BYTES = 256000;
   const FORBIDDEN_KEY = /(?:api[_-]?key|authorization|credential|access[_-]?token|refresh[_-]?token|raw[_-]?(?:pdf|response|http)|pdf[_-]?bytes|rendered[_-]?page|image[_-]?data)/i;
   const FORBIDDEN_VALUE = /(?:\bBearer\s+\S+|\b(?:sk|rk|pk|sess)-[A-Za-z0-9_-]{8,}|^data:(?:application|image)\/|%PDF)/i;
 
@@ -153,7 +153,7 @@
 
   function completeHistory(messages, actions, currentMessage, focus, observation, personalContext = null, historyBlockers = []) {
     const Delivery = globalThis.AriadneConversationOutput || (typeof module === "object" ? require("./conversation-output.js") : null);
-    const relevantActions = (actions || []).filter((entry) => entry?.conversation_id === currentMessage.conversation_id && actionMatchesFocus(entry, focus, observation));
+    const relevantActions = (actions || []).filter((entry) => entry?.conversation_id === currentMessage.conversation_id && (focus.type === "CANDIDATE" || entry.focus_snapshot?.item_id === focus.item_id));
     const actionsByTurn = new Map(relevantActions.map((entry) => [entry.turn_id, entry]));
     const byTurn = new Map();
     (messages || []).forEach((raw) => {
@@ -165,14 +165,14 @@
       turn[message.role.toLowerCase()] = message;
       byTurn.set(message.turn_id, turn);
     });
-    const complete = [...byTurn.entries()].filter(([turnId, pair]) => pair.user && pair.assistant
+    const complete = [...byTurn.entries()].filter(([turnId, pair]) => pair.user
       && (focus.type === "CANDIDATE" || actionsByTurn.has(turnId))
       && !historyBlockers.some(blocker => blocker.origin?.turn_id === turnId || blocker.origin?.message_id === pair.user.message_id
         || blocker.human_quote && pair.user.created_at <= blocker.invalidated_at && pair.user.text.includes(blocker.human_quote))).map(([turnId, pair]) => ({
       turn_id: turnId,
       user: { message_id: pair.user.message_id, text: pair.user.text, created_at: pair.user.created_at },
-      assistant: personalContext && pair.assistant.personal_context_token !== personalContext.source_token ? null
-        : { message_id: pair.assistant.message_id, text: Delivery ? Delivery.historyText(pair.assistant).slice(0, 8000) : pair.assistant.text, created_at: pair.assistant.created_at,
+      assistant: !pair.assistant || personalContext && pair.assistant.personal_context_token !== personalContext.source_token ? null
+        : { message_id: pair.assistant.message_id, text: Delivery ? Delivery.historyText(pair.assistant) : pair.assistant.text, created_at: pair.assistant.created_at,
           ...(personalContext ? { personal_context_token: pair.assistant.personal_context_token } : {}) },
       action_result: actionsByTurn.get(turnId)?.normalized_action ? {
         status: actionsByTurn.get(turnId).application_result.status,
@@ -180,13 +180,8 @@
         target_item_ids: (actionsByTurn.get(turnId).normalized_action.patches || []).map((patch) => patch.target_item_id),
       } : null,
     })).sort((left, right) => left.user.created_at.localeCompare(right.user.created_at) || left.turn_id.localeCompare(right.turn_id));
-    const recent = complete.slice(-HISTORY_TURN_LIMIT);
-    const latestAction = relevantActions.sort((left, right) => String(left.created_at).localeCompare(String(right.created_at))).at(-1);
-    if (latestAction?.application_result?.status === "NEEDS_CLARIFICATION" && !recent.some((turn) => turn.turn_id === latestAction.turn_id)) {
-      const clarificationTurn = complete.find((turn) => turn.turn_id === latestAction.turn_id);
-      if (clarificationTurn) return { turns: [clarificationTurn, ...recent.slice(-(HISTORY_TURN_LIMIT - 1))].sort((left, right) => left.user.created_at.localeCompare(right.user.created_at)), total: complete.length };
-    }
-    return { turns: recent, total: complete.length };
+    if (complete.length > HISTORY_TURN_LIMIT) throw new CandidateConversationContextError("CONVERSATION_HISTORY_LIMIT");
+    return { turns: complete, total: complete.length };
   }
 
   function byteSize(value) {
@@ -216,8 +211,6 @@
     const candidateData = compileCandidateData(working, focus, draft);
     const historySelection = completeHistory(messages, actions, current, focus, observation, personal_context, personal_history_blockers);
     const history = historySelection.turns;
-    const latestAction = (actions || []).filter((entry) => entry?.conversation_id === current.conversation_id && actionMatchesFocus(entry, focus, observation)).sort((left, right) => String(left.created_at).localeCompare(String(right.created_at))).at(-1);
-    const protectedClarificationTurnId = latestAction?.application_result?.status === "NEEDS_CLARIFICATION" ? latestAction.turn_id : null;
     const openUncertainties = focus.type === "CANDIDATE"
       ? candidateData.candidate_items.flatMap((item) => item.open_uncertainties.map((entry) => ({ item_id: item.item_id, ...entry })))
       : (focus.type === "ITEM_DRAFT" ? candidateData.draft_item : candidateData.current_item).open_uncertainties.map((entry) => ({ item_id: focus.item_id, ...entry }));
@@ -250,14 +243,6 @@
     while (context.diagnostics.serialized_size_bytes > maxBytes && context.candidate.other_item_directory.length) {
       context.candidate.other_item_directory.pop();
       context.diagnostics.trimmed_directory_item_count += 1;
-      finalizeDiagnostics(context);
-    }
-    while (context.diagnostics.serialized_size_bytes > maxBytes && context.bounded_history.length) {
-      const removableIndex = context.bounded_history.findIndex((turn) => turn.turn_id !== protectedClarificationTurnId);
-      if (removableIndex < 0) break;
-      context.bounded_history.splice(removableIndex, 1);
-      context.diagnostics.trimmed_history_turn_count += 1;
-      context.diagnostics.history_turn_count = context.bounded_history.length;
       finalizeDiagnostics(context);
     }
     if (context.diagnostics.serialized_size_bytes > maxBytes) throw new CandidateConversationContextError(personal_context?.memories?.length ? "PERSONAL_SAVED_CONTEXT_LIMIT" : "CONTEXT_LIMIT_EXCEEDED");

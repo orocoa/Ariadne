@@ -16,7 +16,8 @@
     "context_bytes": 48000,
     "fragment_bytes": 6000,
     "evidence_bytes": 18000,
-    "human_message": 6000
+    "human_message": 6000,
+    "discussion_context_bytes": 256000
   },
   "discussion_scope": "CURRENT_CANDIDATE_AND_JOB_COLLECTION",
   "consent_purpose": "JOB_OVERVIEW_WITH_PERSONAL_CONTEXT_V2"

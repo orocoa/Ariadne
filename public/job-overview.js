@@ -38,11 +38,14 @@
     el("job-overview-insights").innerHTML = insightsMarkup(overview?.insights);
     el("job-overview-unknowns").innerHTML = overview?.uncertainties?.length ? `<div class="personal-unknowns"><h3>还需要确认</h3>${unknownMarkup(overview.uncertainties)}</div>` : "";
     el("job-overview-directory").innerHTML = snapshot.records.map((record) => `<div class="job-overview-directory-item">${links([record.identity])}<div>${esc(record.semantic.location || "地点未明确")} · ${record.version ? `当前版本 ${record.version}` : "尚未保存为正式职位"}</div></div>`).join("") || "暂无职位描述。";
-    const messages = turns.slice(-visible).flatMap((turn) => [{ id: `${turn.turn_id}:user`, role: "USER", turn_id: turn.turn_id, text: turn.human_message }, ...(turn.status === "SUCCEEDED" ? [{ id: `${turn.turn_id}:assistant`, role: "ASSISTANT", runtime_snapshot: turn.runtime_snapshot, text: `${(turn.fingerprint !== snapshot.fingerprint || turn.candidate_fingerprint !== snapshot.candidate.aggregate_fingerprint || turn.prompt_version !== Domain.Contract.prompt_version) ? "（基于当时资料或旧读取范围的历史回答）\n" : ""}${turn.output.message}`, deliverable: turn.output.deliverable, resume_task: turn.output.resume_task, web_search: turn.output.web_search, result: { ...turn.output, web_sources: turn.web_sources || [] } }] : [])]);
+    const allMessages = turns.flatMap((turn) => [{ id: `${turn.turn_id}:user`, role: "USER", turn_id: turn.turn_id, text: turn.human_message }, ...(turn.status === "SUCCEEDED" ? [{ id: `${turn.turn_id}:assistant`, role: "ASSISTANT", turn_id: turn.turn_id, runtime_snapshot: turn.runtime_snapshot, text: `${(turn.fingerprint !== snapshot.fingerprint || turn.candidate_fingerprint !== snapshot.candidate.aggregate_fingerprint || turn.prompt_version !== Domain.Contract.prompt_version) ? "（基于当时资料或旧读取范围的历史回答）\n" : ""}${turn.output.message}`, deliverable: turn.output.deliverable, resume_task: turn.output.resume_task, web_search: turn.output.web_search, result: { ...turn.output, web_sources: turn.web_sources || [] } }] : [])]);
+    const firstVisible = Math.max(0, turns.length - visible);
+    const visibleIds = new Set(turns.slice(firstVisible).map(turn => turn.turn_id));
+    const messages = allMessages.filter(message => visibleIds.has(message.turn_id));
     if (pendingMessage) messages.push({ role: "USER", text: pendingMessage });
     const target = el("job-overview-messages");
     intro.update(messages.length > 0);
-    UI.renderMessages(target, messages, { empty_text: "从整体概况、岗位共性或某几份职位描述的差异开始。也可以结合关于我，讨论哪些方向更适合你。" });
+    UI.renderMessages(target, messages, { empty_text: "从整体概况、岗位共性或某几份职位描述的差异开始。也可以结合关于我，讨论哪些方向更适合你。", find_messages: allMessages, reveal_message: () => { visible = turns.length; render(); } });
     const bubbles = target.querySelectorAll(".v1-conversation-message");
     messages.forEach((message, index) => { if (message.result) { const details = document.createElement("span"); details.innerHTML = `${insightsMarkup(message.result.insights)}${unknownMarkup(message.result.uncertainties)}${webSourcesMarkup(message.result.web_sources)}`; bubbles[index].append(details); } });
     el("job-overview-older").classList.toggle("hidden", turns.length <= visible);

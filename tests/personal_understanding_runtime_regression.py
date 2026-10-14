@@ -71,7 +71,7 @@ for field, value, code in [
     assert counts == baseline
 invalid = copy.deepcopy(request); invalid["consent"]["confirmed"] = False
 expect("PERSONAL_CONSENT_REQUIRED", lambda: execute(invalid, credential, provider)); assert counts == baseline
-invalid = copy.deepcopy(request); invalid["context"]["oversized"] = "中" * 48000
+invalid = copy.deepcopy(request); invalid["context"]["oversized"] = "中" * 256000
 expect("PERSONAL_CONTEXT_LIMIT", lambda: execute(invalid, credential, provider)); assert counts == baseline
 invalid = copy.deepcopy(request); invalid["context"]["source_document_id"] = "private-source"
 expect("PERSONAL_RUNTIME_OR_CONTEXT_INVALID", lambda: execute(invalid, credential, provider)); assert counts == baseline

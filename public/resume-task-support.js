@@ -15,6 +15,7 @@
   const candidate = () => root.AriadneJobCandidateContext || (typeof module === "object" ? require("./job-candidate-context-domain.js") : null);
   function errorCopy(error) {
     const code = String(error?.code || error?.message || error);
+    if (code === "CONVERSATION_HISTORY_LIMIT") return tr("本对话累计内容超过本轮处理上限，未截断早先要求，也未发送模型。对话记录仍然保留。", "The conversation exceeds this turn’s limit. Earlier requests were not truncated and nothing was sent. The conversation remains saved.");
     if (!/RESUME_/i.test(code)) return null;
     if (/LIMIT/.test(code)) return tr("当前完整资料超过简历任务上限，未截断或生成文件。请整理当前有效资料后重试。", "The complete records exceed this resume task's limit. Nothing was truncated or exported. Review the active records and retry.");
     if (/TEMPLATE|CONSENT/.test(code)) return tr("参考模板未能完整读取或缺少本轮复用确认，请确认原件后重试。", "The complete template could not be read, or reuse needs confirmation. Review the original and retry.");

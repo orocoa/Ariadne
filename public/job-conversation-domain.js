@@ -156,20 +156,21 @@
     if (sourceManifest?.contract_id !== Manifest.source_excerpt_manifest_version) throw new JobConversationError("source_excerpt_manifest_invalid");
     if (!PersonalContext) throw new JobConversationError("personal_context_dependency_required");
     const selected = PersonalContext.select(candidateSnapshot, `${humanMessage}\n${JSON.stringify(payload)}`);
-    const recent = connectedHistory(messages).slice(-(Manifest.limits.history_turns * 2));
-    const history = []; let historyBytes = 0;
-    for (let index = recent.length - 2; index >= 0; index -= 2) {
-      const assistant = recent[index + 1];
-      // Once personal memory exists, only reuse turns understood against this
-      // exact current context. Old turns stay visible but cannot restore a
-      // removed or corrected memory through conversation history.
-      if ((candidateSnapshot.memory_revision_count > 0 || assistant.candidate_fingerprint)
-        && assistant.candidate_fingerprint !== candidateSnapshot.aggregate_fingerprint) continue;
-      const pair = recent.slice(index, index + 2).map((entry) => ({ role: entry.role, content: entry.role === "ASSISTANT" && Delivery ? Delivery.historyText(entry) : entry.content }));
-      const size = PersonalContext.bytes(pair);
-      if (historyBytes + size > 8000) break;
-      history.unshift(...pair); historyBytes += size;
+    const eligible = messages.filter(entry => entry.role === "USER" && entry.conversation_id === createSession(subject.context_id).conversation_id
+      && !(candidateSnapshot.personal_history_blockers || []).some(blocker => blocker.origin?.turn_id && blocker.origin.turn_id === entry.turn_id || blocker.origin?.message_id && blocker.origin.message_id === entry.message_id
+        || blocker.human_quote && entry.created_at <= blocker.invalidated_at && entry.content.includes(blocker.human_quote)));
+    if (eligible.length > 500) throw new JobConversationError("CONVERSATION_HISTORY_LIMIT");
+    const history = [];
+    for (const user of eligible) {
+      history.push({ role: "USER", content: user.content });
+      const next = user.turn_id ? messages.find(entry => entry.role === "ASSISTANT" && entry.turn_id === user.turn_id && entry.conversation_id === user.conversation_id) : messages[messages.indexOf(user) + 1];
+      const assistant = next?.role === "ASSISTANT" && next.conversation_id === user.conversation_id ? next : null;
+      if (assistant
+        && (!(candidateSnapshot.memory_revision_count > 0 || assistant.candidate_fingerprint) || assistant.candidate_fingerprint === candidateSnapshot.aggregate_fingerprint)) {
+        history.push({ role: "ASSISTANT", content: Delivery ? Delivery.historyText(assistant) : assistant.content });
+      }
     }
+    if (PersonalContext.bytes(history) > 200000) throw new JobConversationError("CONVERSATION_HISTORY_LIMIT");
     const changes = []; let changeBytes = 0;
     for (const entry of candidateDelta.provider_view || []) {
       const value = (PersonalContext.bytes(entry) > 6000 || entry.previous_candidate?.item_type === "PERSONAL_MEMORY") ? { change_ref: entry.change_ref, change: entry.change, layer: entry.layer, details_omitted: true } : clone(entry);
@@ -227,7 +228,7 @@
       ],
     };
     const serialized = JSON.stringify(context);
-    if (serialized.length > 128000) throw new JobConversationError("job_context_size_invalid");
+    if (PersonalContext.bytes(context) > 256000) throw new JobConversationError("job_context_size_invalid");
     if (PROVIDER_INTERNAL_ID_PATTERN.test(serialized)) throw new JobConversationError("PROVIDER_PAYLOAD_INTERNAL_ID_FORBIDDEN");
     return Object.freeze(context);
   }

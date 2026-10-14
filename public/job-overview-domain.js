@@ -71,7 +71,7 @@
   }
   function requestFor(phase, context, humanMessage, runtime, consent) {
     if (!consent || runtime?.mode !== "model" || !Gate.isModelRuntimeEligible({ mode: runtime.mode, provider: runtime.provider, model: runtime.model })) throw new Error("JOB_OVERVIEW_CONSENT_REQUIRED");
-    if (!Contract.phases.includes(phase) || Context.bytes(context) > Contract.limits.context_bytes) throw new Error("JOB_OVERVIEW_CONTEXT_LIMIT");
+    if (!Contract.phases.includes(phase) || Context.bytes(context) > (phase === "DISCUSS" ? Contract.limits.discussion_context_bytes : Contract.limits.context_bytes)) throw new Error("JOB_OVERVIEW_CONTEXT_LIMIT");
     return { contract_id: Contract.request_contract, request_id: id("job-overview-request"), phase, context: clone(context), human_message: humanMessage, runtime_snapshot: runtime,
       consent: { confirmed: true, purpose: Contract.consent_purpose, provider: runtime.provider, model: runtime.model } };
   }
@@ -151,7 +151,7 @@
     }
     const context = { scope: Contract.discussion_scope, evidence, overview: snapshot.overview ? { authority: snapshot.overview.authority, summary: snapshot.overview.summary, uncertainties: snapshot.overview.uncertainties, covered_jobs: snapshot.overview.covered_jobs } : null,
       coverage: { total_jobs: snapshot.records.length, included_jobs: evidence.length, omitted_jobs: snapshot.records.length - evidence.length, truncated_jobs: truncated, strategy: complete ? "COMPLETE_CURRENT_EVIDENCE" : "LEXICAL_WITH_BOUNDED_DETAIL", evidence_bytes: bytes },
-      history: Context.boundedHistory(turns.filter((entry) => entry.fingerprint === snapshot.fingerprint && entry.candidate_fingerprint === snapshot.candidate.aggregate_fingerprint && entry.prompt_version === Contract.prompt_version).map((entry) => ({ ...entry, output: entry.output ? { ...entry.output, message: [entry.output.message, ...(entry.output.insights || []).map((item) => item.text), ...(entry.output.uncertainties || [])].join("\n") } : null })), 4000) };
+      history: Context.boundedHistory(turns.filter(entry => !(snapshot.candidate.personal_history_blockers || []).some(blocker => blocker.origin?.turn_id === entry.turn_id || blocker.human_quote && entry.created_at <= blocker.invalidated_at && entry.human_message?.includes(blocker.human_quote))).map((entry) => ({ ...entry, output: entry.output ? { ...entry.output, message: [entry.output.message, ...(entry.output.insights || []).map((item) => item.text), ...(entry.output.uncertainties || [])].join("\n") } : null })), 200000, { assistantCurrent: entry => entry.fingerprint === snapshot.fingerprint && entry.candidate_fingerprint === snapshot.candidate.aggregate_fingerprint && entry.prompt_version === Contract.prompt_version }) };
     const candidate = snapshot.candidate;
     if (!candidate) throw new Error("JOB_OVERVIEW_CANDIDATE_CONTEXT_REQUIRED");
     context.personal_context = Context.savedContext(candidate);
@@ -162,12 +162,12 @@
     } : null;
     // Reserve room for coverage/policy and leave the Job-only digest independent.
     if (Context.bytes(context.personal_understanding) > 4000) context.personal_understanding = null;
-    const budget = Math.max(0, Math.min(24000, Contract.limits.context_bytes - Context.bytes(context) - 1800));
+    const budget = Math.max(0, Math.min(24000, Contract.limits.discussion_context_bytes - Context.bytes(context) - 1800));
     const selected = Context.select(candidate, message, budget);
     context.candidate = clone(selected.provider_view);
     context.candidate_coverage = selected.context_coverage;
     context.candidate_status = selected.context_coverage.total_records ? "AVAILABLE" : "NO_ACTIVE_RECORDS";
-    if (Context.bytes(context) > Contract.limits.context_bytes) throw new Error("JOB_OVERVIEW_CONTEXT_LIMIT"); return context;
+    if (Context.bytes(context) > Contract.limits.discussion_context_bytes) throw new Error("JOB_OVERVIEW_CONTEXT_LIMIT"); return context;
   }
   async function discuss(db, { human_message, ...options }) {
     const message = text(human_message, Contract.limits.human_message), turn = { turn_id: id("job-overview-turn"), created_at: now(), human_message: message, status: "SENDING", output: null };

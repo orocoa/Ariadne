@@ -1383,6 +1383,7 @@
     const grid = byId("candidate-card-grid");
     grid.innerHTML = personalGuideCardMarkup() + items.map(candidateCardMarkup).join("");
     libraryEditor?.decorate(items);
+    window.AriadneContentFind?.library(grid, items);
     window.requestAnimationFrame(playPendingCardReturn);
   }
 
@@ -3075,6 +3076,7 @@
     jobStageMenu?.close();
     grid.innerHTML = jobGuideCardMarkup() + visible.map(jobCardMarkup).join("");
     libraryEditor?.decorate(visible);
+    window.AriadneContentFind?.library(grid, visible);
     window.requestAnimationFrame(playPendingCardReturn);
   }
 

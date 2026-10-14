@@ -59,7 +59,7 @@ for field in ("unknown_candidate_context", "personal_memory", "source_document_i
     rejected(lambda: execute(invalid, credential, provider), "JOB_OVERVIEW_SCOPE_INVALID"); assert counts == baseline
 invalid = copy.deepcopy(request); invalid["context"]["evidence"][0]["candidate"] = {"summary": "private"}
 rejected(lambda: execute(invalid, credential, provider)); assert counts == baseline
-invalid = copy.deepcopy(request); invalid["context"]["history"] = "中" * 48000
+invalid = copy.deepcopy(request); invalid["context"]["history"] = "中" * 256000
 rejected(lambda: execute(invalid, credential, provider), "JOB_OVERVIEW_CONTEXT_LIMIT"); assert counts == baseline
 invalid = copy.deepcopy(output); invalid["proposals"] = [{"operation": "EDIT"}]
 rejected(lambda: validate_output(invalid, request))

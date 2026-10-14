@@ -1,0 +1,11 @@
+.v1-content-find { margin-block: var(--vi-space-16); min-width: 0; }
+.v1-content-find label { display: grid; gap: var(--vi-space-8); margin: 0; font-family: var(--vi-font-ui); font-size: var(--vi-text-caption); color: var(--vi-text-secondary); }
+.v1-content-find input { box-sizing: border-box; width: 100%; min-height: var(--vi-target-comfort); padding: var(--vi-space-8) var(--vi-space-12); border: 1px solid var(--vi-line); border-radius: var(--vi-radius-field); background: var(--vi-surface); color: var(--vi-ink); font: inherit; }
+.v1-find-results { display: grid; gap: var(--vi-space-8); max-height: calc(var(--vi-space-64) * 4); overflow: auto; }
+.v1-find-results[hidden], .v1-journal-entry[hidden], .v1-candidate-card[hidden], .v1-library-card[hidden], .v1-job-tracked-card[hidden] { display: none; }
+.v1-find-results button { text-align: start; overflow-wrap: anywhere; white-space: normal; min-height: var(--vi-target-comfort); }
+.v1-content-find .v1-inline-message { margin-block: var(--vi-space-8); }
+.v1-content-find [hidden] { display: none; }
+.v1-conversation-message.is-find-target { outline: 2px solid var(--vi-focus); outline-offset: var(--vi-space-4); }
+
+.v1-content-find .v1-inline-message:not([hidden]) { display: block; }

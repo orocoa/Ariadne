@@ -386,7 +386,7 @@
     const { evidence, manifest: evidenceManifest } = evidenceFor(snapshot, Context);
     const history = collected ? captureHistory(collected, snapshot, scope, request) : null;
     if (collected) collected._history_guard = history;
-    const usablePrior = prior.version?.candidate_fingerprint === snapshot.aggregate_fingerprint ? { ...prior.version, evidence_snapshot: null } : null;
+    const usablePrior = prior.version ? { ...prior.version, evidence_snapshot: null } : null;
     const historicalHumans = prior.task?.task_human_history || [];
     for (let index = 0; index < historicalHumans.length; index++) {
       const human = historicalHumans[index];
@@ -475,7 +475,7 @@
       if (prior.task_id !== context.task_id || prior.revision !== context.expected_task_revision) fail("RESUME_CONTEXT_INVALID");
       if (context.prior_version !== null) {
         const document = await validateDocument(context.prior_version, context.scope, { continuityView: true });
-        if (document.task_id !== context.task_id || document.candidate_fingerprint !== context.candidate_fingerprint || document.version > prior.current_version) fail("RESUME_CONTEXT_INVALID");
+        if (document.task_id !== context.task_id || document.version > prior.current_version) fail("RESUME_CONTEXT_INVALID");
       }
     }
     for (const item of context.evidence) if (item.role === "TASK_HUMAN_UNCONFIRMED" && !context.prior_task?.task_human_history.some(human =>

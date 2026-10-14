@@ -81,8 +81,7 @@ assert(history.some(item => item.human === continuity[0].human_message), "long a
 assert(history.every(item => !item.assistant));
 assert(Context.bytes(history) <= 10000);
 assert.equal(Context.boundedHistory([{status:"FAILED",human_message:"之前提交的自述",output:null}])[0].human,"之前提交的自述");
-const extreme = Context.boundedHistory(Array.from({length:60},()=>({status:"SUCCEEDED",human_message:"中文".repeat(3000),output:{message:"回复".repeat(3000)}})));
-assert(Context.bytes(extreme)<=10000);assert(extreme.every(item=>item.human_truncated));
+assert.throws(() => Context.boundedHistory(Array.from({length:60},()=>({status:"SUCCEEDED",human_message:"中文".repeat(3000),output:{message:"回复".repeat(3000)}}))), /CONVERSATION_HISTORY_LIMIT/, "oversized actual Human history fails without truncating requirements");
 const first = await Understanding.refresh(db, options);
 assert.equal(first.calls, 2);
 assert.equal(first.snapshot.personal_understanding.covered_records, 2);

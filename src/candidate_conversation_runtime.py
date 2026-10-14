@@ -393,7 +393,7 @@ def _validate_compiled_context(value: Any, conversation: dict[str, Any], observa
         raise CandidateConversationRuntimeError("COMPILED_CONTEXT_INVALID", "context")
     _assert_compiled_context_safe(context)
     serialized_size = len(json.dumps(context, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
-    if diagnostics.get("serialized_size_bytes") != serialized_size or serialized_size > 64 * 1024:
+    if diagnostics.get("serialized_size_bytes") != serialized_size or serialized_size > 256000:
         raise CandidateConversationRuntimeError("CONTEXT_LIMIT_EXCEEDED", "context")
     if diagnostics.get("history_turn_count") != len(context["bounded_history"]) or diagnostics.get("focus_type") != observation["focus"]["type"]:
         raise CandidateConversationRuntimeError("COMPILED_CONTEXT_INVALID", "context")

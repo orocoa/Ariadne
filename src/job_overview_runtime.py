@@ -42,7 +42,7 @@ def validate_request(value):
     except PersonalUnderstandingError as error:
         raise JobOverviewError("JOB_OVERVIEW_REQUEST_INVALID") from error
     context = value["context"]
-    if not isinstance(context, dict) or len(json.dumps(context, ensure_ascii=False, separators=(",", ":")).encode()) > MANIFEST["limits"]["context_bytes"]:
+    if not isinstance(context, dict) or len(json.dumps(context, ensure_ascii=False, separators=(",", ":")).encode()) > MANIFEST["limits"]["discussion_context_bytes" if value["phase"] == "DISCUSS" else "context_bytes"]:
         raise JobOverviewError("JOB_OVERVIEW_CONTEXT_LIMIT", "context")
     keys = {"DISTILL": {"scope", "evidence"}, "SYNTHESIZE": {"scope", "evidence", "previous", "traversal"}, "DISCUSS": {"scope", "evidence", "overview", "coverage", "history", "candidate", "candidate_coverage", "candidate_catalog", "candidate_status", "personal_understanding"}}[value["phase"]]
     if set(context) - ({"personal_context"} if value["phase"] == "DISCUSS" else set()) != keys or context["scope"] != MANIFEST["discussion_scope" if value["phase"] == "DISCUSS" else "scope"]:

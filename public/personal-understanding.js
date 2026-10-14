@@ -130,10 +130,13 @@
     byId("saved-memories").innerHTML = memories.map((entry) => `<article class="personal-memory" data-inactive="${!activeIds.has(entry.memory_id)}"><small>${esc(labels[entry.kind])} · 版本 ${entry.version}${activeIds.has(entry.memory_id) ? "" : " · 关联资料已变化，暂不使用"}</small><p>${esc(entry.text)}</p><button type="button" class="personal-text-button" data-memory-edit="${esc(entry.memory_id)}">修改这条补充</button><button type="button" class="personal-text-button" data-memory-forget="${esc(entry.memory_id)}">不再使用</button></article>`).join("") || '<p class="personal-meta">尚未保存补充。对话中的建议只有经你确认，才会出现在这里。</p>';
     byId("memory-history").innerHTML = [...state.memories].sort((a, b) => b.created_at.localeCompare(a.created_at)).map((entry) => `<p>${esc(labels[entry.kind])} · v${entry.version} · ${entry.status === "RETRACTED" ? "已停止使用，历史保留" : "已保存"}<br>${esc(entry.text)}</p>`).join("") || "暂无历史版本。";
     const turns = state.turns.filter((entry) => entry.kind === "DISCUSSION").sort((a, b) => a.created_at.localeCompare(b.created_at));
-    const messages = turns.slice(-visibleTurns).flatMap((turn) => [{ id: `${turn.turn_id}:user`, role: "USER", turn_id: turn.turn_id, text: turn.human_message }, ...(turn.status === "SUCCEEDED" ? [{ id: `${turn.turn_id}:assistant`, role: "ASSISTANT", runtime_snapshot: turn.runtime_snapshot, text: turn.output.message, deliverable: turn.output.deliverable, resume_task: turn.output.resume_task, web_search: turn.output.web_search }] : [])]);
+    const allMessages = turns.flatMap((turn) => [{ id: `${turn.turn_id}:user`, role: "USER", turn_id: turn.turn_id, text: turn.human_message }, ...(turn.status === "SUCCEEDED" ? [{ id: `${turn.turn_id}:assistant`, role: "ASSISTANT", turn_id: turn.turn_id, runtime_snapshot: turn.runtime_snapshot, text: turn.output.message, deliverable: turn.output.deliverable, resume_task: turn.output.resume_task, web_search: turn.output.web_search }] : [])]);
+    const firstVisible = Math.max(0, turns.length - visibleTurns);
+    const visibleIds = new Set(turns.slice(firstVisible).map(turn => turn.turn_id));
+    const messages = allMessages.filter(message => visibleIds.has(message.turn_id));
     if (pendingMessage) messages.push({ role: "USER", text: pendingMessage });
     intro.update(messages.length > 0);
-    UI.renderMessages(byId("personal-conversation-messages"), messages, { empty_text: "这里的对话围绕你已添加的资料展开，可以跨文件讨论，也可以直接补充新的个人信息。" });
+    UI.renderMessages(byId("personal-conversation-messages"), messages, { empty_text: "这里的对话围绕你已添加的资料展开，可以跨文件讨论，也可以直接补充新的个人信息。", find_messages: allMessages, reveal_message: () => { visibleTurns = turns.length; render(); } });
     byId("personal-older-messages").classList.toggle("hidden", turns.length <= visibleTurns);
     const cardTypeOptions = { WORK_EXPERIENCE: "工作经历", PROJECT: "项目经历", EDUCATION: "教育经历", OTHER: "其他资料" };
     const cardProposals = CandidateCards.pending(state.cardProposals);

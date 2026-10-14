@@ -246,7 +246,7 @@
       .trim();
   }
 
-  function renderMessages(target, messages, { empty_text: emptyText, text_for: textFor = (message) => message.content ?? message.text } = {}) {
+  function renderMessages(target, messages, { empty_text: emptyText, text_for: textFor = (message) => message.content ?? message.text, find_messages = messages, reveal_message = null } = {}) {
     if (!target) return;
     const previousCount = renderedCounts.get(target) || 0;
     const scroll = target.closest?.(".v1-conversation-scroll, .v1-workspace-history");
@@ -315,6 +315,7 @@
       scroll.scrollTop = previousTop + (prepended ? scroll.scrollHeight - previousHeight : 0);
     } else if (scroll) scroll.scrollTop = scroll.scrollHeight;
     else target.lastElementChild?.scrollIntoView?.({ block: "nearest" });
+    globalThis.AriadneContentFind?.messages(target, messages, textFor, { all: find_messages, reveal: reveal_message });
     const lastKey = keys.at(-1);
     const continuing = previousReveal && previousReveal.key === lastKey;
     const newReply = awaitingReplies.has(target) && messages.at(-1)?.role === "ASSISTANT" && !oldKeySet.has(lastKey);

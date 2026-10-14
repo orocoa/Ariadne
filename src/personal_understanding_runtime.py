@@ -52,7 +52,7 @@ def validate_request(value: Any) -> dict:
     text(value["request_id"], 150)
     text(value["human_message"], MANIFEST["limits"]["human_message"], empty=value["phase"] != "DISCUSS")
     context = value["context"]
-    if not isinstance(context, dict) or len(json.dumps(context, ensure_ascii=False, separators=(",", ":")).encode()) > MANIFEST["limits"]["context_bytes"]:
+    if not isinstance(context, dict) or len(json.dumps(context, ensure_ascii=False, separators=(",", ":")).encode()) > MANIFEST["limits"]["discussion_context_bytes" if value["phase"] == "DISCUSS" else "context_bytes"]:
         raise PersonalUnderstandingError("PERSONAL_CONTEXT_LIMIT", "context")
     try:
         _assert_provider_safe(context)

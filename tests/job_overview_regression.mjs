@@ -101,7 +101,9 @@ assert.throws(()=>Domain.write(db,"personal_memory_revisions",{}),/WRITE_SCOPE/)
 db.data.get("job_context_revisions").set(next.revision_id,next);
 assert.equal((await Domain.snapshotFromDatabase(db)).overview,null);
 const refreshed=await Domain.refresh(db,options);assert.equal(refreshed.snapshot.overview.refreshed_fragments,1);assert.equal(refreshed.snapshot.overview.reused_fragments,2);
-assert.equal(Domain.discussionContext(refreshed.snapshot,"跟进",[first]).history.length,0);
+const updatedHistory = Domain.discussionContext(refreshed.snapshot,"跟进",[first]).history;
+assert.equal(updatedHistory[0].human, first.human_message);
+assert.equal(updatedHistory[0].assistant, undefined, "source changes retain Human intent without carrying old AI conclusions");
 db.data.get("context_proposals").set(pending.proposal_id,{...pending,status:"REJECTED"});assert.equal((await Domain.snapshotFromDatabase(db)).overview,null);assert.equal((await Domain.snapshotFromDatabase(db)).records.length,2);
 const empty=await Domain.buildSnapshot({});assert.equal(Domain.discussionContext(empty,"概况",[]).evidence.length,0);
 const huge=await Domain.buildSnapshot({job_context_revisions:Array.from({length:85},(_,i)=>({...a,context_id:`job-many-${i}`,revision_id:`job-many-revision-${i}`,payload:{...a.payload,title:`Long job ${i}`,summary:"职位要求细节".repeat(1000)}}))});
@@ -180,7 +182,8 @@ const updatedPerson = {...person,revision_id:"synthetic-person-2",version:2,prev
 jointDb.data.get("candidate_context_revisions").set(updatedPerson.revision_id,updatedPerson);
 const changedProfile = await Domain.snapshotFromDatabase(jointDb);
 const changedContext = Domain.discussionContext(changedProfile,"继续比较",[joint]);
-assert.equal(changedContext.history.length,0,"previous profile conclusions must not be current context");
+assert.equal(changedContext.history[0].human, joint.human_message);
+assert.equal(changedContext.history[0].assistant, undefined,"previous profile conclusions must not be current context");
 assert(JSON.stringify(changedContext.candidate).includes("20次"));
 const retracted = {...preference,revision_id:"synthetic-preference-2",version:2,status:"RETRACTED"};
 jointDb.data.get("personal_memory_revisions").set(retracted.revision_id,retracted);
@@ -196,7 +199,7 @@ assert.equal(madeCall,false,"reading failure cannot become empty profile or call
 const largePersonal = await Domain.buildSnapshot({...input,candidate_context_revisions:Array.from({length:60},(_,i)=>({...person,context_id:`person-${i}`,revision_id:`person-revision-${i}`,payload:{items:[{...person.payload.items[0],summary:"大段个人材料。".repeat(1000)}]}}))});
 const partial = Domain.discussionContext(largePersonal,"研究职位",[]);
 assert.equal(partial.candidate_status,"AVAILABLE");assert(partial.candidate_coverage.omitted_records>0);assert.equal(partial.candidate_coverage.complete,false);
-assert(new TextEncoder().encode(JSON.stringify(partial)).length<=Domain.Contract.limits.context_bytes);
+assert(new TextEncoder().encode(JSON.stringify(partial)).length<=Domain.Contract.limits.discussion_context_bytes);
 const onlyPerson = Domain.discussionContext(await Domain.buildSnapshot({candidate_context_revisions:[person]}),"我是谁",[]);
 assert.equal(onlyPerson.evidence.length,0);assert.equal(onlyPerson.candidate.confirmed.length,1);
 const noPerson = Domain.discussionContext(await Domain.buildSnapshot({job_context_revisions:[a]}),"我适合吗",[]);

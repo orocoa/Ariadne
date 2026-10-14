@@ -238,7 +238,8 @@ await assert.rejects(Task.validateDocument(changedAuthority), /RESUME_DOCUMENT_I
 
 versions.db.data.get('candidate_context_lifecycle').set('removed', { context_id: 'qa-task-context-1', item_id: 'qa-task-item-1', state: 'REMOVED', authority: 'AUTHORITATIVE_USER_DECISION' });
 const withdrawn = await fixture({ database: versions.db });
-assert.equal(withdrawn.context.prior_version, null, 'old draft must not become current evidence after Candidate withdrawal');
+assert.equal(withdrawn.context.prior_version.document_hash, (await Task.restore(versions.db, withdrawn.context.scope)).version.document_hash, 'retain complete old draft as editing data after Candidate withdrawal');
+assert.equal(withdrawn.context.prior_version.evidence_snapshot, null, 'old evidence never becomes current sources');
 assert(!withdrawn.context.evidence.some(item => item.role === 'TASK_HUMAN_UNCONFIRMED'), 'old self-reports are not reintroduced after evidence scope changed');
 await assert.rejects(Task.assertDocumentFresh(versions.db, originalVersion), /RESUME_CONTEXT_CHANGED/);
 

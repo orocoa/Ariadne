@@ -43,6 +43,7 @@ globalThis.AriadneJobJournalUI = { async mount(jobId) {
       entry.images.forEach(image => gallery.append(thumbnail(image, "history")));
       article.append(gallery); timeline.append(article);
     });
+    globalThis.AriadneContentFind?.records(timeline);
   }
   async function load() {
     if (editing || busy) return;

@@ -122,28 +122,20 @@
         complete: all.length === entries.length && !truncated.size },
     };
   }
-  function boundedHistory(turns, budget = 10000, { assistantCurrent = () => true } = {}) {
+  function boundedHistory(turns, budget = 200000, { assistantCurrent = () => true } = {}) {
     const Delivery = globalThis.AriadneConversationOutput || (typeof module === "object" ? require("./conversation-output.js") : null);
-    // Conversation continuity is not confirmed memory. Reserve most space for
-    // Human words; one verbose answer must never evict all earlier statements.
-    const kept = []; let used = 2;
-    const eligible = turns.filter(turn => turn.human_message && ["SUCCEEDED", "FAILED"].includes(turn.status)).slice(-48);
-    for (const turn of [...eligible].reverse()) {
-      const available = Math.min(3000, Math.floor(budget * .75) - used - 180);
-      if (available < 100) break;
-      const human = splitText(turn.human_message, available)[0];
-      const item = { human, human_truncated: human !== turn.human_message, authority: "CONVERSATION_SELF_REPORT_NOT_SAVED" };
-      kept.unshift({ item, turn }); used += bytes(item) + 1;
-    }
-    for (const entry of kept.slice(-4).reverse()) {
-      if (entry.turn.status !== "SUCCEEDED" || !entry.turn.output?.message || !assistantCurrent(entry.turn)) continue;
-      const prior = Delivery ? Delivery.historyText(entry.turn.output) : entry.turn.output.message;
-      const assistant = splitText(prior, Math.min(2400, Math.max(1, budget - used - 100)))[0];
-      const additions = { assistant, assistant_truncated: assistant !== prior, assistant_authority: "NON_AUTHORITATIVE_PRIOR_REPLY" };
-      if (used + bytes(additions) + 1 > budget) continue;
-      Object.assign(entry.item, additions); used += bytes(additions) + 1;
-    }
-    return kept.map(entry => entry.item);
+    // Actual Human words and valid replies remain whole: an earlier choice may
+    // refer to an assistant's alternatives. Neither is confirmed personal data.
+    const eligible = turns.filter(turn => turn.human_message && ["SUCCEEDED", "FAILED"].includes(turn.status));
+    const history = eligible.map(turn => {
+      const item = { human: turn.human_message, human_truncated: false, authority: "CONVERSATION_SELF_REPORT_NOT_SAVED" };
+      if (turn.status === "SUCCEEDED" && turn.output?.message && assistantCurrent(turn)) Object.assign(item, {
+        assistant: Delivery ? Delivery.historyText(turn.output) : turn.output.message,
+        assistant_truncated: false, assistant_authority: "NON_AUTHORITATIVE_PRIOR_REPLY" });
+      return item;
+    });
+    if (history.length > 500 || bytes(history) > budget) throw new Error("CONVERSATION_HISTORY_LIMIT");
+    return history;
   }
   function catalog(snapshot, budget = 8000) {
     const all = records(snapshot), entries = []; let used = 200;

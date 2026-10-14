@@ -29,7 +29,7 @@
     });
   }
   function requestFor(phase, context, humanMessage, snapshot, consent) {
-    if (!Contract.phases.includes(phase) || Context.bytes(context) > Contract.limits.context_bytes) throw new Error("PERSONAL_CONTEXT_LIMIT");
+    if (!Contract.phases.includes(phase) || Context.bytes(context) > (phase === "DISCUSS" ? Contract.limits.discussion_context_bytes : Contract.limits.context_bytes)) throw new Error("PERSONAL_CONTEXT_LIMIT");
     if (!consent || snapshot.mode !== "model" || !Gate.isModelRuntimeEligible({ mode: snapshot.mode, provider: snapshot.provider, model: snapshot.model })) throw new Error("PERSONAL_CONSENT_REQUIRED");
     return { contract_id: Contract.request_contract, request_id: Memory.id("personal-request"), phase,
       context: clone(context), human_message: humanMessage, runtime_snapshot: snapshot,
@@ -148,11 +148,11 @@
       context = { candidate: selected.provider_view, overview: overviewFor(snapshot), coverage: selected.context_coverage, personal_context: Context.savedContext(snapshot),
         catalog: Context.catalog(snapshot),
         memories: localMemories.map((entry) => ({ ref: entry.ref, kind: entry.kind, text: entry.text })),
-        history: Context.boundedHistory(conversationalTurns, 10000, { assistantCurrent: turn => turn.source_fingerprint === snapshot.aggregate_fingerprint }),
+        history: Context.boundedHistory(conversationalTurns, 200000, { assistantCurrent: turn => turn.source_fingerprint === snapshot.aggregate_fingerprint }),
         history_policy: "Human words are conversational self-reports, not saved facts. Older assistant conclusions are omitted when evidence changes. Current corrections take precedence; do not treat omission as denial." };
       budget -= 2000;
-    } while (Context.bytes(context) > Contract.limits.context_bytes && budget >= 2000);
-    if (Context.bytes(context) > Contract.limits.context_bytes) throw new Error("PERSONAL_CONTEXT_LIMIT");
+    } while (Context.bytes(context) > Contract.limits.discussion_context_bytes && budget >= 2000);
+    if (Context.bytes(context) > Contract.limits.discussion_context_bytes) throw new Error("PERSONAL_CONTEXT_LIMIT");
     return { context, selected, memories: localMemories };
   }
   async function discuss(database, { human_message, runtime_snapshot, consent, origin = { type: "PERSONAL" }, call = callRuntime, onProgress = () => {} }) {
