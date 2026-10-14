@@ -1,5 +1,9 @@
 # Ariadne 项目上下文
 
+## 2026-10-14：完整 Skill 已发布并更新本机，官网等待授权
+
+按用户要求冻结新功能，以已通过 GitHub CI 的干净源码 `d18feb1` 构建[完整 Skill](https://github.com/orocoa/Ariadne/releases/tag/skill-20261014-continuity)；245 个运行文件，本机旧安装已备份，覆盖后逐文件 hash 和 doctor ready，工作区、登录及模型选择不变，旧窗口需重开。GitHub 下载与构建 ZIP 的大小/hash 一致；新版官网 Pages/API 包、安装指令及本地 Workerd 验证通过。Cloudflare 当前 OAuth 缺少 `workers_scripts:write`，API 拒绝访问，官方设备授权等待超时；官网仍为旧版，待本人完成授权后继续发布，不把 GitHub 源码推送视为官网更新。见[发布回执](docs/current/RELEASE_20261014_CONTINUITY.md)。
+
 ## 2026-10-14：长对话连续性与轻量查找（仅本地）
 
 按用户收窄范围，在理解一致性 `82f4a31` 上补齐本对话有效原话/回复连续性、资料更新后完整前稿续改，以及卡片/本会话/求职记录的本地文字查找。旧稿只作编辑对象，事实重新依据当前资料审核；来源、版本、人工保存和旧下载失效门禁保留。主目录156项回归（隔离工作树155项）、VI、egolite 与五次真实合成请求通过；实际更新稿为一页 PDF、12→9 人，70 轮前表达要求仍生效。没有增加草稿恢复、备份或版本界面，未更新安装、push 或部署。见[连续性与查找](docs/current/CONVERSATION_CONTINUITY_AND_FIND_20261014.md)。

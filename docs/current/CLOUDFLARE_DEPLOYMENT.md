@@ -1,5 +1,7 @@
 # Ariadne：免费托管与腾讯域名部署
 
+2026-10-14 待发布：源码 `d18feb1` 的完整 Pages/API 与新版 Skill 安装清单已构建并完成本地验收，完整 Skill 已发布 GitHub 并更新本机。官网尚未升级：当前 OAuth 缺少 `workers_scripts:write`，设备授权等待超时，需要本人完成官方授权后继续部署 API、Pages 并核验公网下载。现网仍以下方 10 月 13 日回执为准；不得把源码推送或候选包当作已部署。见[发布回执](RELEASE_20261014_CONTINUITY.md)。
+
 更新：2026-10-13。Pages `b0c3e85f` 已同步[完整 Skill](https://github.com/orocoa/Ariadne/releases/tag/skill-20261013-source-icons)的下载包、校验文件及安装清单；源码 `3e5cec9`，2,918,838 bytes，SHA-256 `452e22f16946332d14809d47487b6b7f7dbd43dea4a54862a9ce989efb611aad`。本次 367 文件中仅三个下载资产改变，Web/API 产品运行保持 9 月 28 日源码 `126c775`；API Worker 未重新部署。官网安装按钮、公开 ZIP 与 GitHub 包一致，`/healthz` 正常。下方早期记录保留；当前 Skill 版本以上述链接为准。详见[本次发布回执](../../PROJECT_STATUS.md)。
 
 2026-09-29 本地候选更新：已增加静态资源指纹、上一代资产保留、显式连接续期和请求取消；尚未部署，下方线上版本仍有效。后续构建使用 `python3 scripts/build_cloudflare_release.py --pdfjs /path/to/pdfjs-dist --previous-pages /path/to/previous/pages`，其中 previous-pages 必须是保留的上一候选/发布包资产目录，构建器校验 manifest、路径与内容 hash。首次没有旧指纹包时省略此选项。hashed JS/MJS/CSS 使用 immutable；HTML、manifest 与原路径别名使用 no-cache。只保留一代旧资源，资源缺失时用户需先保留编辑文本再刷新，不自动重放付费操作。完整回执与限制见 [本轮优化记录](RUNTIME_OPTIMIZATION_20260929.md)。

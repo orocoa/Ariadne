@@ -1,5 +1,12 @@
 # 发布记录
 
+## 2026-10-14 — 对话连续性与查找完整 Skill / Complete continuity Skill
+
+- 发布[完整 Skill](https://github.com/orocoa/Ariadne/releases/tag/skill-20261014-continuity)，干净源码 `d18feb1`，245 个运行文件；本机完整备份更新，资料、绑定、登录及已有模型选择保留。
+- 包含长对话要求与有效回复保留、资料更新后完整前稿续改、本地卡片/会话/求职记录查找，以及已完成的保存更正一致性、完整简历与单栏/双栏 PDF 修复。
+- 官网/API 和安装入口候选包已准备，Cloudflare 权限更新尚需本人授权，当前官网保持旧版。[发布状态](docs/current/RELEASE_20261014_CONTINUITY.md)。
+- The complete Skill is published and installed locally. Website/API publication and installation metadata remain pending renewed Cloudflare authorization. No new product modules or automatic cross-device data synchronization were added.
+
 ## 2026-10-13 — 完整 Skill 与官网安装入口同步 / Complete Skill and website installation entry
 
 - 发布[完整 Skill `skill-20261013-source-icons`](https://github.com/orocoa/Ariadne/releases/tag/skill-20261013-source-icons)，源码 `3e5cec9538e529b130a4e1a62eaa83a9a858a002`，2,918,838 bytes，SHA-256 `452e22f16946332d14809d47487b6b7f7dbd43dea4a54862a9ce989efb611aad`。官网只同步下载包、校验信息和安装入口；Web/API 产品运行仍为 `126c775`。

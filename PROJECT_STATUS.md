@@ -1,5 +1,14 @@
 # AI Job Radar｜Phase 4 Status
 
+## 2026-10-14 — 完整 Skill 发布与本机更新；官网待 Cloudflare 授权
+
+- 以干净独立 checkout `d18feb127ca9594930e131110c06f3b950fc1255` 构建，`includes_working_changes=false`；公开[Release](https://github.com/orocoa/Ariadne/releases/tag/skill-20261014-continuity)含完整 ZIP 和校验文件。2,983,221 bytes，SHA-256 `156b3be872ac6b225ad1f03c2426a4fe2ebe819155d33b95da4b33aefd5da9f7`，245 个 runtime 文件。GitHub 下载逐字节大小/hash 与候选包一致，原发布保留。
+- 本机 Skill 原安装完整备份至 `work/release-20261014-continuity/installed-before/`；覆盖完整包后逐文件核验，doctor ready（未调用模型）。没有改工作区、职业资料、独立登录或模型选择，没有打断原窗口；重开加载新版。
+- 源码 [CI 38559952818](https://github.com/orocoa/Ariadne/actions/runs/38559952818)全绿。发布专项 Skill bundle/install/download 与 Cloudflare download、公开文件检查通过。构建 Pages 496 个文件，121 个指纹资源及 HTML 引用完整；当前线上无旧 asset manifest，未伪造前代资产。
+- 实际本地 Workerd/Pyodide 启动，使用仅本次 dev 参数限定的 loopback origin：health/runtime/signature GET 200，空合成请求经 DO/WSGI 返回 400、`network_call_made=false`。生产包仍仅允许正式 HTTPS origin。浏览器发布预览安装指令已包含新 tag/hash，复制成功，无横向溢出。
+- 官网尚未部署：现有 OAuth 没有 `workers_scripts:write`，Cloudflare API 拒绝资源访问；官方 device login 等待本人操作后五分钟超时。未切换其他身份或绕过权限，未发布新前端配旧后端。官网安装窗口仍绑定 10 月 13 日包，源代码推送不更新它。
+- 证据及原失败保留 `work/release-20261014-continuity/`，包括干净源码、完整包、本机备份、GitHub 下载、doctor、浏览器预览及 Workerd 回执。无新增产品功能或本轮真实模型质量评测。官网/API/安装清单仍待授权完成后同步，详见[回执](docs/current/RELEASE_20261014_CONTINUITY.md)。
+
 ## 2026-10-14 — 最小范围：对话连续性、资料更新续稿、轻量查找
 
 - 基于另一 chat 已完成的理解一致性提交 `82f4a31` 整合，不重复其来源/更正/事务修复。只补用户批准的三项；未增加草稿恢复、备份、版本管理界面或其他产品模块。

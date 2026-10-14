@@ -4,7 +4,9 @@
 >
 > Ariadne · 衡是一个开源 AI 职业工作空间，用于整理个人资料、理解目标职位，并基于原始材料开展分析与讨论。项目保留来源与历史版本；AI 提出的修改须经用户审阅并明确保存。
 
-2026-10-13：最新[完整 Skill](https://github.com/orocoa/Ariadne/releases/tag/skill-20261013-source-icons)包含 Codex 新型号自动资格验证、Enter 发送 / Shift+Enter 换行、职位原件命名与下载及无底色操作图标，并修复切换原件时误操作旧来源、Model 直接导入遗漏名称的问题。官网安装入口已同步此包；Web/API 产品运行仍为 9 月 28 日源码 `126c775`。已有模型选择和导入默认不自动改变。[更新记录](CHANGELOG.md)。
+2026-10-14：最新[完整 Skill](https://github.com/orocoa/Ariadne/releases/tag/skill-20261014-continuity)绑定源码 `d18feb1`，包含对话要求保留、资料更新后完整前稿续改、本地文字查找及已完成的更正一致性/PDF 修复。本机 Skill 已更新；官网/API 与安装清单已准备，等待本人完成 Cloudflare 授权后发布，官网当前仍提供 10 月 13 日包。[发布状态](docs/current/RELEASE_20261014_CONTINUITY.md)。
+
+以下为 2026-10-13 当时的发布状态：[完整 Skill](https://github.com/orocoa/Ariadne/releases/tag/skill-20261013-source-icons)包含 Codex 新型号自动资格验证、Enter 发送 / Shift+Enter 换行、职位原件命名与下载及无底色操作图标，并修复切换原件时误操作旧来源、Model 直接导入遗漏名称的问题。官网安装入口已同步此包；Web/API 产品运行仍为 9 月 28 日源码 `126c775`。已有模型选择和导入默认不自动改变。[更新记录](CHANGELOG.md)。
 
 以下为 2026-10-03 当时的发布状态：[完整 Skill 新版](https://github.com/orocoa/Ariadne/releases/tag/skill-20261003-card-return)已包含卡片收回动效修复及此前已提交的可靠性与负载优化；官网及其安装窗口仍为 9 月 28 日版本。[更新记录](CHANGELOG.md)。
 
@@ -51,7 +53,7 @@ Ariadne 帮你结合自己的经历，理解一个真正关心的岗位。你可
 - **本机启动不再依赖反向 DNS。** 固定回环服务直接绑定本机地址，保留退出、端口冲突和资料保留检查。
 - **每次进入对话先确认。** 六个对话入口统一显示本次范围和模型；切换模型或强度后重新确认。
 
-10 月 3 日[完整 Skill ZIP](https://github.com/orocoa/Ariadne/releases/tag/skill-20261003-card-return)绑定源码 `0994b11`，保留为历史版本；当前 Skill 请使用上方 10 月 13 日 Release。[网页](https://ariadne.kai-nex.com/)安装入口已更新，Web/API 产品运行仍为 9 月 28 日代码。ZIP 包含启动器、页面、运行代码、契约和文件哈希清单；仓库中的 `skills/ariadne` 子目录本身不是完整安装包。当前升级请退出 Ariadne，让 Codex 从上方 10 月 13 日 GitHub Release 安装完整 ZIP、核对公布的 SHA-256、备份旧 Skill，并保留既有资料目录与工作区绑定。网页和 Skill 的用户资料不自动同步。
+10 月 3 日[完整 Skill ZIP](https://github.com/orocoa/Ariadne/releases/tag/skill-20261003-card-return)绑定源码 `0994b11`，保留为历史版本；当前 Skill 请使用上方 10 月 14 日 Release。[网页](https://ariadne.kai-nex.com/)当前仍提供 10 月 13 日包，官网/API 与新版安装清单等待 Cloudflare 授权后同步。ZIP 包含启动器、页面、运行代码、契约和文件哈希清单；仓库中的 `skills/ariadne` 子目录本身不是完整安装包。当前升级请退出 Ariadne，让 Codex 从上方 10 月 14 日 GitHub Release 安装完整 ZIP、核对公布的 SHA-256、备份旧 Skill，并保留既有资料目录与工作区绑定。网页和 Skill 的用户资料不自动同步。
 
 [整组变更架构与验收范围](docs/current/JOB_WORKSPACE_CHANGE_SETS.md) · [模型选择契约](docs/current/MODEL_SELECTION_AND_TUNING_ARCHITECTURE.md)
 
