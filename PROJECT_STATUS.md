@@ -1,5 +1,12 @@
 # AI Job Radar｜Phase 4 Status
 
+## 2026-10-14 — GitHub 浏览器验收暴露的入口依赖已修复
+
+- [CI 38524530552](https://github.com/orocoa/Ariadne/actions/runs/38524530552) 已通过 150/150 离线回归、VI 与公开文件检查；随后合成浏览器捕获八次 `job_candidate_context_manifest_required`。根因是个人导入/详情 HTML 新增共用 Candidate 模块时遗漏其前置契约，Node 的 CommonJS fallback 掩盖了浏览器缺口。
+- 两个页面各补既有 `/job-intelligence-contract-manifest.js` 与 `/personal-understanding-contract.js`，在共用 Candidate 模块之前加载。前者是硬依赖；后者使既有当前理解缓存的版本筛选与其余入口/Node 行为一致。简历完整 raw snapshot 的来源、语义范围、权限和 Provider 规则不变。
+- 三个 agent 分工修复、独立内容/依赖复核和测试：既有 support 套件新增六页经典脚本路径/顺序、真实后端动态契约、无 CommonJS 实际 Candidate 执行；缺 Job manifest 的抛错与 Personal contract 晚加载丢失当前理解的反例均可复现。原行为断言保留，显式环境和 CI 风格 PATH 回归、三个相关入口回归、VI、公开文件及 diff 检查通过。
+- egolite TaskSpace 39 在隔离合成 origin 实测六入口，模块完整、真实数据库读取/上下文生成成功、零页面错误和横向溢出；没有调用模型、读取私人职业资料或干预用户当前窗口。原失败日志、HTTP 与浏览器 JSON、交叉复核和最终远端 CI/安装同步结果均保留 `work/resume-stage1-20261014/github-sync/`。仅同步 GitHub 源码，公开完整 Skill Release 与官网仍按具体请求发布。
+
 ## 2026-10-14 — GitHub 源码同步与 CI 契约测试适配
 
 - 用户本轮明确授权同步 GitHub。五个已完成提交 `830a2e6`、`a952423`、`2bb9799`、`8211cc6`、`606a609` 已推送 main，远端 hash 与本地核对一致。原有未提交记录、私人文件及 QA/历史产物原地保留。

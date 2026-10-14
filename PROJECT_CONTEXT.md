@@ -1,5 +1,9 @@
 # Ariadne 项目上下文
 
+## 2026-10-14：补齐个人入口的浏览器契约依赖
+
+GitHub 第二轮 CI 的 150 项离线回归与 VI 已通过，实际浏览器发现个人导入/详情页面未先加载共用 Candidate 上下文的契约，导致初始化失败。本轮补齐既有 Job manifest 与 PersonalUnderstanding contract 前置脚本，保持其他脚本顺序、材料范围与保存权限。新增六入口无 CommonJS 的真实契约执行和缺失/晚加载反例；三个 agent 交叉复核、实际 HTTP 与 egolite 六入口执行均通过。最终远端 CI 与本机同步回执保留 `work/resume-stage1-20261014/github-sync/`。
+
 ## 2026-10-14：GitHub 源码同步与 CI 测试适配
 
 按用户本轮要求，将五个已完成提交推送至 GitHub main，首个同步 head 为 `606a609`。远端全量回归首轮 142/150 通过；八项失败来自测试中的本机 Node 绝对路径、旧缓存版本 pin、旧消息数量/元数据断言与旧数据库版本 pin。保持实际材料范围、事实保存和逐条审核约束，修复测试环境选择并核对当前接线；运行源码及已安装 Skill 字节未改变。原失败与复核记录保留 `work/resume-stage1-20261014/github-sync/`，最终 CI 回执在同步结果中提供。

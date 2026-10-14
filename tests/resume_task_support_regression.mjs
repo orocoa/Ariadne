@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
+import vm from 'node:vm';
 import { databaseFor, sourceInput, requestFor, template, commitPrepared, revision, WORKSPACE, HUMAN, PRIOR_HUMAN_CORRECTION, conversationHistoryFixture } from './helpers/resume-task-fixtures.mjs';
 import { documentFixture, settleDom, waitForDom } from './helpers/resume-dom-fixture.mjs';
 
@@ -35,6 +37,97 @@ function outerResult(request, taskResult) {
 async function preparedRequest(human = HUMAN) {
   const request = requestFor(human), packet = await Support.prepare(request, 'PERSONAL');
   assert(packet.resume_context); return { request, packet };
+}
+
+async function assertClassicPageDependencies() {
+  const surfaces = ['candidate-detail.html', 'personal-import.html', 'jd-import.html', 'job-detail.html', 'job-overview.html', 'personal-understanding.html'];
+  const jobContract = '/job-intelligence-contract-manifest.js', personalContract = '/personal-understanding-contract.js';
+  const routes = [jobContract, personalContract, '/resume-task-contract.js'];
+  // Obtain the actual dynamic JS response, using the real public GET handler
+  // with a valid local Host/Origin. No socket, credential or source library is used.
+  const response = spawnSync(python, ['-c', `import io,json
+from types import SimpleNamespace
+import app
+result={}
+for route in ${JSON.stringify(routes)}:
+    handler=object.__new__(app.JobRadarHandler)
+    handler.path=route
+    handler.headers={'Host':'127.0.0.1:8123','Origin':'http://127.0.0.1:8123'}
+    handler.server=SimpleNamespace(server_port=8123)
+    handler.wfile=io.BytesIO()
+    status=[]; headers={}
+    handler.send_response=lambda value: status.append(int(value))
+    handler.send_header=lambda name,value: headers.update({name:value})
+    handler.end_headers=lambda: None
+    handler.do_GET()
+    assert status==[200], (route,status)
+    body=handler.wfile.getvalue()
+    assert headers['Content-Type'].startswith('application/javascript')
+    assert int(headers['Content-Length'])==len(body)
+    result[route]=body.decode('utf-8')
+print(json.dumps(result))`], { cwd: root, env: { ...process.env, PYTHONPATH: root }, encoding: 'utf8', maxBuffer: 2000000 });
+  assert.equal(response.status, 0, response.stderr || response.stdout);
+  const dynamic = JSON.parse(response.stdout);
+  const files = ['/truth-persistence-domain.js', '/personal-memory-domain.js', '/personal-context-domain.js',
+    '/job-candidate-context-domain.js', '/resume-task-domain.js', '/resume-task-support.js'];
+  const sources = new Map([...Object.entries(dynamic), ...files.map(path => [path, readFileSync(resolve(root, 'public', path.slice(1)), 'utf8')])]);
+  const browser = () => {
+    const context = vm.createContext({ crypto: globalThis.crypto, structuredClone, TextEncoder, Blob });
+    vm.runInContext('globalThis.window=globalThis;', context);
+    assert.equal(vm.runInContext('typeof module+":"+typeof require+":"+typeof exports', context), 'undefined:undefined:undefined');
+    return context;
+  };
+  const run = (context, path) => vm.runInContext(sources.get(path), context, { filename: path });
+  const decode = value => JSON.parse(JSON.stringify(value));
+  const portraitFor = snapshot => ({ understanding_id: 'qa-classic-current-portrait', source_fingerprint: snapshot.aggregate_fingerprint,
+    authority: 'NON_AUTHORITATIVE_PERSONAL_UNDERSTANDING', prompt_version: Understanding.Contract.prompt_version, created_at: '2026-10-14T08:00:00Z',
+    summary: 'Current synthetic personal understanding.', insights: [], uncertainties: [], covered_records: 2, covered_fragments: 2,
+    refreshed_fragments: 2, reused_fragments: 0, provider: 'deepseek', model: 'deepseek-flash', runtime_identity: 'synthetic-only', calls: 0, usage: {} });
+
+  for (const surface of surfaces) {
+    const html = readFileSync(resolve(root, 'public', surface), 'utf8');
+    const scripts = [...html.matchAll(/<script\b([^>]*)>[\s\S]*?<\/script>/gi)].map(match => {
+      const src = match[1].match(/\bsrc\s*=\s*(["'])(.*?)\1/i);
+      return src ? { attrs: match[1], src: src[2].replaceAll('&amp;', '&'), path: new URL(src[2].replaceAll('&amp;', '&'), 'https://qa.example.test/').pathname } : null;
+    }).filter(Boolean);
+    const paths = scripts.map(script => script.path);
+    for (const path of [...routes, ...files]) {
+      assert.equal(paths.filter(value => value === path).length, 1, `${surface}: exactly one canonical ${path}`);
+      const script = scripts.find(value => value.path === path);
+      assert(script.src.startsWith(path) && new URL(script.src, 'https://qa.example.test/').origin === 'https://qa.example.test', `${surface}: exact local canonical ${path}`);
+      assert(!/\b(?:async|defer)\b|\btype\s*=/i.test(script.attrs), `${surface}: dependency must remain an ordered classic script`);
+    }
+    assert(!paths.includes('/job-intelligence-contract.js'), `${surface}: use the actual dynamic manifest route`);
+    for (const path of [jobContract, personalContract, '/personal-memory-domain.js'])
+      assert(paths.indexOf(path) < paths.indexOf('/job-candidate-context-domain.js'), `${surface}: ${path} before captured dependency`);
+    assert(paths.indexOf('/truth-persistence-domain.js') < paths.indexOf('/personal-memory-domain.js'));
+    for (const path of ['/job-candidate-context-domain.js', '/personal-context-domain.js', '/resume-task-contract.js'])
+      assert(paths.indexOf(path) < paths.indexOf('/resume-task-domain.js'), `${surface}: ${path} before resume task`);
+    assert(paths.indexOf('/resume-task-domain.js') < paths.indexOf('/resume-task-support.js'));
+
+    const selected = paths.filter(path => sources.has(path)), context = browser();
+    for (const path of selected) run(context, path);
+    assert.deepEqual(decode(context.AriadneJobIntelligenceContract), JSON.parse(readFileSync(resolve(root, 'data/job_intelligence_contract_v1.json'), 'utf8')));
+    assert.deepEqual(decode(context.AriadnePersonalUnderstandingContract), JSON.parse(readFileSync(resolve(root, 'data/personal_understanding_contract_v1.json'), 'utf8')));
+    assert.deepEqual(decode(context.AriadneResumeTaskContract), Task.Contract);
+    assert.equal(typeof context.AriadneResumeTaskSupport.prepare, 'function');
+    const snapshot = await context.AriadneJobCandidateContext.buildSnapshot(sourceInput());
+    assert.equal(snapshot.structural_counts.confirmed_count, 2, `${surface}: actual browser global compiled Candidate context`);
+    const portrait = portraitFor(snapshot), database = databaseFor({ ...sourceInput(), personal_understanding_snapshots: [portrait] });
+    const current = await context.AriadneJobCandidateContext.buildSnapshotFromDatabase(database);
+    assert.deepEqual(decode(current.personal_understanding), portrait, `${surface}: current understanding is not silently lost`);
+
+    const missing = browser();
+    assert.throws(() => { for (const path of selected.filter(path => path !== jobContract)) run(missing, path); },
+      /job_candidate_context_manifest_required/, `${surface}: CommonJS cannot rescue a missing browser Job manifest`);
+    const lateJob = browser();
+    assert.throws(() => run(lateJob, '/job-candidate-context-domain.js'), /job_candidate_context_manifest_required/);
+    const latePersonal = browser();
+    for (const path of selected.filter(path => path !== personalContract)) run(latePersonal, path);
+    run(latePersonal, personalContract);
+    const omitted = await latePersonal.AriadneJobCandidateContext.buildSnapshotFromDatabase(database);
+    assert.equal(omitted.personal_understanding, null, `${surface}: a contract loaded after the module cannot repair its captured null dependency`);
+  }
 }
 
 try {
@@ -256,4 +349,5 @@ try {
 } finally {
   for (const [key, value] of saved) if (value === undefined) delete globalThis[key]; else globalThis[key] = value;
 }
-console.log('ResumeTask support: actual transport/fresh dispatch, stale scope/context strip, full packet/sealed evidence proof, shared atomic turn save/failure, clarification continuation, template consent revision/settings reset, factual SECTION source viewer, reviewed render/cache click gate and closed handles PASS');
+await assertClassicPageDependencies();
+console.log('ResumeTask support: 6 classic-script surfaces/actual dynamic contracts/no CommonJS/current portrait and missing-or-late dependency counterexamples, actual transport/fresh dispatch, stale scope/context strip, full packet/sealed evidence proof, shared atomic turn save/failure, clarification continuation, template consent revision/settings reset, factual SECTION source viewer, reviewed render/cache click gate and closed handles PASS');
