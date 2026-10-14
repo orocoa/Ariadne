@@ -50,7 +50,7 @@
     "TASK_HISTORY_UNCONFIRMED",
     "CONVERSATION_HISTORY_UNCONFIRMED"
   ],
-  "statuses": ["READY", "NEEDS_FACTS", "REVISION_REQUIRED"],
+  "statuses": ["READY", "NEEDS_FACTS", "FORMAT_UNSUPPORTED", "REVISION_REQUIRED"],
   "review_checks": [
     "identity",
     "current_corrections",

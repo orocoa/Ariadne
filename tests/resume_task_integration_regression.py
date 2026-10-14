@@ -51,13 +51,15 @@ def seal(context):
 
 class Provider:
     def __init__(self, context, base, runtime_helpers, *, medium="intent", purpose=True,
-                 review_status="READY", needs_facts=False, fail_tool=None,
+                 review_status="READY", needs_facts=False, format_unsupported=False, fail_tool=None,
                  purpose_output=None, purpose_model=None, purpose_tool=None):
         self.context, self.base = context, base
         self.medium, self.purpose = medium, purpose
         self.generation, self.review = runtime_helpers["outputs"](context)
         if needs_facts:
             self.generation = {"status": "NEEDS_FACTS", "message": "What name should appear in the resume?", "deliverable": None, "grounding": []}
+        if format_unsupported:
+            self.generation = {"status": "FORMAT_UNSUPPORTED", "message": "Photo overlays are not supported; use a single or two-column text resume.", "deliverable": None, "grounding": []}
         if review_status == "REVISION_REQUIRED":
             self.review.update(status=review_status, message="The proposed achievement conflicts with the latest correction.")
             self.review["checks"]["current_corrections"] = "BLOCK"
@@ -198,7 +200,7 @@ class FourDomainDeliveryTests(unittest.TestCase):
 
     def test_review_rejection_and_missing_facts_are_non_downloadable(self):
         for domain in self.entries:
-            for options, expected_calls, expected_status in (({"review_status": "REVISION_REQUIRED"}, 3, "REVISION_REQUIRED"), ({"needs_facts": True}, 2, "NEEDS_FACTS")):
+            for options, expected_calls, expected_status in (({"review_status": "REVISION_REQUIRED"}, 3, "REVISION_REQUIRED"), ({"needs_facts": True}, 2, "NEEDS_FACTS"), ({"format_unsupported": True}, 2, "FORMAT_UNSUPPORTED")):
                 with self.subTest(domain=domain, status=expected_status):
                     _, result, provider = self.run_case(domain, **options)
                     self.assertNotIn("deliverable", result)

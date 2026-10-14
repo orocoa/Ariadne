@@ -44,6 +44,13 @@ def schema():
                 "section_pt": {"type": "number", "minimum": 11, "maximum": 16},
                 "section_gap_pt": {"type": "number", "minimum": 6, "maximum": 18},
             }),
+            "columns": {"anyOf": [{"type": "null"}, obj({
+                "left_fraction": {"type": "number", "minimum": 0.25, "maximum": 0.65},
+                "gap_mm": {"type": "number", "minimum": 4, "maximum": 12},
+                "divider": {"type": "boolean"},
+                "assignments": {"type": "array", "minItems": 3, "maxItems": 160,
+                    "items": {"type": "string", "enum": ["FULL", "LEFT", "RIGHT"]}},
+            })]},
             "blocks": {"type": "array", "minItems": 3, "maxItems": 160, "items": obj({
                 "type": {"type": "string", "enum": ["NAME", "CONTACT", "SECTION", "ENTRY", "PARAGRAPH", "BULLET", "PAGE_BREAK"]},
                 "text": string(1600), "right": string(120),
@@ -65,7 +72,9 @@ select deliverable kind RESUME_INTENT with instruction exactly equal to the
 latest Human message, template_name the exact current attachment filename or
 the available prior task template name (empty for no template), and continue
 true when editing the existing task document, false for a genuinely new CV
-or when the Human explicitly abandons the previous template. Continuing a
+or when the Human explicitly abandons the previous template. Always route a
+requested resume through RESUME_INTENT even if its requested format may be
+unsupported; the full task reports format limits separately from missing facts. Continuing a
 reference-based CV keeps that exact template name and needs its reuse consent.
 Do not produce a CV using PDF or RESUME in this ordinary bounded conversation.
 The application separately uses ALL current personal records, the full prior
@@ -92,6 +101,7 @@ For a CV/resume use kind RESUME, NOT the generic report/PDF layout. The exact ke
 are kind, title (filename stem, no extension), body="", nodes=[], edges=[], and resume:
 {template_name:"current attachment filename, or empty when no template is used",
  review_notes:["short unresolved issues for the chat, never printed in the resume"],
+ columns:null,
  layout:{margin_mm:15, body_pt:10.5, line_height:1.3, name_pt:21,
          section_pt:13, section_gap_pt:12},
  blocks:[{type:"NAME",text:"Candidate name",right:"",emphasis:"REGULAR"},
@@ -99,7 +109,15 @@ are kind, title (filename stem, no extension), body="", nodes=[], edges=[], and 
          {type:"SECTION",text:"Education",right:"",emphasis:"REGULAR"},
          {type:"ENTRY",text:"School / qualification",right:"",emphasis:"BOLD"},
          {type:"BULLET",text:"Grounded achievement, without a bullet prefix",right:"",emphasis:"REGULAR"}]}
-RESUME is an A4 single-column document with left-aligned names/headings:
+RESUME is A4 with left-aligned names/headings. Set columns=null for single column.
+For two columns set columns={left_fraction:0.34,gap_mm:8,divider:true,assignments:[...]};
+assignments has one FULL/LEFT/RIGHT per block, never changes text or grounding.
+FULL is only the leading NAME/CONTACT header on each explicit page; PAGE_BREAK
+is FULL and starts both columns on the next page. Other blocks use LEFT/RIGHT;
+each SECTION and its entries/content stay together in one lane, retaining
+section order within that lane. Read the template for lane geometry and placement.
+Both lanes must contain content. No arbitrary HTML or decoration.
+
 NAME is first and occurs once, SECTION
 has a fine rule, ENTRY aligns right-hand dates/locations, BULLET has a hanging
 indent, PARAGRAPH/CONTACT are plain lines, PAGE_BREAK has empty text/right and
@@ -116,7 +134,7 @@ layout change does NOT authorize adding/removing/reframing entire sections or
 changing the target role; carry forward the full intended content. Do not add
 PROFILE, AI PROJECTS, DRAFT NOTES or similar sections just because they are common.
 Follow changes explicitly requested by the Human. Do not claim pixel-exact font
-or pagination fidelity. Unsupported centered headers, columns, photos or decorative layouts require
+or pagination fidelity. Unsupported centered headers, photos or decorative layouts require
 an honest UNSUPPORTED result when fidelity is requested; never silently replace
 them with the generic text report. A previous attachment label/history excerpt
 is not access to the full reference; ask for it when it is necessary and absent.
@@ -176,7 +194,7 @@ def validate(value):
     if kind == "RESUME":
         if value["body"] != "": raise ValueError("DELIVERABLE_INVALID")
         resume = value["resume"]
-        if not isinstance(resume, dict) or set(resume) != {"template_name", "review_notes", "layout", "blocks"}:
+        if not isinstance(resume, dict) or set(resume) not in ({"template_name", "review_notes", "layout", "blocks"}, {"template_name", "review_notes", "layout", "blocks", "columns"}):
             raise ValueError("DELIVERABLE_INVALID")
         text(resume["template_name"], 240, empty=True)
         if not isinstance(resume["review_notes"], list) or len(resume["review_notes"]) > 8:
@@ -213,6 +231,7 @@ def validate(value):
                 if not 0 < index < len(blocks) - 1 or block_type_at(index - 1) in {"SECTION", "PAGE_BREAK"} or block["text"] or block["emphasis"] != "REGULAR":
                     raise ValueError("DELIVERABLE_INVALID")
         if names != 1 or not sections or breaks > 3 or length > 20000: raise ValueError("DELIVERABLE_INVALID")
+        validate_columns(resume)
     else:
         text(value["body"], {"PDF": 20000, "DIAGRAM": 1200, "UNSUPPORTED": 400}[kind])
     nodes, edges = value["nodes"], value["edges"]
@@ -232,6 +251,39 @@ def validate(value):
             text(edge["label"], 28, empty=True)
             seen.add((a, b))
     return deepcopy(value)
+
+
+def validate_columns(resume):
+    """Bounded geometry only; column assignment never changes factual fields."""
+    columns = resume.get("columns")
+    if columns is None: return
+    def fail(): raise ValueError("DELIVERABLE_INVALID")
+    if not isinstance(columns, dict) or set(columns) not in ({"left_fraction", "gap_mm", "assignments"}, {"left_fraction", "gap_mm", "assignments", "divider"}): fail()
+    for key, low, high in (("left_fraction", .25, .65), ("gap_mm", 4, 12)):
+        if type(columns[key]) not in (int, float) or not low <= columns[key] <= high: fail()
+    if "divider" in columns and type(columns["divider"]) is not bool: fail()
+    assignments, blocks = columns["assignments"], resume["blocks"]
+    if not isinstance(assignments, list) or len(assignments) != len(blocks): fail()
+    seen = set()
+    groups, group = [], []
+    for block, lane in zip(blocks, assignments):
+        if not isinstance(lane, str) or lane not in {"FULL", "LEFT", "RIGHT"}: fail()
+        if block["type"] == "PAGE_BREAK":
+            if lane != "FULL": fail()
+            groups.append(group); group = []; continue
+        if lane == "FULL":
+            if block["type"] not in {"NAME", "CONTACT"} or any(l != "FULL" for _, l in group): fail()
+        elif block["type"] == "NAME": fail()
+        else: seen.add(lane)
+        group.append((block, lane))
+    groups.append(group)
+    if seen != {"LEFT", "RIGHT"}: fail()
+    for group in groups:
+        for lane in ("LEFT", "RIGHT"):
+            flow = [b for b, l in group if l == lane]
+            if flow and flow[0]["type"] != "SECTION": fail()
+            for index, block in enumerate(flow):
+                if block["type"] == "SECTION" and (index == len(flow)-1 or flow[index+1]["type"] == "SECTION"): fail()
 
 
 def domain_payload(payload):

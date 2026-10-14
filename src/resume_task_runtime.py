@@ -27,7 +27,7 @@ REVIEW_CONTRACT = "ariadne-resume-review-v1"
 GENERATION_TOOL = "generate_resume_task"
 REVIEW_TOOL = "review_resume_task"
 PURPOSE_TOOL = "review_document_purpose"
-PROMPT_VERSION = "ariadne-resume-task-prompt-v1"
+PROMPT_VERSION = "ariadne-resume-task-prompt-v2"
 MAX_CONTEXT_BYTES = 256000
 MAX_EVIDENCE = 500
 MAX_REFS = 8
@@ -47,7 +47,7 @@ CHECKS = ("identity", "current_corrections", "full_requested_content", "template
     "translation_scope", "chat_consistency", "employer_facing_only")
 ISSUE_KINDS = ("UNSUPPORTED_FACT", "IDENTITY_CONFLICT", "UNRESOLVED_FACT",
     "REJECTED_CLAIM_RETURNED", "SCOPE_CHANGE", "OMISSION", "TEMPLATE_FACT_LEAK",
-    "CHAT_MISMATCH", "PRODUCTION_NOTE")
+    "CHAT_MISMATCH", "PRODUCTION_NOTE", "FORMAT_UNSUPPORTED")
 _HASH = re.compile(r"^sha256:[a-f0-9]{64}$")
 _PRIVATE = re.compile(r"\bBearer\s+\S+|\b(?:sk|rk|pk|sess)-[A-Za-z0-9_-]{8,}|"
     r"sha256:[a-f0-9]{32,}|\b(?:evidence|digest|fragment)-\d+\b|"
@@ -264,7 +264,7 @@ def validate_context(context):
         if prior["current_version"]:
             _text(prior["current_version_id"], 1024)
         elif prior["current_version_id"] is not None: _fail("RESUME_TASK_VERSION_INVALID", "context")
-        if prior["latest_status"] not in ("READY", "NEEDS_FACTS", "REVISION_REQUIRED"): _fail("RESUME_TASK_VERSION_INVALID", "context")
+        if prior["latest_status"] not in ("READY", "NEEDS_FACTS", "FORMAT_UNSUPPORTED", "REVISION_REQUIRED"): _fail("RESUME_TASK_VERSION_INVALID", "context")
         if prior["latest_status"] == "READY" and prior["current_version"] == 0: _fail("RESUME_TASK_VERSION_INVALID", "context")
         _text(prior["latest_request"], MAX_HUMAN)
         _text(prior["last_result_message"], 6000, empty=True, visible=True)
@@ -365,7 +365,7 @@ def _validate_resume(value):
 
 
 def generation_schema():
-    return _obj({"status": {"type": "string", "enum": ["GENERATED", "NEEDS_FACTS"]},
+    return _obj({"status": {"type": "string", "enum": ["GENERATED", "NEEDS_FACTS", "FORMAT_UNSUPPORTED"]},
         "message": _str(6000), "deliverable": {"anyOf": [{"type": "null"}, _resume_schema()]},
         "grounding": _array(_obj({"block_index": {"type": "integer", "minimum": 0, "maximum": 159},
             "text_source_refs": _array(_str(100), MAX_REFS), "right_source_refs": _array(_str(100), MAX_REFS)}), 160)})
@@ -376,7 +376,7 @@ def review_schema():
         "source_refs": _array(_str(100), MAX_REFS),
         "source_states": _array({"type": "string", "enum": sorted(SOURCE_STATES)}, MAX_REFS),
         "reason": _str(600, empty=True)})
-    return _obj({"status": {"type": "string", "enum": ["READY", "NEEDS_FACTS", "REVISION_REQUIRED"]},
+    return _obj({"status": {"type": "string", "enum": ["READY", "NEEDS_FACTS", "FORMAT_UNSUPPORTED", "REVISION_REQUIRED"]},
         "message": _str(6000), "block_reviews": _array(_obj({"block_index": {"type": "integer", "minimum": 0, "maximum": 159},
             "text": field, "right": field}), 160, 3),
         "checks": _obj({key: {"type": "string", "enum": ["PASS", "BLOCK"]} for key in CHECKS}),
@@ -394,7 +394,7 @@ def _refs(value, allowed):
 def validate_generation(value, context, intent):
     _exact(value, {"status", "message", "deliverable", "grounding"}, "RESUME_GENERATION_OUTPUT_INVALID")
     _text(value["message"], 6000, visible=True)
-    if value["status"] == "NEEDS_FACTS":
+    if isinstance(value["status"], str) and value["status"] in {"NEEDS_FACTS", "FORMAT_UNSUPPORTED"}:
         if value["deliverable"] is not None or value["grounding"] != []: _fail("RESUME_GENERATION_OUTPUT_INVALID", "model_output", True)
         return deepcopy(value)
     if not isinstance(value["status"], str) or value["status"] != "GENERATED": _fail("RESUME_GENERATION_OUTPUT_INVALID", "model_output", True)
@@ -420,7 +420,7 @@ def validate_generation(value, context, intent):
 
 def validate_review(value, generation, context):
     _exact(value, {"status", "message", "block_reviews", "checks", "issues"}, "RESUME_REVIEW_OUTPUT_INVALID")
-    if not isinstance(value["status"], str) or value["status"] not in {"READY", "NEEDS_FACTS", "REVISION_REQUIRED"}: _fail("RESUME_REVIEW_OUTPUT_INVALID", "model_output", True)
+    if not isinstance(value["status"], str) or value["status"] not in {"READY", "NEEDS_FACTS", "FORMAT_UNSUPPORTED", "REVISION_REQUIRED"}: _fail("RESUME_REVIEW_OUTPUT_INVALID", "model_output", True)
     _text(value["message"], 6000, visible=True)
     blocks = generation["deliverable"]["resume"]["blocks"]
     proposed_refs = {row["block_index"]: row for row in generation["grounding"]}
@@ -463,6 +463,10 @@ def validate_review(value, generation, context):
     if value["status"] == "READY" and not ready: _fail("RESUME_FALSE_READY", "model_output", True)
     if value["status"] != "READY" and ready: _fail("RESUME_REVIEW_STATUS_INCONSISTENT", "model_output", True)
     if value["status"] == "NEEDS_FACTS" and not any(issue["question"].strip() for issue in issues): _fail("RESUME_FACT_QUESTION_REQUIRED", "model_output", True)
+    if value["status"] == "FORMAT_UNSUPPORTED" and (not any(issue["kind"] == "FORMAT_UNSUPPORTED" for issue in issues) or any(issue["question"].strip() for issue in issues)):
+        _fail("RESUME_FORMAT_STATUS_INVALID", "model_output", True)
+    if value["status"] == "NEEDS_FACTS" and all(issue["kind"] == "FORMAT_UNSUPPORTED" for issue in issues):
+        _fail("RESUME_FACT_STATUS_INVALID", "model_output", True)
     return deepcopy(value)
 
 
@@ -515,7 +519,33 @@ deliverable=null, grounding=[], and ask the ONE blocking question in message.
 Optional unknown dates/award years may be omitted and noted in chat review_notes.
 Never insert a placeholder identity, production note, DRAFT NOTES, unknown-data
 warning, Ariadne branding, watermark or 'for reference' text into the resume.
-Use the RESUME typed layout: A4 single column, left-aligned NAME first and once;
+If the requested format cannot be expressed by the supported typed layout, use
+FORMAT_UNSUPPORTED, deliverable=null, grounding=[], and explain the specific
+format limitation and a supported alternative. Never call a format limitation
+missing facts or ask the Human for career facts to solve a renderer limitation.
+Use the RESUME typed layout: A4 single or two columns, NAME first and once;
+columns=null for single column; for two columns columns={left_fraction:0.34,
+gap_mm:8,divider:true,assignments:[one FULL/LEFT/RIGHT for EVERY block]}. Read the template
+for left_fraction (0.25-0.65), gap_mm (4-12), divider (a fine vertical rule
+between columns when true) and section lane placement.
+FULL only for leading NAME/CONTACT, before lane content on an explicit page;
+PAGE_BREAK is FULL, advancing BOTH columns. Other blocks use LEFT/RIGHT.
+Keep each section, entries and bullets in the same lane; keep the full intended
+content and order within each lane. A layout-only edit preserves ALL factual
+text, dates and meaning, but DOES change previous layout-only PAGE_BREAK blocks
+when required by the NEW template. Do not carry an old single-column page break
+between the left education and right experience if the new template places them
+side by side on one page. Map both columns to each visual template page. Use a
+repeated structural section heading if an experience continues on page two.
+Retain a page count explicitly requested in the current or continuing task's
+actual Human instructions unless the Human changes it. Removing an old page
+break to align left/right content does NOT cancel a requested two-page delivery.
+Distribute existing entries across the requested pages, for example by putting
+one existing entry on the next page with its repeated structural SECTION.
+Do not collapse a requested two-page draft to one page just because text fits;
+never invent extra facts or repeat achievements just to fill a page. Column flows paginate independently without
+truncation. This supports the requested sidebar/main-column templates.
+No photos, centered headers, arbitrary decoration or more than two columns.
 CONTACT plain text; SECTION heading with rule; ENTRY left wording and known
 right-hand dates/locations; BULLET without a printed bullet prefix; PARAGRAPH
 plain text; PAGE_BREAK empty text/right and REGULAR. Only ENTRY has nonempty right.
@@ -564,7 +594,17 @@ generator's same field refs in order, every document check is PASS and issues=[]
 If supplied refs are wrong, do not silently approve or rewrite mappings/text:
 REVISION_REQUIRED with an explicit issue, even if you found another possible source.
 If essential Human facts are needed use NEEDS_FACTS and one concrete issue question.
-Otherwise use REVISION_REQUIRED for correctable content/reference violations.
+Use FORMAT_UNSUPPORTED only for an actual unsupported format, with a
+FORMAT_UNSUPPORTED issue and question=''; never use NEEDS_FACTS for layout.
+Otherwise use REVISION_REQUIRED for correctable content/reference/layout violations.
+This review happens BEFORE the browser renders/downloads the PDF. READY authorizes
+that downstream renderer; do not require a pre-existing PDF, mark its absence as
+OMISSION, or reject a truthful message saying PDF appears after review/rendering.
+Judge completeness using the actual typed document and content. A demand for a
+PDF is satisfied by a supported complete renderable RESUME, subject to rendering.
+Inspect columns, lane assignments, section order and all explicit page breaks
+against the complete template and actual request, including a layout-only edit.
+A supported two-column request must be delivered in two columns, not single.
 For REVISION_REQUIRED with no essential Human clarification, every issue.question
 must be ''. Never fill a question with a placeholder, a field name such as 'kind',
 or an instruction for code. Reserve actual questions for necessary Human facts.
@@ -765,7 +805,7 @@ def execute(context, intent, runtime_snapshot, credential, provider_call, *, att
     document_hash = fingerprint(proposal) if proposal is not None else None
     result = {"contract_id": RESULT_CONTRACT, "task_id": context["task_id"], "expected_task_revision": context["expected_task_revision"],
         "scope": deepcopy(context["scope"]), "candidate_fingerprint": context["candidate_fingerprint"], "context_fingerprint": context["context_fingerprint"],
-        "document_hash": document_hash, "template": deepcopy(context["template"]), "status": "NEEDS_FACTS", "message": generation["message"],
+        "document_hash": document_hash, "template": deepcopy(context["template"]), "status": generation["status"], "message": generation["message"],
         "deliverable": None, "proposal": deepcopy(proposal), "grounding": generation["grounding"], "review": None,
         "provider": snapshot["provider"], "model": snapshot["model"], "calls": 1, "usage": usage, "persistence": "not_written"}
     if proposal is None: return result

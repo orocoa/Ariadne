@@ -179,6 +179,21 @@ assert.equal(answered.document_version.parent_version_id, null);
 const templated = await fixture({ withTemplate: true }), templateRaw = resultFor(templated);
 const templatePrepared = await Task.validateResult(templateRaw, templated.context);
 await Task.assertFresh(templated.db, templatePrepared); await commitPrepared(Task, templated.db, templatePrepared);
+// A format limitation preserves the exact prior complete version and template.
+const unsupportedContext = await fixture({ database: templated.db, templateReuseConfirmed: true });
+const unsupportedRaw = resultFor(unsupportedContext, { generation_status: 'NEEDS_FACTS' });
+unsupportedRaw.status = 'FORMAT_UNSUPPORTED'; unsupportedRaw.message = 'Photos are unsupported; two-column text layout is available.';
+const unsupported = await Task.validateResult(unsupportedRaw, unsupportedContext.context);
+assert.equal(unsupported.document_version, null);
+assert.equal(unsupported.task.current_version_id, templatePrepared.document_version.version_id);
+assert.deepEqual(unsupported.task.template, templated.context.template);
+await Task.assertFresh(templated.db, unsupported); await commitPrepared(Task, templated.db, unsupported);
+const formatRestored = await Task.restore(templated.db, unsupportedContext.context.scope);
+assert.equal(formatRestored.task.latest_status, 'FORMAT_UNSUPPORTED');
+assert.equal(formatRestored.version.version_id, templatePrepared.document_version.version_id);
+const forgedFormat = structuredClone(unsupportedRaw); forgedFormat.deliverable = templateRaw.deliverable;
+await assert.rejects(Task.validateResult(forgedFormat, unsupportedContext.context), /RESUME_RESULT_INVALID/);
+
 const noReuse = await fixture({ database: templated.db }); assert.equal(noReuse.context.template, null);
 const reuse = await fixture({ database: templated.db, templateReuseConfirmed: true });
 assert.deepEqual(reuse.context.template, templated.context.template); assert.equal(reuse.context.consent.template_reuse_confirmed, true);

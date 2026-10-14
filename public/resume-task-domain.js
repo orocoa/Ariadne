@@ -175,7 +175,7 @@
           || !same(verdict.source_refs, checked.get(item.block_index)[`${field}_source_refs`]))) fail("RESUME_REVIEW_NOT_READY");
       }
     }
-    const allowedKinds = ["UNSUPPORTED_FACT", "IDENTITY_CONFLICT", "UNRESOLVED_FACT", "REJECTED_CLAIM_RETURNED", "SCOPE_CHANGE", "OMISSION", "TEMPLATE_FACT_LEAK", "CHAT_MISMATCH", "PRODUCTION_NOTE"];
+    const allowedKinds = ["UNSUPPORTED_FACT", "IDENTITY_CONFLICT", "UNRESOLVED_FACT", "REJECTED_CLAIM_RETURNED", "SCOPE_CHANGE", "OMISSION", "TEMPLATE_FACT_LEAK", "CHAT_MISMATCH", "PRODUCTION_NOTE", "FORMAT_UNSUPPORTED"];
     for (const issue of review.issues) {
       exact(issue, ["kind", "block_indexes", "source_refs", "explanation", "question"], "RESUME_REVIEW_INVALID");
       if (!allowedKinds.includes(issue.kind) || !Array.isArray(issue.block_indexes) || new Set(issue.block_indexes).size !== issue.block_indexes.length || issue.block_indexes.some(index => !checked.has(index))) fail("RESUME_REVIEW_INVALID");
@@ -183,6 +183,8 @@
       else if (!Array.isArray(issue.source_refs)) fail("RESUME_REVIEW_INVALID");
       text(issue.explanation, 2000, "RESUME_REVIEW_INVALID"); text(issue.question, 1000, "RESUME_REVIEW_INVALID", true);
     }
+    if (review.status === "FORMAT_UNSUPPORTED" && (!review.issues.some(issue => issue.kind === "FORMAT_UNSUPPORTED") || review.issues.some(issue => issue.question.trim()))) fail("RESUME_REVIEW_INVALID");
+    if (review.status === "NEEDS_FACTS" && (!review.issues.some(issue => issue.question.trim()) || review.issues.every(issue => issue.kind === "FORMAT_UNSUPPORTED"))) fail("RESUME_REVIEW_INVALID");
     if (ready && (review.status !== "READY" || review.issues.length || Object.values(review.checks).some(value => value !== "PASS"))) fail("RESUME_REVIEW_NOT_READY");
     return clone(review);
   }
@@ -513,7 +515,7 @@
     canonicalJson(raw.usage);
     const evidence = new Map(input.evidence.map(item => [item.ref, item]));
     if (raw.proposal === null) {
-      if (raw.deliverable !== null || raw.document_hash !== null || raw.review !== null || !Array.isArray(raw.grounding) || raw.grounding.length || raw.status !== "NEEDS_FACTS") fail("RESUME_RESULT_INVALID");
+      if (raw.deliverable !== null || raw.document_hash !== null || raw.review !== null || !Array.isArray(raw.grounding) || raw.grounding.length || !["NEEDS_FACTS", "FORMAT_UNSUPPORTED"].includes(raw.status)) fail("RESUME_RESULT_INVALID");
     } else {
       const proposal = delivery(raw.proposal), expectedHash = await fingerprint(proposal);
       if (proposal.resume.template_name !== (input.template?.name || "")) fail("RESUME_TEMPLATE_REFERENCE_INVALID");

@@ -98,4 +98,15 @@ for filename, request_name, execute_name, response_name in [
         with contextlib.redirect_stdout(io.StringIO()): fixture[execute_name](req, lambda: "synthetic-test", lambda *_: (200, response))
     except ValueError as error: assert getattr(error, "code", str(error)) == "DELIVERABLE_OUTPUT_INVALID", (filename, error)
     else: raise AssertionError((filename, "fresh unreviewed resume accepted"))
+# Same wire fixture and malformed lane cases are checked by both validators.
+columns = json.loads(subprocess.check_output([NODE, str(ROOT / "tests/resume_columns_regression.mjs"), "--fixture"], text=True))
+assert validate(columns) == columns
+for mutate in (lambda v: v["resume"]["columns"]["assignments"].pop(),
+               lambda v: v["resume"]["columns"]["assignments"].__setitem__(0, "LEFT"),
+               lambda v: v["resume"]["columns"]["assignments"].__setitem__(3, "RIGHT"),
+               lambda v: v["resume"]["columns"].__setitem__("left_fraction", True)):
+    invalid = copy.deepcopy(columns); mutate(invalid)
+    try: validate(invalid)
+    except ValueError: pass
+    else: raise AssertionError("invalid two-column layout accepted")
 print("resume delivery: bounded typed schema/private refs retained; four fresh domains reject unreviewed exports with or without attachments/context; missing full context rejects intent PASS")

@@ -24,7 +24,7 @@
     if (value.kind === "RESUME") {
       if (value.body !== "") fail();
       const resume = value.resume;
-      if (!exact(resume, ["template_name", "review_notes", "layout", "blocks"])) fail();
+      if (!exact(resume, ["template_name", "review_notes", "layout", "blocks", ...(Object.hasOwn(resume, "columns") ? ["columns"] : [])])) fail();
       text(resume.template_name, 240, true);
       if (!Array.isArray(resume.review_notes) || resume.review_notes.length > 8) fail();
       resume.review_notes.forEach(note => text(note, 500));
@@ -49,6 +49,27 @@
         }
       });
       if (names !== 1 || !sections || breaks > 3 || length > 20000) fail();
+      const columns = resume.columns;
+      if (columns != null) {
+        if (!exact(columns, ["left_fraction", "gap_mm", "assignments", ...(Object.hasOwn(columns, "divider") ? ["divider"] : [])]) || !Number.isFinite(columns.left_fraction) || columns.left_fraction < .25 || columns.left_fraction > .65
+          || !Number.isFinite(columns.gap_mm) || columns.gap_mm < 4 || columns.gap_mm > 12 || !Array.isArray(columns.assignments) || columns.assignments.length !== resume.blocks.length) fail();
+        if (Object.hasOwn(columns, "divider") && typeof columns.divider !== "boolean") fail();
+        const seen = new Set(), groups = [[]];
+        resume.blocks.forEach((block, index) => {
+          const lane = columns.assignments[index], group = groups.at(-1);
+          if (!["FULL", "LEFT", "RIGHT"].includes(lane)) fail();
+          if (block.type === "PAGE_BREAK") { if (lane !== "FULL") fail(); groups.push([]); return; }
+          if (lane === "FULL") { if (!["NAME", "CONTACT"].includes(block.type) || group.some(item => item.lane !== "FULL")) fail(); }
+          else { if (block.type === "NAME") fail(); seen.add(lane); }
+          group.push({ block, lane });
+        });
+        if (seen.size !== 2) fail();
+        for (const group of groups) for (const lane of ["LEFT", "RIGHT"]) {
+          const flow = group.filter(item => item.lane === lane).map(item => item.block);
+          if (flow.length && flow[0].type !== "SECTION") fail();
+          flow.forEach((block, index) => { if (block.type === "SECTION" && (!flow[index + 1] || flow[index + 1].type === "SECTION")) fail(); });
+        }
+      }
     } else text(value.body, { PDF: 20000, DIAGRAM: 1200, UNSUPPORTED: 400 }[value.kind]);
     if (!Array.isArray(value.nodes) || !Array.isArray(value.edges)) fail();
     if (value.kind !== "DIAGRAM") { if (value.nodes.length || value.edges.length) fail(); }
@@ -264,74 +285,100 @@
     const margin = layout.margin_mm * canvas.width / 210, width = canvas.width - margin * 2;
     const bottom = canvas.height - margin, capacity = bottom - margin;
     const setFont = (size, emphasis) => { ctx.font = `${emphasis === "BOLD" ? 700 : 400} ${size}px ${font}`; };
-    const blocks = value.resume.blocks.map(block => {
-      const size = (block.type === "NAME" ? layout.name_pt : block.type === "SECTION" ? layout.section_pt : layout.body_pt) * scale;
-      const emphasis = block.emphasis;
-      setFont(size, emphasis);
-      const measure = text => ctx.measureText(text).width;
-      const indent = block.type === "BULLET" ? measure("• ") : 0;
-      const rightWidth = block.right ? Math.min(measure(block.right), width * .4) : 0;
-      const left = block.type === "PAGE_BREAK" ? [] : wrapResumeText(block.text, measure, width - indent - (block.right ? rightWidth + size : 0));
-      const right = block.right ? wrapResumeText(block.right, measure, rightWidth) : [];
-      const leading = size * layout.line_height, rows = Math.max(left.length, right.length);
-      const before = block.type === "SECTION" ? layout.section_gap_pt * scale : 0;
-      const after = (block.type === "NAME" ? 4 : block.type === "SECTION" ? 5 : block.type === "BULLET" || block.type === "PARAGRAPH" ? 2 : 0) * scale;
-      return { ...block, size, emphasis, indent, left, right, rows, leading, before, after, height: before + rows * leading + after };
-    });
-    const pages = []; let textRuns = [], y = margin, previous = null;
-    const clear = () => { ctx.fillStyle = token("--vi-surface"); ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.fillStyle = token("--vi-text-emphasis") || token("--vi-ink"); };
-    clear();
-    const nextPage = async () => {
-      if (textRuns.length) {
-        if (pages.length >= 4) throw Error("简历超过 4 页，请精简内容后重新生成；本次没有截断");
-        const jpeg = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", .96));
-        if (!jpeg) throw Error("图片生成失败，请重试");
-        pages.push({ bytes: new Uint8Array(await jpeg.arrayBuffer()), width: canvas.width, height: canvas.height, textRuns });
+    // Plan logical column flows before painting physical pages. Text runs stay
+    // in semantic header/left/right reading order, not interleaved by baseline.
+    const planFlow = (source, x, flowWidth, startY = margin) => {
+      const measured = source.map(block => {
+        const size = (block.type === "NAME" ? layout.name_pt : block.type === "SECTION" ? layout.section_pt : layout.body_pt) * scale;
+        setFont(size, block.emphasis);
+        const measure = text => ctx.measureText(text).width;
+        const indent = block.type === "BULLET" ? measure("• ") : 0;
+        const rightWidth = block.right ? Math.min(measure(block.right), flowWidth * .4) : 0;
+        const left = block.type === "PAGE_BREAK" ? [] : wrapResumeText(block.text, measure, flowWidth - indent - (block.right ? rightWidth + size : 0));
+        const right = block.right ? wrapResumeText(block.right, measure, rightWidth) : [];
+        const leading = size * layout.line_height, rows = Math.max(left.length, right.length);
+        const before = block.type === "SECTION" ? layout.section_gap_pt * scale : 0;
+        const after = (block.type === "NAME" ? 4 : block.type === "SECTION" ? 5 : block.type === "BULLET" || block.type === "PARAGRAPH" ? 2 : 0) * scale;
+        return { ...block, size, indent, left, right, rows, leading, before, after, height: before + rows * leading + after };
+      });
+      const plans = []; let plan = { runs: [], rules: [] }, y = startY, top = startY, previous = null;
+      const next = () => { plans.push(plan); plan = { runs: [], rules: [] }; y = top = margin; previous = null; };
+      for (let index = 0; index < measured.length; index++) {
+        const block = measured[index];
+        if (block.type === "PAGE_BREAK") { next(); continue; }
+        const beginning = item => item ? item.before + Math.min(item.rows, 2) * item.leading + (item.rows <= 2 ? item.after : 0) : 0;
+        let keep = block.height <= capacity ? block.height : beginning(block);
+        if (["SECTION", "ENTRY"].includes(block.type)) {
+          let cursor = index + 1;
+          while (cursor <= index + 2 && measured[cursor]?.type === "ENTRY" && measured[cursor].rows <= 2
+            && keep + measured[cursor].height <= capacity) { keep += measured[cursor].height; cursor++; }
+          if (measured[cursor] && !["SECTION", "PAGE_BREAK"].includes(measured[cursor].type)) keep += beginning(measured[cursor]);
+        }
+        if (block.type !== "SECTION" && (previous?.type === "SECTION" || previous?.type === "ENTRY" && previous.rows <= 2)) keep = beginning(block);
+        keep = Math.min(keep, capacity);
+        if (y > margin && y + keep > bottom) next();
+        y += block.type === "SECTION" && y === top ? 0 : block.before;
+        setFont(block.size, block.emphasis);
+        for (let row = 0; row < block.rows; row++) {
+          if (y + block.leading > bottom) { next(); setFont(block.size, block.emphasis); }
+          const baseline = y + block.size;
+          if (row < block.left.length) {
+            const text = block.type === "BULLET" && row === 0 ? `• ${block.left[row]}` : block.left[row];
+            plan.runs.push({ text, x: x + (row === 0 ? 0 : block.indent), y: baseline, size: block.size, emphasis: block.emphasis });
+          }
+          if (row < block.right.length) {
+            const text = block.right[row];
+            plan.runs.push({ text, x: x + flowWidth - ctx.measureText(text).width, y: baseline, size: block.size, emphasis: block.emphasis });
+          }
+          y += block.leading;
+        }
+        if (block.type === "SECTION") plan.rules.push({ x, y, width: flowWidth });
+        y += block.after; previous = block;
       }
-      textRuns = []; y = margin; previous = null; clear();
+      if (plan.runs.length) plans.push(plan);
+      return { plans, endY: y };
     };
-    for (let index = 0; index < blocks.length; index++) {
-      const block = blocks[index];
-      if (block.type === "PAGE_BREAK") { await nextPage(); continue; }
-      // Reserve the beginning of an oversized item, not a whole impossible
-      // group. Once its heading was placed, the item may continue on that page
-      // rather than reapplying an independent whole-block keep and orphaning it.
-      const beginning = item => item ? item.before + Math.min(item.rows, 2) * item.leading + (item.rows <= 2 ? item.after : 0) : 0;
-      let keep = block.height <= capacity ? block.height : beginning(block);
-      if (["SECTION", "ENTRY"].includes(block.type)) {
-        let cursor = index + 1;
-        // An institution and role are usually two short entry rows. Bound the
-        // look-ahead so a list of many entries is never kept as one giant group.
-        while (cursor <= index + 2 && blocks[cursor]?.type === "ENTRY" && blocks[cursor].rows <= 2
-          && keep + blocks[cursor].height <= capacity) { keep += blocks[cursor].height; cursor++; }
-        if (blocks[cursor] && !["SECTION", "PAGE_BREAK"].includes(blocks[cursor].type)) keep += beginning(blocks[cursor]);
-      }
-      if (block.type !== "SECTION" && (previous?.type === "SECTION" || previous?.type === "ENTRY" && previous.rows <= 2)) keep = beginning(block);
-      keep = Math.min(keep, capacity);
-      if (y > margin && y + keep > bottom) await nextPage();
-      y += block.type === "SECTION" && y === margin ? 0 : block.before;
-      setFont(block.size, block.emphasis);
-      for (let row = 0; row < block.rows; row++) {
-        if (y + block.leading > bottom) { await nextPage(); setFont(block.size, block.emphasis); }
-        const baseline = y + block.size;
-        if (row < block.left.length) {
-          const text = block.type === "BULLET" && row === 0 ? `• ${block.left[row]}` : block.left[row];
-          recordText(ctx, text, margin + (row === 0 ? 0 : block.indent), baseline, block.size, textRuns);
+    let physical = [];
+    const columns = value.resume.columns;
+    if (!columns) physical = planFlow(value.resume.blocks, margin, width).plans;
+    else {
+      const gap = columns.gap_mm * canvas.width / 210, leftWidth = (width - gap) * columns.left_fraction;
+      const rightWidth = width - gap - leftWidth, rightX = margin + leftWidth + gap;
+      const groups = [[]];
+      value.resume.blocks.forEach((block, index) => {
+        if (block.type === "PAGE_BREAK") groups.push([]);
+        else groups.at(-1).push({ block, lane: columns.assignments[index] });
+      });
+      for (const group of groups) {
+        const flow = lane => group.filter(item => item.lane === lane).map(item => item.block);
+        const header = planFlow(flow("FULL"), margin, width);
+        if (header.plans.length > 1) throw Error("通栏页眉超过一页，请调整内容或字号；本次没有截断");
+        const startY = header.plans.length ? header.endY + layout.section_gap_pt * scale : margin;
+        const left = planFlow(flow("LEFT"), margin, leftWidth, startY).plans;
+        const right = planFlow(flow("RIGHT"), rightX, rightWidth, startY).plans;
+        for (let index = 0; index < Math.max(header.plans.length, left.length, right.length); index++) {
+          const components = [index === 0 ? header.plans[0] : null, left[index], right[index]].filter(Boolean);
+          const rules = components.flatMap(item => item.rules);
+          if (columns.divider) rules.push({ x: margin + leftWidth + gap / 2, y: index === 0 ? startY : margin, width: 0, height: bottom - (index === 0 ? startY : margin) });
+          physical.push({ runs: components.flatMap(item => item.runs), rules });
         }
-        if (row < block.right.length) {
-          const text = block.right[row];
-          recordText(ctx, text, canvas.width - margin - ctx.measureText(text).width, baseline, block.size, textRuns);
-        }
-        y += block.leading;
       }
-      if (block.type === "SECTION") {
-        ctx.strokeStyle = token("--vi-text-emphasis") || token("--vi-ink"); ctx.lineWidth = .5 * scale;
-        ctx.beginPath(); ctx.moveTo(margin, y); ctx.lineTo(canvas.width - margin, y); ctx.stroke();
-      }
-      y += block.after;
-      previous = block;
     }
-    await nextPage();
+    if (physical.length > 4) throw Error("简历超过 4 页，请精简内容后重新生成；本次没有截断");
+    const pages = [];
+    for (const plan of physical) {
+      const textRuns = [];
+      ctx.fillStyle = token("--vi-surface"); ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = token("--vi-text-emphasis") || token("--vi-ink");
+      for (const run of plan.runs) {
+        setFont(run.size, run.emphasis); recordText(ctx, run.text, run.x, run.y, run.size, textRuns);
+      }
+      ctx.strokeStyle = token("--vi-text-emphasis") || token("--vi-ink"); ctx.lineWidth = .5 * scale;
+      for (const rule of plan.rules) { ctx.beginPath(); ctx.moveTo(rule.x, rule.y); ctx.lineTo(rule.x + rule.width, rule.y + (rule.height || 0)); ctx.stroke(); }
+      const jpeg = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", .96));
+      if (!jpeg) throw Error("图片生成失败，请重试");
+      pages.push({ bytes: new Uint8Array(await jpeg.arrayBuffer()), width: canvas.width, height: canvas.height, textRuns });
+    }
     return pages;
   }
 
@@ -421,7 +468,7 @@
       if (message.role !== "ASSISTANT" || !bubble || !message.deliverable && !message.web_search) return;
       const key = bubble.dataset.messageKey || message.message_id || message.id || `reply:${index}`;
       // Content and renderer version, rather than DOM identity, own the export.
-      const signature = JSON.stringify([VERSION, "render-v4-reviewed-resume", message.deliverable ?? null, message.web_search ?? null, message.resume_task ?? null]);
+      const signature = JSON.stringify([VERSION, "render-v5-reviewed-columns", message.deliverable ?? null, message.web_search ?? null, message.resume_task ?? null]);
       used.add(key);
       let record = state.items.get(key);
       if (record?.signature === signature) {

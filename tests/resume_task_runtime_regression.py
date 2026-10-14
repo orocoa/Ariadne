@@ -231,6 +231,23 @@ class ResumeTaskRuntimeTests(unittest.TestCase):
         self.assertEqual(result["proposal"], generation["deliverable"]); self.assertEqual(len(provider.calls), 2)
         for payload in provider.calls: self.assertIn(source["content"]["text"], json.dumps(payload))
 
+    def test_format_unsupported_is_not_missing_facts(self):
+        generation = {"status": "FORMAT_UNSUPPORTED", "message": "Three-column photos cannot be rendered; two text columns are supported.", "deliverable": None, "grounding": []}
+        result, provider = execute_fixture(self.fixture, Provider(generation, {}))
+        self.assertEqual(result["status"], "FORMAT_UNSUPPORTED")
+        self.assertIsNone(result["deliverable"])
+        self.assertIsNone(result["proposal"])
+        self.assertEqual(len(provider.calls), 1)
+        generation, review = outputs(self.fixture["context"])
+        review.update(status="FORMAT_UNSUPPORTED", message="The requested photo layout is unsupported.")
+        review["checks"]["full_requested_content"] = "BLOCK"
+        review["issues"] = [{"kind": "FORMAT_UNSUPPORTED", "block_indexes": [], "source_refs": [], "explanation": "Photos are unsupported.", "question": ""}]
+        result, _ = execute_fixture(self.fixture, Provider(generation, review))
+        self.assertEqual(result["status"], "FORMAT_UNSUPPORTED"); self.assertIsNone(result["deliverable"])
+        for mutate in (lambda r: r.update(status="NEEDS_FACTS"), lambda r: r["issues"][0].update(question="What name?")):
+            invalid = copy.deepcopy(review); mutate(invalid)
+            with self.assertRaises(ValueError): execute_fixture(self.fixture, Provider(generation, invalid))
+
     def test_canonical_numbers_and_hashes_match_actual_node_wire(self):
         positive = [0, 1.0, 1.5, 10.5, 1e-7, 1e-6, 9.999999999999997e-7,
             1e20, 1e21, 1e23, 1.2345678901234567e19, 1.7976931348623157e308,
