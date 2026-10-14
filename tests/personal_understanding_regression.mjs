@@ -68,6 +68,7 @@ const uncached = databaseFor({ candidate_context_revisions: [revision(90)] });
 const beforeDirect = calls.length;
 const direct = await Understanding.discuss(uncached, { ...options, human_message: "请根据当前资料回答，不需要先重建画像。" });
 assert.equal(direct.turn.calls, 1);
+assert.equal(calls.at(-1).request_id, direct.turn.turn_id, "the stored discussion and attachment request share one exact identity");
 assert.deepEqual(calls.slice(beforeDirect).map(item => item.phase), ["DISCUSS"], "uncached discussion must not wait for DISTILL/SYNTHESIZE");
 assert.equal(uncached.data.get("personal_understanding_snapshots").size, 0);
 assert.equal(uncached.data.get("candidate_context_revisions").size, 1);

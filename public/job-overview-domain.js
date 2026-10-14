@@ -180,7 +180,7 @@
         context = discussionContext(snapshot, message, turns);
       }
       options.onProgress?.(context.coverage.strategy === "COMPLETE_CURRENT_EVIDENCE" ? "正在结合个人资料与当前职位回应…" : "正在结合个人资料与全部职位概况回应…");
-      const request = requestFor("DISCUSS", context, message, options.runtime_snapshot, options.consent), result = await (options.call || callRuntime)(request), output = validateResult(result, request);
+      const request = { ...requestFor("DISCUSS", context, message, options.runtime_snapshot, options.consent), request_id: turn.turn_id }, result = await (options.call || callRuntime)(request), output = validateResult(result, request);
       const fresh = await snapshotFromDatabase(db);
       if (fresh.fingerprint !== snapshot.fingerprint || fresh.candidate.aggregate_fingerprint !== snapshot.candidate.aggregate_fingerprint) throw new Error("JOB_OVERVIEW_CONTEXT_CHANGED");
       const references = new Map([...snapshot.records.map(record => [record.ref, { identity: record.identity, title: record.semantic.title, domain: "JOB" }]),

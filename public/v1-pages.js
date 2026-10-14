@@ -3998,7 +3998,7 @@
       const compiledContext = JobConversation.compileContext({ job_subject: jobSubject, application, journal_entries: journalEntries, candidate_snapshot: candidateSnapshot, candidate_delta: candidateDelta, source_excerpt_manifest: sourceManifest, human_message: content, messages: restored.messages });
       const observation = JobConversation.observationFor(jobSubject, candidateSnapshot);
       execution = JobConversation.createTurnExecution(session, observation, runtimeSnapshot, { candidate_snapshot: candidateSnapshot, candidate_delta: candidateDelta, source_excerpt_manifest: sourceManifest });
-      const userMessage = JobConversation.createMessage(session, "USER", content);
+      const userMessage = { ...JobConversation.createMessage(session, "USER", content), turn_id: execution.execution_id };
       await JobConversationPersistence.persistMessage(database, userMessage);
       await JobConversationPersistence.persistExecution(database, execution);
       renderJobConversationMessages([...restored.messages, userMessage], { include_pending_user: true });

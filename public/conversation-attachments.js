@@ -4,6 +4,8 @@
   const TYPES = { pdf: "application/pdf", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", txt: "text/plain", md: "text/markdown", markdown: "text/markdown" };
   const FORMS = { "candidate-workspace-composer": "CANDIDATE", "candidate-conversation-form": "CANDIDATE", "job-workspace-composer": "JOB", "job-conversation-form": "JOB", "personal-conversation-form": "PERSONAL", "job-overview-form": "JOB_OVERVIEW" };
   const controllers = new Map(), pending = new Map();
+  const history = new WeakMap(), metadata = new Map();
+  const tr = (zh, en) => root.document?.documentElement.lang?.startsWith("en") ? en : zh;
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const requestId = (r) => r.turn?.execution_id || r.request_id;
   const providerName = (runtime) => runtime?.provider === "codex" ? "Codex" : runtime?.provider || "当前模型";
@@ -36,15 +38,92 @@
     const dataUrl = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(blob); });
     return { ...metadata, data_url: dataUrl };
   }
-  async function persist(request, files, records, domain) {
+  async function openDatabase() {
     const nativeOpen = () => new Promise((resolve, reject) => { const open = indexedDB.open(CONTRACT, 1); open.onupgradeneeded = () => open.result.createObjectStore("turns", { keyPath: "request_id" }); open.onsuccess = () => resolve(open.result); open.onerror = () => reject(open.error); });
-    const db = await (root.AriadneContentDatabase ? root.AriadneContentDatabase.open(CONTRACT, nativeOpen) : nativeOpen());
+    return root.AriadneContentDatabase ? root.AriadneContentDatabase.open(CONTRACT, nativeOpen) : nativeOpen();
+  }
+  const cacheKey = (id) => `${root.localStorage?.getItem("ariadne-content-workspace-v1") || "browser"}:${id}`;
+  const publicRecord = (record) => record ? { request_id: record.request_id, domain: record.domain, conversation_id: record.conversation_id,
+    authority: record.authority, files: record.files.map(({ name, mime_type, size, content_hash }) => ({ name, mime_type, size, content_hash })) } : null;
+  async function persist(request, files, records, domain) {
+    const db = await openDatabase();
     try {
       await new Promise((resolve, reject) => { const tx = db.transaction("turns", "readwrite");
         tx.objectStore("turns").add({ request_id: requestId(request), domain, conversation_id: request.conversation?.conversation_id || domain,
           created_at: new Date().toISOString(), authority: "SOURCE_INPUT_ONLY", files: files.map((file, i) => ({ file, ...Object.fromEntries(Object.entries(records[i]).filter(([k]) => k !== "data_url")) })) });
         tx.oncomplete = resolve; tx.onabort = () => reject(tx.error || Error("attachment_persistence_failed")); tx.onerror = () => reject(tx.error); });
     } finally { db.close(); }
+    metadata.set(cacheKey(requestId(request)), { request_id: requestId(request), domain, conversation_id: request.conversation?.conversation_id || domain,
+      authority: "SOURCE_INPUT_ONLY", files: records.map(({ name, mime_type, size, content_hash }) => ({ name, mime_type, size, content_hash })) });
+  }
+  async function historyRecords(ids) {
+    const missing = [...new Set(ids)].filter(id => !metadata.has(cacheKey(id)));
+    if (missing.length) {
+      const keys = missing.map(cacheKey);
+      const db = await openDatabase();
+      try {
+        const records = db.batchGet ? await db.batchGet("turns", missing) : await Promise.all(missing.map(id => new Promise((resolve, reject) => {
+          const request = db.transaction("turns").objectStore("turns").get(id); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+        })));
+        records.forEach((record, i) => metadata.set(keys[i], publicRecord(record)));
+      } finally { db.close(); }
+    }
+    return ids.map(id => metadata.get(cacheKey(id)));
+  }
+  async function downloadOriginal(id, index, expected, workspace) {
+    if (workspace !== cacheKey("")) throw Error("attachment_workspace_changed");
+    const db = await openDatabase();
+    let record;
+    try {
+      record = db.getRecord ? await db.getRecord("turns", id) : await new Promise((resolve, reject) => {
+        const read = db.transaction("turns").objectStore("turns").get(id); read.onsuccess = () => resolve(read.result); read.onerror = () => reject(read.error);
+      });
+    } finally { db.close(); }
+    if (workspace !== cacheKey("")) throw Error("attachment_workspace_changed");
+    const entry = record?.files?.[index];
+    if (!(entry?.file instanceof Blob) || entry.size !== expected.size || entry.file.size !== expected.size
+        || entry.name !== expected.name || entry.content_hash !== expected.content_hash) throw Error("attachment_original_invalid");
+    const checked = await recordFor(new File([entry.file], entry.name), false);
+    if (checked.content_hash !== expected.content_hash) throw Error("attachment_original_invalid");
+    const url = URL.createObjectURL(entry.file), link = document.createElement("a");
+    link.href = url; link.download = entry.name; link.click();
+    root.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  async function decorate(target, messages) {
+    const pane = target?.closest?.(".v1-conversation-pane, .v1-ariadne-pane"), form = pane?.querySelector(".v1-conversation-form");
+    const domain = FORMS[form?.id];
+    if (!domain || !target.isConnected) return;
+    const state = { messages, workspace: cacheKey("") }; history.set(target, state);
+    const active = [...pending.values()].find(entry => entry.state.form === form && entry.dispatched);
+    const entries = messages.map((message, index) => ({ message, index, id: message.role === "USER" ? message.turn_id ||
+      (!message.id && !message.message_id && index === messages.length - 1 && active?.request.human_message === (message.text ?? message.content) ? requestId(active.request) : null) : null })).filter(entry => entry.id);
+    if (!entries.length) return;
+    try {
+      const records = await historyRecords(entries.map(entry => entry.id));
+      if (history.get(target) !== state || state.workspace !== cacheKey("") || !target.isConnected) return;
+      const bubbles = [...target.querySelectorAll(".v1-conversation-message")];
+      const scroll = target.closest(".v1-conversation-scroll, .v1-workspace-history"), following = scroll && scroll.scrollTop + scroll.clientHeight >= scroll.scrollHeight - 32;
+      entries.forEach(({ message, index, id }, i) => {
+        const record = records[i], bubble = bubbles[index];
+        if (!bubble || record?.domain !== domain || record.authority !== "SOURCE_INPUT_ONLY" || record.request_id !== id
+            || message.conversation_id && record.conversation_id !== message.conversation_id || !record.files?.length) return;
+        bubble.querySelectorAll(".v1-message-attachments").forEach(node => node.remove());
+        const area = document.createElement("span"); area.className = "v1-message-attachments"; area.setAttribute("aria-label", tr("本轮附件", "Attachments for this message"));
+        record.files.forEach((file, fileIndex) => {
+          const button = document.createElement("button"); button.type = "button";
+          const size = file.size >= 1000000 ? `${(file.size / 1000000).toFixed(2)} MB` : `${Math.ceil(file.size / 1000)} KB`;
+          button.textContent = `${file.name} · ${size}`;
+          button.title = tr("下载本机原件", "Download local original");
+          button.addEventListener("click", async () => {
+            button.disabled = true;
+            try { await downloadOriginal(id, fileIndex, file, state.workspace); button.removeAttribute("aria-invalid"); }
+            catch (_) { button.title = tr("原件无法读取或校验失败，请保留文件并重试。", "The original could not be read or verified. Keep the file and retry."); button.setAttribute("aria-invalid", "true"); }
+            finally { button.disabled = false; }
+          }); area.append(button);
+        }); bubble.append(area);
+      });
+      if (following) scroll.scrollTop = scroll.scrollHeight;
+    } catch (_) { /* A storage failure must not erase conversation text or substitute a different turn. */ }
   }
   function mount(form, domain) {
     const field = form.querySelector(".v1-composer-field"), text = form.querySelector("textarea");
@@ -148,7 +227,7 @@
       if (!state.consent.checked) throw Error("attachment_consent_required");
       await persist(request, files, records, domain);
       if (!state.consent.checked || state.runtime !== state.identityFor(runtime)) throw Error("attachment_consent_required");
-      pending.set(requestId(request), { state, files });
+      pending.set(requestId(request), { state, files, request });
       setStatus(state, "SAVED_LOCALLY", `附件已安全保存在本机；准备发送给 ${providerName(runtime)}…`);
       const outbound = local ? records.map((record, index) => ({ ...record, local_reference: {
         workspace: root.localStorage.getItem(root.AriadneContentDatabase.WORKSPACE_KEY), request_id: requestId(request), index,
@@ -174,6 +253,9 @@
     state.consent.checked = false;
     setStatus(state, "MODEL_REQUEST", `本轮已发送 ${attachmentLabel(files)}给 ${providerName(request.runtime_snapshot)}；正在等待模型理解与回复…`);
     state.render();
+    const target = state.form.closest(".v1-conversation-pane, .v1-ariadne-pane")?.querySelector(".v1-conversation-messages");
+    const rendered = history.get(target);
+    if (rendered) decorate(target, rendered.messages);
   }
   function finish(request, ok, error = null, result = null) {
     const active = pending.get(requestId(request)); if (!active) return;
@@ -192,10 +274,10 @@
     }
     state.render();
   }
-  root.AriadneConversationAttachments = { prepare, stage, dispatch, finish, errorCopy, validateFiles, recordFor, CONTRACT };
+  root.AriadneConversationAttachments = { prepare, stage, dispatch, finish, decorate, errorCopy, validateFiles, recordFor, CONTRACT };
   if (typeof module === "object") module.exports = root.AriadneConversationAttachments;
   if (root.document) document.addEventListener("DOMContentLoaded", () => {
-    const link = document.createElement("link"); link.rel = "stylesheet"; link.href = "/conversation-attachments.css?v=inline-composer-4"; document.head.append(link);
+    const link = document.createElement("link"); link.rel = "stylesheet"; link.href = "/conversation-attachments.css?v=message-history-6"; document.head.append(link);
     Object.entries(FORMS).forEach(([id, domain]) => { const form = document.getElementById(id); if (form) mount(form, domain); });
   }, { once: true });
 }(typeof globalThis === "undefined" ? this : globalThis));

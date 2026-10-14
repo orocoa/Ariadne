@@ -79,7 +79,10 @@
       if (entry.transition !== transition) return;
       cancelTransition(entry);
       refresh();
-      if (!entry.locked) entry.form.querySelector("textarea")?.focus({ preventScroll: true });
+      if (!entry.locked) {
+        root.AriadneConversationUI?.settle({ form: entry.form, messages: entry.pane.querySelector(".v1-conversation-messages"), focus: false });
+        entry.form.querySelector("textarea")?.focus({ preventScroll: true });
+      }
     } catch (_) {
       // Cancellation belongs to a newer scope/settings state or page lifecycle.
       if (entry.transition !== transition) return;

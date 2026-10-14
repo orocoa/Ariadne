@@ -326,6 +326,7 @@
     withOutput(api => {
       if (renderedKeys.get(target) === keys) api.decorate(target, messages, textFor);
     });
+    globalThis.AriadneConversationAttachments?.decorate?.(target, messages);
   }
 
   function setExecutionState({ form, status = null, active, copy = "" }) {

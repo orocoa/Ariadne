@@ -24,17 +24,19 @@ function fixture(id = 'personal-conversation-form', reduced = false, remembered 
       animations.push(animation); return animation;
     }
   }
-  let focused = false, accepts = 0, rejectConsent = false;
+  let focused = false, accepts = 0, rejectConsent = false, settles = 0;
   const pane = new Element(), form = new Element(), input = new Element(), history = new Element(), reserved = new Element();
   reserved.inert = true; pane.append(history, form, reserved);
   form.id = id; form.closest = () => pane; elements.set(id, form);
   let state = { scope: 'scope-a', fingerprint: 'fp-a', token: 'a', accepted: remembered, runtime };
   const root = { document: { documentElement: { lang: 'zh' }, body: {}, head: new Element(), createElement: () => new Element(), getElementById: id => elements.get(id) },
+    AriadneConversationUI: { settle: ({form: source, focus}) => { assert.equal(source, form); assert.equal(focus, false); settles++; } },
     AriadneRuntimeSelection: { entryConsent: () => state, acceptEntryConsent: (_operation, token) => { accepts++; if (rejectConsent || token !== state.token) throw Error('changed'); state.accepted = true; } },
     matchMedia: () => ({ matches: reduced }), getComputedStyle: () => ({ getPropertyValue: name => ({ '--vi-motion-close': '480ms', '--vi-motion-open': '540ms', '--vi-ease-standard': 'ease', '--vi-ease-reveal': 'ease' })[name] }),
     requestAnimationFrame: () => {}, addEventListener: (name, callback) => { events[name] = callback; }, MutationObserver: class { observe() {} } };
   vm.runInNewContext(source, root);
   return { root, pane, form, history, reserved, animations, events, gate: pane.children[0],
+    settles: () => settles,
     click: () => pane.children[0].children[3].handlers.click(),
     state: () => ({ focused, accepts, locked: root.AriadneConversationEntry.requiresConfirmation(id === 'job-overview-form' ? 'job_overview' : id === 'personal-conversation-form' ? 'personal_understanding' : id.startsWith('candidate') ? 'candidate_conversation' : 'job_conversation') }),
     change: (token = 'b', accepted = false) => { state = { ...state, token, accepted }; root.AriadneConversationEntry.refresh(); },
@@ -52,6 +54,7 @@ for (const id of ['personal-conversation-form', 'job-overview-form', 'candidate-
   assert.equal(f.animations[1].options.duration, 540);
   f.animations[1].finish(); await pending;
   assert.deepEqual(f.state(), { accepts: 1, locked: false, focused: true });
+  assert.equal(f.settles(), 1, "entering positions the latest message after the pane is visible");
   assert.equal(f.form.inert, false); assert.equal(f.reserved.inert, true); assert.equal(f.pane.dataset.entryTransition, undefined);
 }
 for (const phase of ['leaving', 'entering']) {
@@ -60,6 +63,7 @@ for (const phase of ['leaving', 'entering']) {
   f.change(); await pending;
   assert.equal(f.state().locked, true); assert.equal(f.gate.hidden, false); assert.equal(f.state().focused, false);
   assert.equal(f.pane.dataset.entryTransition, undefined); assert.equal(f.gate.children[3].disabled, false);
+  assert.equal(f.settles(), 0, "cancelled entry cannot reposition another conversation");
 }
 {
   const f = fixture('personal-conversation-form', true); await f.click();

@@ -93,7 +93,7 @@ await Domain.discuss(db,{...options,human_message:"用当前模型直接回答"}
 assert.equal(calls[beforeMismatched].context.overview,null,"a different model/settings cache is not injected into the direct path");
 assert.equal(calls.length-beforeMismatched,1);
 db.data.get("job_overview_snapshots").set(currentOverview.overview_id,currentOverview);
-const first=await Domain.discuss(db,{...options,human_message:"共同要求是什么？"});assert.equal(first.calls,1);assert.equal(first.context_coverage.included_jobs,3);
+const first=await Domain.discuss(db,{...options,human_message:"共同要求是什么？"});assert.equal(first.calls,1);assert.equal(calls.at(-1).request_id,first.turn_id,"stored discussion binds the attachment request identity");assert.equal(first.context_coverage.included_jobs,3);
 assert(Domain.discussionContext((await Domain.snapshotFromDatabase(db)),"继续说说",[first]).history[0].assistant.includes("模型替身有来源的说明"), "follow-up history includes grounded findings");
 assert(calls.filter(x=>x.phase!=="DISCUSS").every(x=>!x.context.candidate), "Job digests remain independent of the person");
 assert.equal(JSON.stringify([...db.data.get("job_context_revisions").values()]),writesBefore,"overview cannot edit job facts");

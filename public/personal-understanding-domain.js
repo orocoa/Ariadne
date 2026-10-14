@@ -172,7 +172,7 @@
       const [memories, turns] = await Promise.all([Memory.getAll(database, "personal_memory_revisions"), Memory.getAll(database, "personal_conversation_turns")]);
       const compiled = discussionContext({ ...snapshot, personal_understanding: snapshot.personal_understanding?.runtime_identity === runtimeIdentity ? snapshot.personal_understanding : null }, humanMessage, memories, turns.sort((a, b) => a.created_at.localeCompare(b.created_at)));
       onProgress("正在结合个人资料回应…");
-      const request = requestFor("DISCUSS", compiled.context, humanMessage, runtime_snapshot, consent);
+      const request = { ...requestFor("DISCUSS", compiled.context, humanMessage, runtime_snapshot, consent), request_id: turn.turn_id };
       const result = await call(request); const output = validateResult(result, request);
       Memory.text(output.message, 6000);
       if (!Array.isArray(output.proposals) || output.proposals.length > 4 || !Array.isArray(output.card_proposals) || output.card_proposals.length > Contract.limits.card_proposals_per_turn) throw new Error("PERSONAL_OUTPUT_INVALID");

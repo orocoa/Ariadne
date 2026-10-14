@@ -25,3 +25,9 @@
 .v1-attachment-consent input { flex: 0 0 auto; width: auto; }
 .v1-attachment-status { overflow-wrap: anywhere; margin: var(--vi-space-4) 0 0; }
 .v1-attachment-status:empty { display: none; }
+.v1-message-attachments { display: flex; flex-wrap: wrap; gap: var(--vi-space-8); margin-top: var(--vi-space-8); }
+.v1-conversation-message:has(.v1-message-attachments) { flex-direction: column; align-items: flex-start; }
+.v1-message-attachments button { max-width: 100%; min-height: var(--vi-target-comfort); padding: var(--vi-space-8) var(--vi-space-12); border: 1px solid var(--vi-line); border-radius: var(--vi-space-4); background: var(--vi-surface); color: var(--vi-ink); font: inherit; font-size: var(--vi-text-caption); overflow-wrap: anywhere; text-align: start; cursor: pointer; }
+.v1-message-attachments button:focus-visible { outline: 2px solid var(--vi-focus); outline-offset: -2px; }
+.v1-message-attachments button:disabled { cursor: wait; opacity: .5; }
+.v1-message-attachments button[aria-invalid="true"] { color: var(--vi-danger); }
