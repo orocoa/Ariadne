@@ -11,6 +11,9 @@
 }(typeof globalThis !== "undefined" ? globalThis : this, function create(Contract, Memory, Context, Candidate, Runtime, Gate, CandidateCards) {
   const clone = (value) => structuredClone(value);
   const Delivery = globalThis.AriadneConversationOutput || (typeof module === "object" ? require("./conversation-output.js") : null);
+
+  const ResumeSupport = () => globalThis.AriadneResumeTaskSupport || (typeof module === "object" ? require("./resume-task-support.js") : null);
+  const Resume = () => globalThis.AriadneResumeTask || (typeof module === "object" ? require("./resume-task-domain.js") : null);
   function signature() {
     return Object.fromEntries(["contract_id", "request_contract", "result_contract", "operation", "adapter_version", "prompt_version", "request_config_version"].map((key) => [key, Contract[key]]));
   }
@@ -186,12 +189,16 @@
         evidence: Context.records(snapshot).filter((item) => selectedRefs.has(item.ref) && item.semantic.item_type !== "PERSONAL_MEMORY") }));
       const preparedCards = await CandidateCards.prepare(database, { raw_proposals: output.card_proposals, human_message: humanMessage,
         context: compiled.context, snapshot, runtime_snapshot, turn_id: turn.turn_id });
-      const completed = { ...turn, runtime_snapshot: clone(runtime_snapshot), status: "SUCCEEDED", output: { message: output.message, deliverable: Delivery.fromResult(result), web_search: Delivery.searchFromResult(result) }, source_fingerprint: snapshot.aggregate_fingerprint,
+      const resumePrepared = await ResumeSupport().prepareResult(database, request, result);
+      const resumeMetadata = ResumeSupport().metadata(resumePrepared);
+      const completed = { ...turn, runtime_snapshot: clone(runtime_snapshot), status: "SUCCEEDED", output: { message: output.message, deliverable: Delivery.fromResult(result), ...(resumeMetadata ? { resume_task: resumeMetadata } : {}), web_search: Delivery.searchFromResult(result) }, source_fingerprint: snapshot.aggregate_fingerprint,
         context_coverage: compiled.selected.context_coverage, context_bytes: Context.bytes(compiled.context),
-        calls: 1, refresh_usage: {}, usage: result.usage || {}, proposal_ids: proposals.map((entry) => entry.proposal_id), card_proposal_ids: preparedCards.proposals.map((entry) => entry.proposal_id) };
+        calls: 1 + (result.resume_task?.calls || 0) + (result.delivery_calls || 0), refresh_usage: {}, usage: result.usage || {}, proposal_ids: proposals.map((entry) => entry.proposal_id), card_proposal_ids: preparedCards.proposals.map((entry) => entry.proposal_id) };
       await new Promise((resolve, reject) => {
         const cardStores = preparedCards.proposals.length ? [...(preparedCards.runtime_snapshot ? ["runtime_snapshots"] : []), "processing_runs", "context_proposals"] : [];
-        const tx = database.transaction(["personal_conversation_turns", "personal_memory_proposals", ...cardStores], "readwrite");
+        const tx = database.transaction([...new Set(["personal_conversation_turns", "personal_memory_proposals", ...cardStores, ...(resumePrepared ? Resume().transactionStores(resumePrepared) : [])])], "readwrite");
+        let resumeError = null;
+        if (resumePrepared) Resume().commitInto(tx, resumePrepared).catch(error => { resumeError = error; try { tx.abort(); } catch (_) {} });
         tx.objectStore("personal_conversation_turns").put(completed);
         proposals.forEach((entry) => tx.objectStore("personal_memory_proposals").add(entry));
         if (preparedCards.proposals.length) {
@@ -199,8 +206,9 @@
           tx.objectStore("processing_runs").add(clone(preparedCards.processing_run));
           preparedCards.proposals.forEach((entry) => tx.objectStore("context_proposals").add(clone(entry)));
         }
-        tx.oncomplete = resolve; tx.onerror = tx.onabort = () => reject(tx.error || new Error("personal_turn_write_failed"));
+        tx.oncomplete = resolve; tx.onerror = tx.onabort = () => reject(resumeError || tx.error || new Error("personal_turn_write_failed"));
       });
+      if (resumePrepared) globalThis.dispatchEvent?.(new Event("ariadne-resume-saved"));
       return { turn: completed, proposals, card_proposals: preparedCards.proposals, snapshot: fresh };
     } catch (error) {
       await Memory.write(database, "personal_conversation_turns", { ...turn, status: "FAILED", error_code: String(error?.message || "PERSONAL_FAILED").slice(0, 100) }, { replace: true });

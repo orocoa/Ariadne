@@ -109,7 +109,7 @@
         ? tr("后续问题、相关个人资料、已保存补充和对话历史", "Your subsequent questions, relevant personal records, saved notes and conversation history")
         : operation === "job_conversation" ? tr("后续问题、当前职位、投递状态、备注、求职记录文字、相关个人资料和对话历史", "Your questions, current job, application status, notes, journal text, relevant personal records and conversation history")
         : tr("后续问题、当前职位、相关个人资料、已保存补充和对话历史", "Your subsequent questions, current jobs, relevant personal records, saved notes and conversation history");
-      const copy = tr(`${scope}将发送至 ${recipient}，可能消耗模型额度或产生 API 费用。更新理解可能分批调用。`, `${scope} will be sent to ${recipient}, using model credits or incurring API charges. Updating understanding may require multiple calls.`);
+      const copy = tr(`${scope}将发送至 ${recipient}，可能消耗模型额度或产生 API 费用。更新理解可能分批调用；生成或修改简历会读取完整当前个人资料、已保存补充、本对话的用户原话和完整简历草稿，并追加生成及独立事实审核调用；PDF 输出还会增加一次用途检查。`, `${scope} will be sent to ${recipient}, using model credits or incurring API charges. Understanding may require multiple calls. Resume creation or editing uses the complete active personal records, saved notes, your statements in this conversation and full resume draft, with additional generation and independent factual review calls. PDF exports also require an additional purpose check.`);
       if (entry.copy.textContent !== copy) entry.copy.textContent = copy;
       const title = tr("开始对话前", "Before starting a conversation"); if (entry.title.textContent !== title) entry.title.textContent = title;
       const search = state.runtime.provider === "codex"

@@ -1,0 +1,82 @@
+{
+  "contract_id": "ariadne-resume-task-contract-v1",
+  "context_contract": "ariadne-resume-context-v1",
+  "result_contract": "ariadne-resume-task-result-v1",
+  "prepared_contract": "ariadne-resume-task-prepared-v1",
+  "task_contract": "ariadne-resume-task-head-v1",
+  "document_contract": "ariadne-resume-document-version-v1",
+  "review_contract": "ariadne-resume-review-v1",
+  "consent_purpose": "RESUME_TASK_FULL_CURRENT",
+  "authority": {
+    "task": "NON_AUTHORITATIVE_RESUME_TASK",
+    "document": "NON_AUTHORITATIVE_RESUME_DOCUMENT"
+  },
+  "stores": {
+    "tasks": { "name": "resume_tasks", "keyPath": "task_id" },
+    "documents": { "name": "resume_document_versions", "keyPath": "version_id", "append_only": true }
+  },
+  "limits": {
+    "context_bytes": 256000,
+    "evidence_records": 500,
+    "human_characters": 8000,
+    "id_characters": 1024,
+    "template_bytes": 30000000,
+    "template_index": 3
+  },
+  "domains": ["CANDIDATE", "JOB", "PERSONAL", "JOB_OVERVIEW"],
+  "history_stores": {
+    "CANDIDATE": "conversation_messages",
+    "JOB": "job_conversation_messages",
+    "PERSONAL": "personal_conversation_turns",
+    "JOB_OVERVIEW": "job_overview_turns"
+  },
+  "roles": [
+    "CANDIDATE_CONFIRMED",
+    "CANDIDATE_WORKING",
+    "PERSONAL_FACT",
+    "PERSONAL_CORRECTION",
+    "PERSONAL_PREFERENCE",
+    "PERSONAL_GOAL",
+    "CURRENT_HUMAN",
+    "TASK_HUMAN_UNCONFIRMED",
+    "CONVERSATION_HUMAN_UNCONFIRMED"
+  ],
+  "source_states": [
+    "ORIGINAL_AVAILABLE",
+    "SOURCE_REFERENCE_ONLY",
+    "LEGACY_PROVENANCE_UNKNOWN",
+    "SOURCE_UNAVAILABLE",
+    "CURRENT_TURN",
+    "TASK_HISTORY_UNCONFIRMED",
+    "CONVERSATION_HISTORY_UNCONFIRMED"
+  ],
+  "statuses": ["READY", "NEEDS_FACTS", "REVISION_REQUIRED"],
+  "review_checks": [
+    "identity",
+    "current_corrections",
+    "full_requested_content",
+    "template_separation",
+    "translation_scope",
+    "chat_consistency",
+    "employer_facing_only"
+  ],
+  "context_fields": [
+    "contract_id", "scope", "task_id", "expected_task_revision", "candidate_fingerprint",
+    "current_human", "evidence", "evidence_manifest", "prior_task", "prior_version", "template", "job_context",
+    "consent", "context_fingerprint"
+  ],
+  "task_fields": [
+    "contract_id", "task_id", "scope", "revision", "candidate_fingerprint", "current_version_id",
+    "current_version", "template", "job_binding", "task_human_history", "latest_status", "latest_request", "last_result_message", "created_at", "updated_at", "authority"
+  ],
+  "document_fields": [
+    "contract_id", "version_id", "task_id", "scope", "version", "parent_version_id",
+    "expected_task_revision", "candidate_fingerprint", "context_fingerprint", "document_hash",
+    "deliverable", "grounding", "review", "template", "job_context", "evidence_snapshot", "evidence_hash", "task_human_history", "created_at", "authority"
+  ],
+  "result_fields": [
+    "contract_id", "task_id", "expected_task_revision", "scope", "candidate_fingerprint",
+    "context_fingerprint", "document_hash", "template", "status", "message", "deliverable",
+    "proposal", "grounding", "review", "provider", "model", "calls", "usage", "persistence"
+  ]
+}

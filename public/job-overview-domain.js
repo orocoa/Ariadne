@@ -57,6 +57,9 @@
     snapshot.overview = (await getAll(db, "job_overview_snapshots")).filter((entry) => entry.authority === "NON_AUTHORITATIVE_JOB_OVERVIEW" && entry.fingerprint === snapshot.fingerprint && entry.prompt_version === Contract.prompt_version).sort((a, b) => b.created_at.localeCompare(a.created_at))[0] || null;
     return snapshot;
   }
+
+  const ResumeSupport = () => globalThis.AriadneResumeTaskSupport || (typeof module === "object" ? require("./resume-task-support.js") : null);
+  const Resume = () => globalThis.AriadneResumeTask || (typeof module === "object" ? require("./resume-task-domain.js") : null);
   function signature() { return Object.fromEntries(["contract_id", "request_contract", "result_contract", "operation", "adapter_version", "prompt_version", "request_config_version"].map((key) => [key, Contract[key]])); }
   function runtimeSnapshot(storage = globalThis.localStorage) {
     const gate = Gate.requireOperation("job_overview", Gate.operationAuthority("job_overview", storage));
@@ -187,8 +190,20 @@
         ...Context.records(snapshot.candidate).map(record => [record.ref, { identity: record.identity, title: record.semantic.title, domain: "CANDIDATE" }])]);
       const insights = output.insights.map(entry => ({ text: entry.text, identities: entry.evidence_refs.filter(ref => references.get(ref)?.domain === "JOB").map(ref => references.get(ref).identity),
         candidate_sources: entry.evidence_refs.filter(ref => references.get(ref)?.domain === "CANDIDATE").map(ref => references.get(ref)) }));
-      const completed = { ...turn, runtime_snapshot: clone(options.runtime_snapshot), status: "SUCCEEDED", fingerprint: snapshot.fingerprint, candidate_fingerprint: snapshot.candidate.aggregate_fingerprint, prompt_version: Contract.prompt_version, candidate_coverage: context.candidate_coverage, web_sources: clone(result.web_sources || []), output: { message: output.summary, insights, uncertainties: output.uncertainties, deliverable: Delivery.fromResult(result), web_search: Delivery.searchFromResult(result) }, context_coverage: context.coverage, context_bytes: Context.bytes(context), calls: refreshed.calls + 1, usage: result.usage || {}, refresh_usage: refreshed.usage };
-      await write(db, "job_overview_turns", completed, true); return completed;
+      const resumePrepared = await ResumeSupport().prepareResult(db, request, result);
+      const resumeMetadata = ResumeSupport().metadata(resumePrepared);
+      const completed = { ...turn, runtime_snapshot: clone(options.runtime_snapshot), status: "SUCCEEDED", fingerprint: snapshot.fingerprint, candidate_fingerprint: snapshot.candidate.aggregate_fingerprint, prompt_version: Contract.prompt_version, candidate_coverage: context.candidate_coverage, web_sources: clone(result.web_sources || []), output: { message: output.summary, insights, uncertainties: output.uncertainties, deliverable: Delivery.fromResult(result), ...(resumeMetadata ? { resume_task: resumeMetadata } : {}), web_search: Delivery.searchFromResult(result) }, context_coverage: context.coverage, context_bytes: Context.bytes(context), calls: refreshed.calls + 1 + (result.resume_task?.calls || 0) + (result.delivery_calls || 0), usage: result.usage || {}, refresh_usage: refreshed.usage };
+      if (resumePrepared) {
+        await new Promise((resolve, reject) => {
+          const tx = db.transaction(["job_overview_turns", ...Resume().transactionStores(resumePrepared)], "readwrite");
+          let resumeError = null;
+          tx.oncomplete = resolve; tx.onerror = tx.onabort = () => reject(resumeError || tx.error || Error("job_overview_turn_write_failed"));
+          Resume().commitInto(tx, resumePrepared).catch(error => { resumeError = error; try { tx.abort(); } catch (_) {} });
+          tx.objectStore("job_overview_turns").put(clone(completed));
+        });
+        globalThis.dispatchEvent?.(new Event("ariadne-resume-saved"));
+      } else await write(db, "job_overview_turns", completed, true);
+      return completed;
     } catch (error) { await write(db, "job_overview_turns", { ...turn, status: "FAILED", error_code: String(error.message).slice(0, 100) }, true); throw error; }
   }
   return Object.freeze({ Contract, STORES, INPUT_STORES, same, fingerprint, text, getAll, write, buildSnapshot, snapshotFromDatabase, signature, runtimeSnapshot, requestFor, callRuntime, validateResult, batches, refresh, discussionContext, discuss });

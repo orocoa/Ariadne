@@ -159,7 +159,9 @@
     const live = request.phase && request.phase !== "DISCUSS" ? { event() {}, finish() {} } : feedback(domain);
     let finished = false;
     try {
-      const outbound = attachments ? await attachments.prepare(request, domain) : request;
+      let outbound = attachments ? await attachments.prepare(request, domain) : request;
+      if (root.AriadneResumeTaskSupport) outbound = await root.AriadneResumeTaskSupport.prepare(request, domain, outbound);
+      if (root.AriadneResumeTaskSupport) outbound = await root.AriadneResumeTaskSupport.beforeDispatch(request, outbound);
       attachments?.stage(request, "MODEL_REQUEST");
       const responsePromise = (root.AriadneTransport || root).fetch(endpoint, {
         method: "POST",

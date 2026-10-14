@@ -18,9 +18,9 @@
   function withOutput(callback) {
     if (!globalThis.document?.createElement) return;
     if (!outputModule) outputModule = new Promise(resolve => {
-      const css = document.createElement("link"); css.rel = "stylesheet"; css.href = "/conversation-output.css?v=2"; document.head.append(css);
+      const css = document.createElement("link"); css.rel = "stylesheet"; css.href = "/conversation-output.css?v=3"; document.head.append(css);
       if (globalThis.AriadneConversationOutput) { resolve(globalThis.AriadneConversationOutput); return; }
-      const script = document.createElement("script"); script.src = "/conversation-output.js?v=4";
+      const script = document.createElement("script"); script.src = "/conversation-output.js?v=5";
       script.onload = () => resolve(globalThis.AriadneConversationOutput);
       script.onerror = () => resolve(null);
       document.head.append(script);
@@ -275,7 +275,7 @@
         const key = keys[index], text = String(textFor(message) ?? ""), role = message.role;
         let record = previous.get(key);
         if (!record || record.text !== text || record.role !== role) {
-          const node = doc.createElement("p");
+          const node = doc.createElement(role === "USER" ? "p" : "div");
           node.className = `v1-conversation-message ${role === "USER" ? "user" : "assistant"}`;
           node.textContent = text;
           if (previousCount > 0 && !oldKeySet.has(key)) node.classList.add("is-entering");
@@ -302,7 +302,7 @@
     } else {
       // Minimal non-DOM adapters used by consumers retain the string renderer.
       target.innerHTML = messages.length
-        ? messages.map((message, index) => `<p class="v1-conversation-message ${message.role === "USER" ? "user" : "assistant"}${previousCount > 0 && index >= previousCount ? " is-entering" : ""}">${escapeHtml(textFor(message))}</p>`).join("")
+        ? messages.map((message, index) => `<${message.role === "USER" ? "p" : "div"} class="v1-conversation-message ${message.role === "USER" ? "user" : "assistant"}${previousCount > 0 && index >= previousCount ? " is-entering" : ""}">${escapeHtml(textFor(message))}</${message.role === "USER" ? "p" : "div"}>`).join("")
         : `<p class="v1-conversation-empty">${escapeHtml(emptyText || "")}</p>`;
     }
     renderedCounts.set(target, messages.length);

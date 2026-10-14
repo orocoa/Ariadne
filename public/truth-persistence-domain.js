@@ -10,7 +10,7 @@
 
   const CONTRACT_ID = "ariadne-truth-persistence-v1";
   const DB_NAME = "job-radar-local-first-v1";
-  const DB_VERSION = 19;
+  const DB_VERSION = 20;
   const STORE_SPECS = Object.freeze([
     Object.freeze({ name: "applications", keyPath: "job_context_id", lifecycle: "new" }),
     Object.freeze({ name: "job_journal_entries", keyPath: "entry_id", lifecycle: "new" }),
@@ -45,6 +45,8 @@
     Object.freeze({ name: "personal_memory_decisions", keyPath: "decision_id", lifecycle: "new" }),
     Object.freeze({ name: "personal_understanding_fragments", keyPath: "fragment_id", lifecycle: "new" }),
     Object.freeze({ name: "personal_understanding_snapshots", keyPath: "understanding_id", lifecycle: "new" }),
+    Object.freeze({ name: "resume_tasks", keyPath: "task_id", lifecycle: "new" }),
+    Object.freeze({ name: "resume_document_versions", keyPath: "version_id", lifecycle: "new" }),
     Object.freeze({ name: "personal_conversation_turns", keyPath: "turn_id", lifecycle: "new" }),
     Object.freeze({ name: "job_overview_fragments", keyPath: "fragment_id", lifecycle: "new" }),
     Object.freeze({ name: "job_overview_snapshots", keyPath: "overview_id", lifecycle: "new" }),
@@ -63,6 +65,7 @@
   const CANDIDATE_CONTEXT_LIFECYCLE_STATES = Object.freeze(["REMOVED"]);
   const CANCEL_REASON = "USER_CANCELLED_UPLOAD";
   const APPEND_ONLY_STORES = Object.freeze([
+    "resume_document_versions",
     "runtime_snapshots",
     "extraction_artifacts",
     "context_review_decisions",

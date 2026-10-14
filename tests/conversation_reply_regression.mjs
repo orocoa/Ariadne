@@ -18,8 +18,8 @@ const target = {
   setAttribute(name, value) { this.attributes[name] = value; },
   set innerHTML(html) {
     this.children.forEach(bubble => { bubble.isConnected = false; });
-    this.children = [...html.matchAll(/<p[^>]*>(.*?)<\/p>/gs)].map(match => ({
-      nodes: [{ data: match[1] }], style: {}, isConnected: true,
+    this.children = [...html.matchAll(/<(p|div)[^>]*>(.*?)<\/\1>/gs)].map(match => ({
+      nodes: [{ data: match[2] }], style: {}, isConnected: true,
     }));
   },
   get lastElementChild() { return this.children.at(-1); },

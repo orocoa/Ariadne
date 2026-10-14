@@ -5,7 +5,7 @@
   "description": "Canonical cross-language contract for Ariadne local truth and durable Candidate and Job conversation objects. Persistence never changes an object's authority role.",
   "x-contract-id": "ariadne-truth-persistence-v1",
   "x-indexeddb-name": "job-radar-local-first-v1",
-  "x-indexeddb-version": 19,
+  "x-indexeddb-version": 20,
   "x-status-semantics": {
     "processing_run": "Records actual execution outcome and is never retroactively rewritten because a later user workflow was cancelled.",
     "processing_batch": "Records workflow disposition; CANCELLED remains CANCELLED even if an in-flight execution later succeeds or fails.",
@@ -51,6 +51,8 @@
     {"name": "personal_memory_decisions", "keyPath": "decision_id", "lifecycle": "new"},
     {"name": "personal_understanding_fragments", "keyPath": "fragment_id", "lifecycle": "new"},
     {"name": "personal_understanding_snapshots", "keyPath": "understanding_id", "lifecycle": "new"},
+    {"name": "resume_tasks", "keyPath": "task_id", "lifecycle": "new"},
+    {"name": "resume_document_versions", "keyPath": "version_id", "lifecycle": "new"},
     {"name": "personal_conversation_turns", "keyPath": "turn_id", "lifecycle": "new"},
     {"name": "job_overview_fragments", "keyPath": "fragment_id", "lifecycle": "new"},
     {"name": "job_overview_snapshots", "keyPath": "overview_id", "lifecycle": "new"},

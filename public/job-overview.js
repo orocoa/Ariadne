@@ -38,7 +38,7 @@
     el("job-overview-insights").innerHTML = insightsMarkup(overview?.insights);
     el("job-overview-unknowns").innerHTML = overview?.uncertainties?.length ? `<div class="personal-unknowns"><h3>还需要确认</h3>${unknownMarkup(overview.uncertainties)}</div>` : "";
     el("job-overview-directory").innerHTML = snapshot.records.map((record) => `<div class="job-overview-directory-item">${links([record.identity])}<div>${esc(record.semantic.location || "地点未明确")} · ${record.version ? `当前版本 ${record.version}` : "尚未保存为正式职位"}</div></div>`).join("") || "暂无职位描述。";
-    const messages = turns.slice(-visible).flatMap((turn) => [{ id: `${turn.turn_id}:user`, role: "USER", turn_id: turn.turn_id, text: turn.human_message }, ...(turn.status === "SUCCEEDED" ? [{ id: `${turn.turn_id}:assistant`, role: "ASSISTANT", runtime_snapshot: turn.runtime_snapshot, text: `${(turn.fingerprint !== snapshot.fingerprint || turn.candidate_fingerprint !== snapshot.candidate.aggregate_fingerprint || turn.prompt_version !== Domain.Contract.prompt_version) ? "（基于当时资料或旧读取范围的历史回答）\n" : ""}${turn.output.message}`, deliverable: turn.output.deliverable, web_search: turn.output.web_search, result: { ...turn.output, web_sources: turn.web_sources || [] } }] : [])]);
+    const messages = turns.slice(-visible).flatMap((turn) => [{ id: `${turn.turn_id}:user`, role: "USER", turn_id: turn.turn_id, text: turn.human_message }, ...(turn.status === "SUCCEEDED" ? [{ id: `${turn.turn_id}:assistant`, role: "ASSISTANT", runtime_snapshot: turn.runtime_snapshot, text: `${(turn.fingerprint !== snapshot.fingerprint || turn.candidate_fingerprint !== snapshot.candidate.aggregate_fingerprint || turn.prompt_version !== Domain.Contract.prompt_version) ? "（基于当时资料或旧读取范围的历史回答）\n" : ""}${turn.output.message}`, deliverable: turn.output.deliverable, resume_task: turn.output.resume_task, web_search: turn.output.web_search, result: { ...turn.output, web_sources: turn.web_sources || [] } }] : [])]);
     if (pendingMessage) messages.push({ role: "USER", text: pendingMessage });
     const target = el("job-overview-messages");
     intro.update(messages.length > 0);
@@ -64,7 +64,7 @@
       await task(db, { runtime_snapshot: captured, consent: true, call, onProgress: (copy) => UI.setExecutionState({ form: el("job-overview-form"), status: el("job-overview-processing"), active: true, copy }) });
     } catch (error) {
       draft?.finish(true);
-      status(window.AriadneRuntimeSelection?.errorCopy(error) || (/CONTEXT_CHANGED/.test(error.message) ? "个人资料或职位已经变化，本次结果未保存。请基于最新资料重试。" : /RUNTIME|CONSENT|capability/.test(error.message) ? "运行方式或资料传输确认已变化，请核对后重试。" : "本次处理未完成，没有生成替代回答或修改任何职位描述。原始资料与历史保留，可以重试。"), true);
+      status(window.AriadneResumeTaskSupport?.errorCopy(error) || window.AriadneRuntimeSelection?.errorCopy(error) || (/CONTEXT_CHANGED/.test(error.message) ? "个人资料或职位已经变化，本次结果未保存。请基于最新资料重试。" : /RUNTIME|CONSENT|capability/.test(error.message) ? "运行方式或资料传输确认已变化，请核对后重试。" : "本次处理未完成，没有生成替代回答或修改任何职位描述。原始资料与历史保留，可以重试。"), true);
     } finally {
       db?.close(); draft?.finish(); pendingMessage = null;
       try { await load(); }

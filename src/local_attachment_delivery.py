@@ -15,10 +15,14 @@ def local_attachment_scope(domain):
     def decorate(function):
         @wraps(function)
         def execute(handler, *args, **kwargs):
-            token = LOCAL_ATTACHMENT_RESOLVER.set(None if getattr(handler, "web_request", False) else resolver(domain))
+            from src.resume_template_delivery import TEMPLATE_RESOLVER, resolver as template_resolver
+            local = not getattr(handler, "web_request", False)
+            token = LOCAL_ATTACHMENT_RESOLVER.set(resolver(domain) if local else None)
+            template_token = TEMPLATE_RESOLVER.set(template_resolver(domain) if local else None)
             try:
                 return function(handler, *args, **kwargs)
             finally:
+                TEMPLATE_RESOLVER.reset(template_token)
                 LOCAL_ATTACHMENT_RESOLVER.reset(token)
         return execute
     return decorate

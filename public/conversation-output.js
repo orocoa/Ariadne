@@ -9,6 +9,7 @@
   const exports = new WeakMap();
   const utf8 = text => new TextEncoder().encode(text);
   const VERSION = "ariadne-conversation-delivery-v2";
+  const REVIEWED_VERSION = "ariadne-conversation-delivery-v3";
   const LEGACY_VERSION = "ariadne-conversation-delivery-v1";
   function validate(value) {
     if (value == null) return null;
@@ -66,7 +67,8 @@
   }
   function fromResult(result) {
     if (result.deliverable == null) return null;
-    if (![VERSION, LEGACY_VERSION].includes(result.delivery_version) || result.deliverable.kind === "RESUME" && result.delivery_version !== VERSION) throw new Error("文件输出版本不兼容，请刷新后重试");
+    if (![VERSION, LEGACY_VERSION, REVIEWED_VERSION].includes(result.delivery_version) || result.deliverable.kind === "RESUME" && ![VERSION, REVIEWED_VERSION].includes(result.delivery_version)) throw new Error("文件输出版本不兼容，请刷新后重试");
+    if (result.delivery_version === REVIEWED_VERSION && (result.deliverable.kind !== "RESUME" || result.resume_task?.status !== "READY" || JSON.stringify(result.resume_task.deliverable) !== JSON.stringify(result.deliverable))) throw Error("简历尚未通过事实审核");
     return validate(result.deliverable);
   }
   function searchFromResult(result) {
@@ -419,7 +421,7 @@
       if (message.role !== "ASSISTANT" || !bubble || !message.deliverable && !message.web_search) return;
       const key = bubble.dataset.messageKey || message.message_id || message.id || `reply:${index}`;
       // Content and renderer version, rather than DOM identity, own the export.
-      const signature = JSON.stringify([VERSION, "render-v3-text-resume", message.deliverable ?? null, message.web_search ?? null]);
+      const signature = JSON.stringify([VERSION, "render-v4-reviewed-resume", message.deliverable ?? null, message.web_search ?? null, message.resume_task ?? null]);
       used.add(key);
       let record = state.items.get(key);
       if (record?.signature === signature) {
@@ -432,7 +434,7 @@
       state.items.set(key, record);
       const live = () => exports.get(target) === state && state.items.get(key) === record && record.bubble.isConnected;
       if (message.web_search) {
-        const area = doc.createElement("span"); area.className = "v1-reply-exports v1-web-search";
+        const area = doc.createElement("div"); area.className = "v1-reply-exports v1-web-search";
         try {
           const search = searchFromResult(message);
           const label = doc.createElement("span"); label.className = "v1-reply-export-status";
@@ -447,10 +449,10 @@
         record.nodes.push(area); bubble.append(area);
       }
       if (!message.deliverable) return;
-      const area = doc.createElement("span"); area.className = "v1-reply-exports";
+      const area = doc.createElement("div"); area.className = "v1-reply-exports";
       const actions = doc.createElement("span"); actions.className = "v1-reply-export-actions";
       const status = doc.createElement("span"); status.className = "v1-reply-export-status"; status.setAttribute("role", "status");
-      const files = doc.createElement("span"); files.className = "v1-reply-export-files";
+      const files = doc.createElement("div"); files.className = "v1-reply-export-files";
       area.append(actions, status, files); bubble.append(area); record.nodes.push(area);
       const generate = async () => {
         if (!live() || record.generating) return;
@@ -458,6 +460,7 @@
         actions.replaceChildren(); files.replaceChildren(); status.textContent = "正在生成文件…";
         try {
           const value = validate(message.deliverable);
+          const reviewed = message.resume_task ? await root.AriadneResumeTaskSupport.verifyMessage(message) : null;
           if (value.kind === "UNSUPPORTED") { status.textContent = value.body; return; }
           const format = value.kind === "RESUME" ? "PDF" : value.kind;
           const name = Array.from(value.title.replace(/[\\/:*?"<>|\u0000-\u001f]/g, "-").replace(/\.(?:pdf|png)$/iu, "").trim()).slice(0, 80).join("") || "document";
@@ -475,15 +478,23 @@
             item.append(description);
           }
           const link = doc.createElement("a"); link.href = url; link.download = `${name}.${format === "PDF" ? "pdf" : "png"}`;
+          if (reviewed) link.addEventListener("click", async event => {
+            event.preventDefault();
+            try {
+              await root.AriadneResumeTaskSupport.verifyMessage(message);
+              const download = doc.createElement("a"); download.href = url; download.download = link.download; download.click();
+            } catch (error) { status.textContent = root.AriadneResumeTaskSupport.errorCopy(error) || error.message; }
+          });
           link.textContent = `下载 ${link.download}`; item.append(link); files.append(item);
           if (value.kind === "RESUME" && value.resume.review_notes.length) {
             const notes = doc.createElement("span");
             notes.textContent = value.resume.review_notes.join("\n"); files.append(notes);
           }
-          status.textContent = format === "PDF" ? `已生成 ${pages.length} 页 PDF · 文字可选取` : "图解已生成";
+          if (reviewed) files.append(root.AriadneResumeTaskSupport.evidenceView(doc, reviewed));
+          status.textContent = format === "PDF" ? `已生成 ${pages.length} 页 PDF · 文字可选取${reviewed ? " · 逐条依据审核通过" : ""}` : "图解已生成";
         } catch (error) {
           if (!live()) return;
-          status.textContent = error.message || "生成失败，请重试";
+          status.textContent = root.AriadneResumeTaskSupport?.errorCopy(error) || error.message || "生成失败，请重试";
           const retry = doc.createElement("button"); retry.type = "button"; retry.textContent = "重试生成文件";
           retry.addEventListener("click", () => { state.queue = state.queue.then(generate); }); actions.append(retry);
         } finally { record.generating = false; }

@@ -34,6 +34,9 @@
   const CREDENTIAL_REF = "keychain://AI-Learning-OS.JobRadar.DeepSeek/local-vision";
   const REQUEST_CONTRACT = RUNTIME_CONTRACTS.request_contract_version;
   const RESULT_CONTRACT = RUNTIME_CONTRACTS.result_contract_version;
+
+  const ResumeSupport = () => globalThis.AriadneResumeTaskSupport || (typeof module === "object" ? require("./resume-task-support.js") : null);
+  const Resume = () => globalThis.AriadneResumeTask || (typeof module === "object" ? require("./resume-task-domain.js") : null);
   const RESULT_KEYS = Object.freeze([
     "contract_id", "execution_id", "generation", "conversation_id", "operation", "provider", "model", "protocol",
     "runtime_snapshot_id", "finish_reason", "usage", "action", "authority", "network_call_made", "persistence",
@@ -159,7 +162,7 @@
   }
 
   function validateRuntimeResult(value, execution, session, snapshot) {
-    const result = exactKeys(value, [...RESULT_KEYS, ...(Object.hasOwn(value || {}, "web_search") ? ["web_search"] : []), ...(Object.hasOwn(value || {}, "deliverable") ? ["deliverable", "delivery_version"] : [])], "RUNTIME_RESULT_SHAPE_INVALID");
+    const result = exactKeys(value, [...RESULT_KEYS, ...(Object.hasOwn(value || {}, "delivery_calls") ? ["delivery_calls"] : []), ...(Object.hasOwn(value || {}, "web_search") ? ["web_search"] : []), ...(Object.hasOwn(value || {}, "resume_task") ? ["resume_task", "delivery_version", ...(Object.hasOwn(value || {}, "deliverable") ? ["deliverable"] : [])] : Object.hasOwn(value || {}, "deliverable") ? ["deliverable", "delivery_version"] : [])], "RUNTIME_RESULT_SHAPE_INVALID");
     Delivery.fromResult(result);
     Delivery.searchFromResult(result);
     if (result.contract_id !== RESULT_CONTRACT || result.execution_id !== execution.execution_id
@@ -445,6 +448,7 @@
         action_id: actionRecord.action_id,
         usage: result.usage,
       });
+      const resumePrepared = await ResumeSupport().prepareResult(database, request, result);
       const assistantMessage = Persistence.createAssistantMessage({
         message_id: assistantMessageId,
         conversation_id: session.conversation_id,
@@ -454,7 +458,7 @@
         model: snapshot.model,
         runtime_snapshot_id: snapshot.snapshot_id,
         candidate_action_id: actionRecord.action_id,
-        deliverable: Delivery.fromResult(result), web_search: Delivery.searchFromResult(result),
+        resume_task: ResumeSupport().metadata(resumePrepared), deliverable: Delivery.fromResult(result), web_search: Delivery.searchFromResult(result),
         created_at: nowIso(now),
       });
       try {
@@ -464,7 +468,9 @@
           assistant_message: assistantMessage,
           current_working_model: currentWorkingModel,
           resulting_working_model: resultingWorkingModel,
+          resume_task: resumePrepared,
         });
+        if (resumePrepared) globalThis.dispatchEvent?.(new Event("ariadne-resume-saved"));
       } catch (error) {
         if (String(error?.code || error?.message) !== "STALE_WORKING_OBSERVATION") throw error;
         const staleExecution = Conversation.transitionExecution(validatingExecution, "STALE", { at: nowIso(now) });

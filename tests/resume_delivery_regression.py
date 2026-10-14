@@ -51,9 +51,14 @@ def provider(delivery):
         output = {"message": "Your resume is below; review notes stay in this chat.", "proposals": [], "card_proposals": [], "deliverable": delivery}
         return 200, {"model": payload["model"], "choices": [{"finish_reason": "tool_calls", "message": {"tool_calls": [{"function": {"name": "deliver_personal_understanding", "arguments": json.dumps(output)}}]}}]}
     return call
-result = execute(request, lambda: "synthetic-test", provider(RESUME))
-assert result["deliverable"] == RESUME and result["delivery_version"] == VERSION and result["persistence"] == "not_written"
-assert len(calls) == 1 and result["output"]["proposals"] == [] and result["output"]["card_proposals"] == []
+try: execute(request, lambda: "synthetic-test", provider(RESUME))
+except PersonalUnderstandingError as error: assert error.code == "DELIVERABLE_OUTPUT_INVALID"
+else: raise AssertionError("fresh unreviewed resume was exported without a full task context")
+assert len(calls) == 1
+intent = {"kind": "RESUME_INTENT", "instruction": request["human_message"], "template_name": "", "continue": False}
+try: execute(request, lambda: "synthetic-test", provider(intent))
+except PersonalUnderstandingError as error: assert error.code == "RESUME_CONTEXT_REQUIRED", error.code
+else: raise AssertionError("fresh resume intent was allowed to omit full context")
 
 # A historical filename alone cannot authorize claiming reference fidelity.
 referenced = copy.deepcopy(RESUME); referenced["resume"]["template_name"] = "Synthetic-Template.txt"
@@ -66,9 +71,13 @@ attached["attachments"] = {"contract_id": "ariadne-conversation-attachments-v1",
     "consent": {"confirmed": True, "provider": request["runtime_snapshot"]["provider"], "model": request["runtime_snapshot"]["model"], "purpose": "CURRENT_CONVERSATION_TURN"},
     "files": [{"name": referenced["resume"]["template_name"], "mime_type": "text/plain", "size": len(raw),
                "content_hash": "sha256:" + hashlib.sha256(raw).hexdigest(), "data_url": "data:text/plain;base64," + base64.b64encode(raw).decode()}]}
-assert execute(attached, lambda: "synthetic-test", provider(referenced))["deliverable"] == referenced
+try: execute(attached, lambda: "synthetic-test", provider(referenced))
+except PersonalUnderstandingError as error: assert error.code == "DELIVERABLE_OUTPUT_INVALID"
+else: raise AssertionError("a current attachment alone bypassed factual resume review")
 
-# All four domain adapters accept the resume without new write authority.
+# All four fresh domain adapters reject unreviewed resume output even when the
+# caller omits the new context extension. Historical v1/v2 artifacts remain
+# readable through the output module; the shape/visual checks above still apply.
 for filename, request_name, execute_name, response_name in [
     ("candidate_conversation_runtime_regression.py", "base_request", "execute_candidate_conversation_request", "valid_response"),
     ("job_conversation_runtime_regression.py", "request", "execute_job_conversation_request", None),
@@ -85,6 +94,8 @@ for filename, request_name, execute_name, response_name in [
         function["arguments"] = json.dumps({**json.loads(function["arguments"]), "deliverable": RESUME})
     else:
         choice["message"]["content"] = json.dumps({**json.loads(choice["message"]["content"]), "deliverable": RESUME})
-    with contextlib.redirect_stdout(io.StringIO()): result = fixture[execute_name](req, lambda: "synthetic-test", lambda *_: (200, response))
-    assert result["deliverable"] == RESUME and result["persistence"] == "not_written", filename
-print("resume delivery: bounded typed schema, private refs, four domains, current-template availability, one call and no new writes PASS")
+    try:
+        with contextlib.redirect_stdout(io.StringIO()): fixture[execute_name](req, lambda: "synthetic-test", lambda *_: (200, response))
+    except ValueError as error: assert getattr(error, "code", str(error)) == "DELIVERABLE_OUTPUT_INVALID", (filename, error)
+    else: raise AssertionError((filename, "fresh unreviewed resume accepted"))
+print("resume delivery: bounded typed schema/private refs retained; four fresh domains reject unreviewed exports with or without attachments/context; missing full context rejects intent PASS")

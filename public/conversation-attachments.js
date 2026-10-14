@@ -70,6 +70,23 @@
     }
     return ids.map(id => metadata.get(cacheKey(id)));
   }
+  async function readOriginal(id, index, expected, scope) {
+    const current = root.localStorage?.getItem("ariadne-content-workspace-v1") || `browser:${root.location?.origin || "isolated"}`;
+    if (scope.workspace !== current) throw Error("RESUME_TEMPLATE_SCOPE_CHANGED");
+    const db = await openDatabase();
+    let record;
+    try {
+      record = db.getRecord ? await db.getRecord("turns", id) : await new Promise((resolve, reject) => {
+        const read = db.transaction("turns").objectStore("turns").get(id); read.onsuccess = () => resolve(read.result); read.onerror = () => reject(read.error);
+      });
+    } finally { db.close(); }
+    const entry = record?.files?.[index];
+    if (record?.domain !== scope.domain || record?.conversation_id !== scope.conversation_id || record?.authority !== "SOURCE_INPUT_ONLY"
+        || !(entry?.file instanceof Blob) || entry.file.size !== expected.size || ["name", "mime_type", "size", "content_hash"].some(key => entry[key] !== expected[key])) throw Error("RESUME_TEMPLATE_INVALID");
+    const checked = await recordFor(new File([entry.file], entry.name), false);
+    if (checked.content_hash !== expected.content_hash || current !== (root.localStorage?.getItem("ariadne-content-workspace-v1") || `browser:${root.location?.origin || "isolated"}`)) throw Error("RESUME_TEMPLATE_INTEGRITY_INVALID");
+    return entry.file;
+  }
   async function downloadOriginal(id, index, expected, workspace) {
     if (workspace !== cacheKey("")) throw Error("attachment_workspace_changed");
     const db = await openDatabase();
@@ -210,7 +227,10 @@
   async function prepare(request, domain) {
     if (request.phase && request.phase !== "DISCUSS") return request;
     const state = [...controllers.values()].find(s => s.domain === domain && s.files.length);
-    if (!state) return request;
+    if (!state) {
+      for (const entry of controllers.values()) if (entry.domain === domain && !entry.busy) { entry.status.textContent = ""; delete entry.status.dataset.stage; }
+      return request;
+    }
     if (state.busy || !state.consent.checked) throw Error("attachment_consent_required");
     const runtime = request.runtime_snapshot;
     if (state.runtime !== state.identityFor(runtime)) throw Error("attachment_runtime_invalid");
@@ -262,8 +282,7 @@
     pending.delete(requestId(request)); const { state, files } = active; state.busy = false;
     if (ok) {
       state.files = state.files.filter(f => !files.includes(f)); state.consent.checked = false;
-      const next = result?.deliverable ? "生成文件正在本轮回复中准备，可直接下载。" : "本轮回复已生成。";
-      setStatus(state, "COMPLETED", `本轮 ${attachmentLabel(files)} 已发送并处理完成；${next}`);
+      setStatus(state, "COMPLETED", `本轮 ${attachmentLabel(files)} 已发送并处理完成。`);
     } else {
       if (active.dispatched) {
         const selected = new Set(state.files.map((file) => `${file.name}:${file.size}:${file.lastModified}`));
@@ -274,7 +293,7 @@
     }
     state.render();
   }
-  root.AriadneConversationAttachments = { prepare, stage, dispatch, finish, decorate, errorCopy, validateFiles, recordFor, CONTRACT };
+  root.AriadneConversationAttachments = { prepare, stage, dispatch, finish, decorate, errorCopy, validateFiles, recordFor, readOriginal, CONTRACT };
   if (typeof module === "object") module.exports = root.AriadneConversationAttachments;
   if (root.document) document.addEventListener("DOMContentLoaded", () => {
     const link = document.createElement("link"); link.rel = "stylesheet"; link.href = "/conversation-attachments.css?v=message-history-6"; document.head.append(link);

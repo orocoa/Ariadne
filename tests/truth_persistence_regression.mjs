@@ -14,10 +14,16 @@ const schema = JSON.parse(fs.readFileSync(path.join(root, "data", "truth_persist
 assert.equal(Truth.CONTRACT_ID, schema["x-contract-id"]);
 assert.equal(Truth.DB_NAME, schema["x-indexeddb-name"]);
 assert.equal(Truth.DB_VERSION, schema["x-indexeddb-version"]);
+assert.equal(Truth.DB_VERSION, 20, "the task/document store upgrade has an explicit new database version");
 assert.deepEqual(
   Truth.STORE_SPECS.map(({ name, keyPath, lifecycle }) => ({ name, keyPath, lifecycle })),
   schema["x-stores"],
 );
+for (const [name, keyPath] of [["resume_tasks", "task_id"], ["resume_document_versions", "version_id"]]) {
+  assert.deepEqual(Truth.STORE_SPECS.find(spec => spec.name === name), { name, keyPath, lifecycle: "new" });
+}
+assert(Truth.APPEND_ONLY_STORES.includes("resume_document_versions"), "complete resume document versions are immutable history");
+assert(!Truth.APPEND_ONLY_STORES.includes("resume_tasks"), "the task head can advance through CAS");
 assert.deepEqual([...Truth.FIELDS.source], schema.$defs.sourceDocument.required);
 assert.deepEqual([...Truth.FIELDS.extraction], schema.$defs.extractionArtifact.required);
 assert.deepEqual([...Truth.FIELDS.run], schema.$defs.processingRun.required);
@@ -392,6 +398,9 @@ const legacyDemoRow = { item_id: "demo-existing", data_class: "DEMO_FIXTURE", re
 const migrationDb = migrationDatabase(["source_documents", "processing_runs", "conversation_sessions", "conversation_messages", "demo_candidate_items", "demo_job_contexts", "demo_conversations", "demo_ui_state"]);
 const createdStores = Truth.ensureTruthStores(migrationDb);
 assert.deepEqual(createdStores.sort(), Truth.NEW_STORE_SPECS.map((spec) => spec.name).sort());
+for (const [name, keyPath] of [["resume_tasks", "task_id"], ["resume_document_versions", "version_id"]]) {
+  assert.deepEqual(migrationDb.created.find(spec => spec.name === name), { name, keyPath });
+}
 assert.equal(legacyDemoRow.data_class, "DEMO_FIXTURE");
 assert.equal(Demo.DATA_CLASS, "DEMO_FIXTURE");
 assert(Demo.STORES.some(([name]) => name === "demo_candidate_items"));

@@ -31,6 +31,8 @@ def provider(delivery, malformed_domain=False):
     def call(credential, payload):
         calls.append(payload)
         assert payload["model"] == request["runtime_snapshot"]["model"]
+        if payload["tools"][0]["function"]["name"] == "review_document_purpose":
+            return 200, {"model": payload["model"], "choices": [{"finish_reason": "tool_calls", "message": {"tool_calls": [{"function": {"name": "review_document_purpose", "arguments": json.dumps({"is_resume": False})}}]}}]}
         assert "deliverable" in payload["tools"][0]["function"]["parameters"]["properties"]
         output = {"message": "文件将在下方生成。", "proposals": [], "card_proposals": [], "deliverable": delivery}
         if malformed_domain: output["proposals"] = "invalid"
@@ -39,7 +41,7 @@ def provider(delivery, malformed_domain=False):
 for value in [None, PDF, DIAGRAM, dict(kind="UNSUPPORTED", title="暂不支持创作生图", body="此连接尚未接入插画生成能力。", nodes=[], edges=[])]:
     before = len(calls)
     result = execute(request, lambda: "synthetic-test", provider(value))
-    assert len(calls) == before + 1 and result["persistence"] == "not_written"
+    assert len(calls) == before + (2 if value and value["kind"] == "PDF" else 1) and result["persistence"] == "not_written"
     assert result.get("deliverable") == value and "deliverable" not in result["output"]
 for value, domain_bad in [({**PDF, "body": ""}, False), (PDF, True)]:
     try: execute(request, lambda: "synthetic-test", provider(value, domain_bad))
@@ -76,9 +78,16 @@ for filename, request_name, execute_name, response_name in [
         function["arguments"] = json.dumps({**json.loads(function["arguments"]), "deliverable": PDF})
     else:
         choice["message"]["content"] = json.dumps({**json.loads(choice["message"]["content"]), "deliverable": PDF})
-    with contextlib.redirect_stdout(io.StringIO()): result = fixture[execute_name](req, lambda: "synthetic-key", lambda *_: (200, response))
+    domain_calls = []
+    def domain_provider(_credential, payload):
+        domain_calls.append(payload)
+        if payload["tools"][0]["function"]["name"] == "review_document_purpose":
+            return 200, {"model": payload["model"], "choices": [{"finish_reason": "tool_calls", "message": {"tool_calls": [{"function": {"name": "review_document_purpose", "arguments": json.dumps({"is_resume": False})}}]}}]}
+        return 200, response
+    with contextlib.redirect_stdout(io.StringIO()): result = fixture[execute_name](req, lambda: "synthetic-key", domain_provider)
     assert result["deliverable"] == PDF and result["persistence"] == "not_written", filename
-print("delivery: bounded schema, one call, no-write, domain failure, Local and phase isolation PASS")
+    assert len(domain_calls) == 2 and result["delivery_calls"] == 1, filename
+print("delivery: bounded schema, semantic PDF purpose review, chat one call/report two calls, no-write, domain failure, Local and phase isolation PASS")
 
 if "--live" in sys.argv:
     from src.runtime_binding import CODEX_MODEL, CODEX_PROTOCOL, CODEX_CREDENTIAL, adapter_for

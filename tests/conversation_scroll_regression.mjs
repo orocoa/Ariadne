@@ -13,7 +13,7 @@ let jumps = 0;
 const target = {
   closest: () => scroll,
   querySelectorAll: () => [],
-  set innerHTML(value) { scroll.scrollHeight = (value.match(/<p /g) || []).length * 100; },
+  set innerHTML(value) { scroll.scrollHeight = (value.match(/<(?:p|div) /g) || []).length * 100; },
   lastElementChild: { scrollIntoView() { jumps++; scroll.scrollTop = Math.max(0, scroll.scrollHeight - scroll.clientHeight); } },
 };
 const messages = Array.from({ length: 20 }, (_, index) => ({ role: 'USER', text: `message ${index}` }));

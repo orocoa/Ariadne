@@ -12,6 +12,9 @@
   if (!Truth || !Conversation) throw new Error("candidate_conversation_persistence_dependency_required");
   const Delivery = globalThis.AriadneConversationOutput || (typeof module === "object" ? require("./conversation-output.js") : null);
 
+
+  const ResumeSupport = () => globalThis.AriadneResumeTaskSupport || (typeof module === "object" ? require("./resume-task-support.js") : null);
+  const Resume = () => globalThis.AriadneResumeTask || (typeof module === "object" ? require("./resume-task-domain.js") : null);
   const SESSION_CONTRACT = Conversation.CONTRACT_ID;
   const MESSAGE_CONTRACT = `${Conversation.CONTRACT_ID}-message-v1`;
   const TURN_CONTRACT = `${Conversation.CONTRACT_ID}-turn-execution-v1`;
@@ -123,7 +126,7 @@
     });
   }
 
-  function createAssistantMessage({ message_id: messageId, conversation_id: conversationId, turn_id: turnId, text, provider, model, runtime_snapshot_id: runtimeSnapshotId, candidate_action_id: candidateActionId, deliverable = null, web_search = null, created_at: createdAt = new Date() }) {
+  function createAssistantMessage({ message_id: messageId, conversation_id: conversationId, turn_id: turnId, text, provider, model, runtime_snapshot_id: runtimeSnapshotId, candidate_action_id: candidateActionId, deliverable = null, web_search = null, resume_task = null, created_at: createdAt = new Date() }) {
     return validateMessage({
       contract_id: MESSAGE_CONTRACT,
       message_id: messageId,
@@ -136,13 +139,18 @@
       model,
       runtime_snapshot_id: runtimeSnapshotId,
       candidate_action_id: candidateActionId,
+      ...(resume_task ? { resume_task: ResumeSupport().validateMetadata(resume_task) } : {}),
       ...(deliverable ? { deliverable: Delivery.validate(deliverable) } : {}),
       ...(web_search ? { web_search: Delivery.searchFromResult({web_search}) } : {}),
     });
   }
 
   function validateMessage(value) {
-    const message = exact(value, ["contract_id", "message_id", "conversation_id", "turn_id", "role", "text", "created_at", "provider", "model", "runtime_snapshot_id", "candidate_action_id", ...(Object.hasOwn(value || {}, "web_search") ? ["web_search"] : []), ...(Object.hasOwn(value || {}, "deliverable") ? ["deliverable"] : [])], "MESSAGE_SHAPE_INVALID");
+    const message = exact(value, ["contract_id", "message_id", "conversation_id", "turn_id", "role", "text", "created_at", "provider", "model", "runtime_snapshot_id", "candidate_action_id", ...(Object.hasOwn(value || {}, "resume_task") ? ["resume_task"] : []), ...(Object.hasOwn(value || {}, "web_search") ? ["web_search"] : []), ...(Object.hasOwn(value || {}, "deliverable") ? ["deliverable"] : [])], "MESSAGE_SHAPE_INVALID");
+    if (Object.hasOwn(message, "resume_task")) {
+      if (message.role !== "ASSISTANT" || message.deliverable?.kind !== "RESUME") throw new CandidateConversationPersistenceError("USER_MESSAGE_METADATA_FORBIDDEN");
+      ResumeSupport().validateMetadata(message.resume_task);
+    }
     if (Object.hasOwn(message, "web_search")) {
       if (message.role !== "ASSISTANT") throw new CandidateConversationPersistenceError("USER_MESSAGE_METADATA_FORBIDDEN");
       Delivery.searchFromResult(message);
@@ -385,7 +393,7 @@
     });
   }
 
-  function persistSuccessfulTurn(database, { turn: rawTurn, action: rawAction, assistant_message: rawAssistant, current_working_model: rawCurrent, resulting_working_model: rawResulting = null }) {
+  function persistSuccessfulTurn(database, { turn: rawTurn, action: rawAction, assistant_message: rawAssistant, current_working_model: rawCurrent, resulting_working_model: rawResulting = null, resume_task: resumePrepared = null }) {
     const turn = validateTurn(rawTurn);
     const action = validateActionRecord(rawAction);
     const assistant = validateMessage(rawAssistant);
@@ -409,10 +417,11 @@
       || (resulting && (action.resulting_working_model_id !== resulting.working_model_id || resulting.previous_working_model_id !== current.working_model_id || resulting.version !== current.version + 1))) {
       return Promise.reject(new CandidateConversationPersistenceError("ACTION_WORKING_LINKAGE_INVALID"));
     }
-    const names = [STORE_NAMES.sessions, STORE_NAMES.messages, STORE_NAMES.turns, STORE_NAMES.actions, STORE_NAMES.working, "runtime_snapshots"];
+    const names = [...new Set([STORE_NAMES.sessions, STORE_NAMES.messages, STORE_NAMES.turns, STORE_NAMES.actions, STORE_NAMES.working, "runtime_snapshots", ...(resumePrepared ? Resume().transactionStores(resumePrepared) : [])])];
     return new Promise((resolve, reject) => {
       const transaction = database.transaction(names, "readwrite");
       const state = { error: null, pending: 7, session: null, user: null, turn: null, assistant: null, action: null, models: [], snapshot: null };
+      if (resumePrepared) Resume().commitInto(transaction, resumePrepared).catch(error => abortWith(transaction, state, error));
       const ready = () => {
         state.pending -= 1;
         if (state.pending || state.error) return;

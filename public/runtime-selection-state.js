@@ -7,14 +7,14 @@
 }(globalThis, function (root, Settings) {
   const KEY = "ariadne-model-selection-v2", CURRENT = "job-radar-selected-runtime", LEGACY = "ariadne-operation-runtimes-v1";
   const TRANSFER_CONSENT_KEY = "ariadne-model-transfer-consents-v1";
-  const TRANSFER_DISCLOSURE_VERSION = "conversation-context-and-cost-v1";
+  const TRANSFER_DISCLOSURE_VERSION = "conversation-full-resume-and-review-v3";
   const bindings = new Map();
   const transferConsents = new Map();
   if (root.document?.createElement && root.document?.head) {
     const attachUpdates = () => {
       const script = root.document.createElement("script"); script.src = "/model-updates.js?v=1";
       root.document.head.append(script);
-      const entry = root.document.createElement("script"); entry.src = "/conversation-entry-consent.js?v=6";
+      const entry = root.document.createElement("script"); entry.src = "/conversation-entry-consent.js?v=7";
       root.document.head.append(entry);
     };
     if (root.document.readyState === "loading") root.document.addEventListener("DOMContentLoaded", attachUpdates, { once: true });
@@ -122,7 +122,7 @@
       fail("RUNTIME_SELECTION_CHANGED");
     }
   }
-  const consentFingerprint = (snapshot, operation) => JSON.stringify([operation === "job_overview" ? "job-personal-context-public-links-v2" : operation === "job_conversation" ? "job-workspace-followup-text-v2" : TRANSFER_DISCLOSURE_VERSION, Settings.identity(snapshot)]);
+  const consentFingerprint = (snapshot, operation) => JSON.stringify([operation === "job_overview" ? "job-personal-full-resume-public-links-v4" : operation === "job_conversation" ? "job-workspace-full-resume-followup-v4" : TRANSFER_DISCLOSURE_VERSION, Settings.identity(snapshot)]);
   function consentStore(storage = root.localStorage) {
     try {
       const value = read(TRANSFER_CONSENT_KEY, storage);

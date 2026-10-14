@@ -943,6 +943,15 @@ class JobRadarHandler(SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
+        if parsed.path == "/resume-task-contract.js":
+            manifest = json.loads((PROJECT_ROOT / "data" / "resume_task_contract_v1.json").read_text(encoding="utf-8"))
+            body = ("globalThis.AriadneResumeTaskContract = " + json.dumps(manifest, ensure_ascii=False) + ";\n").encode("utf-8")
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", "application/javascript; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if parsed.path == "/workspace-storage-contract.js":
             from src.workspace_storage import CONTRACT
             body = ("globalThis.AriadneWorkspaceStorageContract = " + json.dumps(CONTRACT, ensure_ascii=False) + ";\n").encode("utf-8")
@@ -1458,7 +1467,8 @@ class JobRadarHandler(SimpleHTTPRequestHandler):
             if content_length <= 0 or content_length > ATTACHMENTS_REQUEST_LIMIT:
                 raise CandidateConversationRuntimeError("REQUEST_SIZE_INVALID", "request")
             payload = json.loads(self.rfile.read(content_length).decode("utf-8"))
-            validated = validate_candidate_conversation_request(payload)
+            from src.conversation_delivery import domain_payload
+            validated = validate_candidate_conversation_request(domain_payload(payload))
             execution_id, generation = validated.execution_id, validated.generation
             if not self.execution_registry("CANDIDATE_CONVERSATION_EXECUTIONS").begin(execution_id, generation):
                 self.send_json(HTTPStatus.CONFLICT, {
@@ -1580,7 +1590,8 @@ class JobRadarHandler(SimpleHTTPRequestHandler):
             if content_length <= 0 or content_length > ATTACHMENTS_REQUEST_LIMIT:
                 raise JobConversationRuntimeError("REQUEST_SIZE_INVALID", "request")
             payload = json.loads(self.rfile.read(content_length).decode("utf-8"))
-            validated = validate_job_conversation_request(payload)
+            from src.conversation_delivery import domain_payload
+            validated = validate_job_conversation_request(domain_payload(payload))
             execution_id, generation = validated.execution_id, validated.generation
             if not self.execution_registry("JOB_CONVERSATION_EXECUTIONS").begin(execution_id, generation):
                 self.send_json(HTTPStatus.CONFLICT, {

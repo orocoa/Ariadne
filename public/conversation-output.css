@@ -10,3 +10,8 @@
 .v1-reply-export-files a { color: inherit; overflow-wrap: anywhere; }
 .v1-reply-export-files img { max-width: 100%; width: calc(var(--vi-space-64) * 4); height: auto; border-radius: var(--vi-radius-small); }
 .v1-conversation-message.assistant:has(.v1-reply-exports) { display: block; }
+.v1-reply-export-files details { min-width: 0; overflow-wrap: anywhere; }
+.v1-reply-export-files summary { cursor: pointer; min-height: var(--vi-target-comfort); display: flex; align-items: center; }
+.v1-reply-export-files summary:focus-visible { outline: 2px solid var(--vi-focus); outline-offset: var(--vi-space-4); }
+.v1-reply-export-files pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
+.v1-resume-template-consent { grid-column: 1 / -1; min-width: 0; font-size: var(--vi-text-caption); color: var(--vi-text-secondary); }

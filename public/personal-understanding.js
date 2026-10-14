@@ -96,6 +96,7 @@
     return gate;
   }
   function errorCopy(error) {
+    if (window.AriadneResumeTaskSupport?.errorCopy(error)) return window.AriadneResumeTaskSupport.errorCopy(error);
     if (window.AriadneRuntimeSelection?.errorCopy(error)) return window.AriadneRuntimeSelection.errorCopy(error);
     const code = String(error?.message || error);
     if (/CONTEXT_CHANGED|evidence_changed|version_conflict/.test(code)) return "相关资料或记忆已经变化。这次结果未保存，请基于最新内容重试。";
@@ -128,7 +129,7 @@
     byId("saved-memories").innerHTML = memories.map((entry) => `<article class="personal-memory" data-inactive="${!activeIds.has(entry.memory_id)}"><small>${esc(labels[entry.kind])} · 版本 ${entry.version}${activeIds.has(entry.memory_id) ? "" : " · 关联资料已变化，暂不使用"}</small><p>${esc(entry.text)}</p><button type="button" class="personal-text-button" data-memory-edit="${esc(entry.memory_id)}">修改这条补充</button><button type="button" class="personal-text-button" data-memory-forget="${esc(entry.memory_id)}">不再使用</button></article>`).join("") || '<p class="personal-meta">尚未保存补充。对话中的建议只有经你确认，才会出现在这里。</p>';
     byId("memory-history").innerHTML = [...state.memories].sort((a, b) => b.created_at.localeCompare(a.created_at)).map((entry) => `<p>${esc(labels[entry.kind])} · v${entry.version} · ${entry.status === "RETRACTED" ? "已停止使用，历史保留" : "已保存"}<br>${esc(entry.text)}</p>`).join("") || "暂无历史版本。";
     const turns = state.turns.filter((entry) => entry.kind === "DISCUSSION").sort((a, b) => a.created_at.localeCompare(b.created_at));
-    const messages = turns.slice(-visibleTurns).flatMap((turn) => [{ id: `${turn.turn_id}:user`, role: "USER", turn_id: turn.turn_id, text: turn.human_message }, ...(turn.status === "SUCCEEDED" ? [{ id: `${turn.turn_id}:assistant`, role: "ASSISTANT", runtime_snapshot: turn.runtime_snapshot, text: turn.output.message, deliverable: turn.output.deliverable, web_search: turn.output.web_search }] : [])]);
+    const messages = turns.slice(-visibleTurns).flatMap((turn) => [{ id: `${turn.turn_id}:user`, role: "USER", turn_id: turn.turn_id, text: turn.human_message }, ...(turn.status === "SUCCEEDED" ? [{ id: `${turn.turn_id}:assistant`, role: "ASSISTANT", runtime_snapshot: turn.runtime_snapshot, text: turn.output.message, deliverable: turn.output.deliverable, resume_task: turn.output.resume_task, web_search: turn.output.web_search }] : [])]);
     if (pendingMessage) messages.push({ role: "USER", text: pendingMessage });
     intro.update(messages.length > 0);
     UI.renderMessages(byId("personal-conversation-messages"), messages, { empty_text: "这里的对话围绕你已添加的资料展开，可以跨文件讨论，也可以直接补充新的个人信息。" });

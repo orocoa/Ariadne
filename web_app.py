@@ -26,7 +26,7 @@ from src.pdf_delivery import PUBLIC_PDF_LIMITS
 
 GET_PATHS = frozenset({
     "/product-config.js",
-    "/workspace-storage-contract.js", "/candidate-conversation-contract-manifest.js",
+    "/resume-task-contract.js", "/workspace-storage-contract.js", "/candidate-conversation-contract-manifest.js",
     "/job-intelligence-contract-manifest.js", "/model-settings-catalog-data.js",
     "/job-overview-contract.js", "/personal-understanding-contract.js",
     "/api/candidate-conversation-runtime-signature", "/api/job-conversation-runtime-signature",

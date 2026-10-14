@@ -15,6 +15,9 @@
     constructor(code) { super(code); this.name = "JobPersistenceError"; this.code = code; }
   }
 
+
+  const ResumeSupport = () => globalThis.AriadneResumeTaskSupport || (typeof module === "object" ? require("./resume-task-support.js") : null);
+  const Resume = () => globalThis.AriadneResumeTask || (typeof module === "object" ? require("./resume-task-domain.js") : null);
   const clone = (value) => structuredClone(value);
   const id = (prefix) => `${prefix}-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
   const nowIso = () => new Date().toISOString();
@@ -131,17 +134,19 @@
       .sort((left, right) => String(left.created_at).localeCompare(String(right.created_at)));
   }
 
-  async function persistSuccessfulTurn(database, { execution, analysis, assistant_message: assistantMessage, change_proposal: changeProposal = null }) {
+  async function persistSuccessfulTurn(database, { execution, analysis, assistant_message: assistantMessage, change_proposal: changeProposal = null, resume_task: resumePrepared = null }) {
     const completed = transitionExecution(execution, "SUCCEEDED");
     return new Promise((resolve, reject) => {
-      const transaction = database.transaction(["job_turn_executions", "job_analyses", "job_conversation_messages", ...(changeProposal ? ["job_change_proposals"] : [])], "readwrite");
+      const transaction = database.transaction([...new Set(["job_turn_executions", "job_analyses", "job_conversation_messages", ...(changeProposal ? ["job_change_proposals"] : []), ...(resumePrepared ? Resume().transactionStores(resumePrepared) : [])])], "readwrite");
+      let resumeError = null;
+      if (resumePrepared) Resume().commitInto(transaction, resumePrepared).catch(error => { resumeError = error; try { transaction.abort(); } catch (_) {} });
       if (changeProposal) transaction.objectStore("job_change_proposals").add(clone(changeProposal));
       transaction.objectStore("job_turn_executions").put(clone(completed));
       transaction.objectStore("job_analyses").add(clone(analysis));
       transaction.objectStore("job_conversation_messages").add({ ...clone(assistantMessage), candidate_fingerprint: analysis.candidate_observation.aggregate_fingerprint, runtime_snapshot_id: analysis.runtime.runtime_snapshot_id });
       transaction.oncomplete = () => resolve(Object.freeze({ execution: completed, analysis, assistant_message: assistantMessage }));
-      transaction.onerror = () => reject(transaction.error || new JobPersistenceError("job_turn_persistence_failed"));
-      transaction.onabort = () => reject(transaction.error || new JobPersistenceError("job_turn_persistence_failed"));
+      transaction.onerror = () => reject(resumeError || transaction.error || new JobPersistenceError("job_turn_persistence_failed"));
+      transaction.onabort = () => reject(resumeError || transaction.error || new JobPersistenceError("job_turn_persistence_failed"));
     });
   }
 

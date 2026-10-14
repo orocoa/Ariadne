@@ -193,6 +193,7 @@
   function personalErrorCopy(error) {
     const webCopy = window.AriadneTransport?.errorCopy?.(error);
     if (webCopy) return webCopy;
+    const resumeCopy = window.AriadneResumeTaskSupport?.errorCopy(error); if (resumeCopy) return resumeCopy;
     const storageCopy = window.AriadneContentDatabase?.errorCopy(error);
     if (storageCopy) return storageCopy;
     const code = String(error?.code || error?.message || error || "");
@@ -264,6 +265,7 @@
   function jobErrorCopy(error) {
     const webCopy = window.AriadneTransport?.errorCopy?.(error);
     if (webCopy) return webCopy;
+    const resumeCopy = window.AriadneResumeTaskSupport?.errorCopy(error); if (resumeCopy) return resumeCopy;
     const storageCopy = window.AriadneContentDatabase?.errorCopy(error);
     if (storageCopy) return storageCopy;
     const code = String(error?.code || error?.message || error || "");
@@ -1757,7 +1759,7 @@
       return outcome;
     } catch (error) {
       const failureCode = String(error?.code || error?.message);
-      terminalCopy = window.AriadneRuntimeSelection?.errorCopy(error) || (failureCode === "STALE_WORKING_OBSERVATION"
+      terminalCopy = window.AriadneResumeTaskSupport?.errorCopy(error) || window.AriadneRuntimeSelection?.errorCopy(error) || (failureCode === "STALE_WORKING_OBSERVATION"
         ? "候选人信息已发生变化，请基于最新内容重试。"
         : failureCode === "FOCUS_VIOLATION"
           ? "这个请求超出了当前卡片范围；候选人信息未修改。"
@@ -1870,7 +1872,7 @@
       return outcome;
     } catch (error) {
       const code = String(error?.code || error?.message || "");
-      terminalCopy = window.AriadneRuntimeSelection?.errorCopy(error) || (code === "RUNTIME_CONTRACT_VERSION_MISMATCH"
+      terminalCopy = window.AriadneResumeTaskSupport?.errorCopy(error) || window.AriadneRuntimeSelection?.errorCopy(error) || (code === "RUNTIME_CONTRACT_VERSION_MISMATCH"
         ? "服务版本已更新，请刷新页面后重试。"
         : code === "EMPTY_RESPONSE"
           ? "模型这次没有返回可用内容，请重试。"
@@ -4028,12 +4030,15 @@
         }
       }
       const analysis = JobConversationPersistence.createAnalysis({ session, execution, job_subject: jobSubject, candidate_snapshot: candidateSnapshot, candidate_delta: candidateDelta, source_excerpt_manifest: sourceManifest, runtime_snapshot: runtimeSnapshot, output: result.output, previous_analysis_id: previousAnalysis?.analysis_id || null });
-      const assistantMessage = { ...JobConversation.createMessage(session, "ASSISTANT", result.output.message), deliverable: globalThis.AriadneConversationOutput.fromResult(result), web_search: globalThis.AriadneConversationOutput.searchFromResult(result) };
+      const resumePrepared = await window.AriadneResumeTaskSupport.prepareResult(database, request, result);
+      const resumeMetadata = window.AriadneResumeTaskSupport.metadata(resumePrepared);
+      const assistantMessage = { ...JobConversation.createMessage(session, "ASSISTANT", result.output.message), ...(resumeMetadata ? { resume_task: resumeMetadata } : {}), deliverable: globalThis.AriadneConversationOutput.fromResult(result), web_search: globalThis.AriadneConversationOutput.searchFromResult(result) };
       const proposal = result.output.changes.length && activeJobRevision ? JobWorkspaceChanges.create({
         revision: activeJobRevision, application, entries: journalEntries, changes: result.output.changes,
         analysisId: analysis.analysis_id, messageId: userMessage.message_id,
       }) : null;
-      await JobConversationPersistence.persistSuccessfulTurn(database, { execution, analysis, assistant_message: assistantMessage, change_proposal: proposal });
+      await JobConversationPersistence.persistSuccessfulTurn(database, { execution, analysis, assistant_message: assistantMessage, change_proposal: proposal, resume_task: resumePrepared });
+      if (resumePrepared) window.dispatchEvent(new Event("ariadne-resume-saved"));
       if (proposal) showJobChangeProposal(proposal);
       renderJobConversationMessages(await JobConversationPersistence.messages(database, session.conversation_id));
       if (pageMessage) pageMessage.textContent = sourceManifest.status === "SOURCE_UNAVAILABLE" ? "分析已保存；所请求的原始来源不可用，结论已按缺失来源处理。" : "分析已保存；任何职位修改仍需你确认。";
@@ -4043,7 +4048,7 @@
         try { await JobConversationPersistence.persistExecution(database, JobConversationPersistence.transitionExecution(execution, "HARD_FAILED", String(error?.code || error?.message).slice(0, 160))); }
         catch (_persistenceError) { /* Preserve the original failure. */ }
       }
-      const copy = window.AriadneRuntimeSelection?.errorCopy(error) || (error?.code === "RUNTIME_CONTRACT_VERSION_MISMATCH" ? "服务版本已更新，请刷新页面后重试。" : "这次模型分析失败；没有使用本地替代结果，也没有修改职位或个人资料。");
+      const copy = window.AriadneResumeTaskSupport?.errorCopy(error) || window.AriadneRuntimeSelection?.errorCopy(error) || (error?.code === "RUNTIME_CONTRACT_VERSION_MISMATCH" ? "服务版本已更新，请刷新页面后重试。" : "这次模型分析失败；没有使用本地替代结果，也没有修改职位或个人资料。");
       if (pageMessage) { pageMessage.textContent = copy; pageMessage.classList.add("error"); }
       else status.textContent = copy;
       if (activeJobConversationSession) {

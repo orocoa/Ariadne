@@ -57,7 +57,9 @@
       "applications": "job_context_id",
       "job_journal_entries": "entry_id",
       "job_journal_images": "image_id",
-      "job_followup_migrations": "migration_id"
+      "job_followup_migrations": "migration_id",
+      "resume_tasks": "task_id",
+      "resume_document_versions": "version_id"
     },
     "ariadne-job-applications-v1": {
       "applications": "job_context_id"
