@@ -4,7 +4,7 @@
 >
 > Ariadne · 衡是一个开源 AI 职业工作空间，用于整理个人资料、理解目标职位，并基于原始材料开展分析与讨论。项目保留来源与历史版本；AI 提出的修改须经用户审阅并明确保存。
 
-2026-10-14：最新[完整 Skill](https://github.com/orocoa/Ariadne/releases/tag/skill-20261014-continuity)绑定源码 `d18feb1`，包含对话要求保留、资料更新后完整前稿续改、本地文字查找及已完成的更正一致性/PDF 修复。本机 Skill 已更新；官网/API 与安装清单已准备，等待本人完成 Cloudflare 授权后发布，官网当前仍提供 10 月 13 日包。[发布状态](docs/current/RELEASE_20261014_CONTINUITY.md)。
+2026-10-14：最新[完整 Skill](https://github.com/orocoa/Ariadne/releases/tag/skill-20261014-continuity)绑定源码 `d18feb1`，包含对话要求保留、资料更新后完整前稿续改、本地文字查找及已完成的更正一致性/PDF 修复。本机 Skill、官网/API 与安装清单均已同步此版；原资料、登录与已有模型选择保留。[发布状态](docs/current/RELEASE_20261014_CONTINUITY.md)。
 
 以下为 2026-10-13 当时的发布状态：[完整 Skill](https://github.com/orocoa/Ariadne/releases/tag/skill-20261013-source-icons)包含 Codex 新型号自动资格验证、Enter 发送 / Shift+Enter 换行、职位原件命名与下载及无底色操作图标，并修复切换原件时误操作旧来源、Model 直接导入遗漏名称的问题。官网安装入口已同步此包；Web/API 产品运行仍为 9 月 28 日源码 `126c775`。已有模型选择和导入默认不自动改变。[更新记录](CHANGELOG.md)。
 
@@ -32,7 +32,7 @@ Ariadne 帮你结合自己的经历，理解一个真正关心的岗位。你可
 
 原始材料会保留；模型提出的内容先供你审阅，只有你明确保存后才生成新的确认版本。目标岗位和下一步行动由你决定，Ariadne 不会自动替你投递。
 
-## 9 月 29 日源码优化——已纳入 Skill，Web/API 运行仍保持旧版
+## 9 月 29 日源码优化——已纳入网页与 Skill
 
 - **完整材料在预算内处理。** PDF 在昂贵转图前检查整组预算，同一请求复用准备结果；无法完整交付时明确失败。本机对话附件经身份、同意和哈希校验后复用已保存原件。
 - **减少重复工作。** 公开回复流、预览、历史渲染与 PDF 导出减少全文反复处理；求职记录按当前职位读取一次，再批量读取所属图片。独立读取走定点接口，写事务仍保留完整读集、版本校验和原子保存。
@@ -41,7 +41,7 @@ Ariadne 帮你结合自己的经历，理解一个真正关心的岗位。你可
 
 一组合成求职记录基准：全库 1,000 条，当前职位 100 条、100 张图片，读取从 **301 次请求／135,361,847 响应字节，降到 2 次请求／665,254 响应字节**。这是未压缩 JSON 的传输计数，不代表生产延迟或模型速度；服务端仍对记录库做一次扫描与完整性校验。
 
-已检查离线回归、桌面／手机 Chrome 流程、真实本地 Workerd/Pyodide 启动与无效领域请求，以及 Pages 实际缓存响应头。上述产品验收未额外调用真实付费 Provider；新增语义评测在缺少真实输出与人工审阅时仍为 **NOT_RUN**。生产压力、新机器安装和普遍语义质量尚未由这些检查证明。在 9 月 29 日验收时，候选包仅在本地构建并验包，两端公开包仍是 9 月 28 日代码。上述优化现已纳入完整 Skill；公网 Web/API 产品运行仍为 9 月 28 日代码。
+已检查离线回归、桌面／手机 Chrome 流程、真实本地 Workerd/Pyodide 启动与无效领域请求，以及 Pages 实际缓存响应头。上述产品验收未额外调用真实付费 Provider；新增语义评测在缺少真实输出与人工审阅时仍为 **NOT_RUN**。生产压力、新机器安装和普遍语义质量尚未由这些检查证明。在 9 月 29 日验收时，候选包仅在本地构建并验包，两端公开包仍是 9 月 28 日代码。上述优化现已纳入完整 Skill 和公网 Web/API。
 
 [优化细节与限制](docs/current/RUNTIME_OPTIMIZATION_20260929.md) · [架构分析](docs/current/ARCHITECTURE_REVIEW_20260929.md) · [验收记录](PROJECT_STATUS.md)
 
@@ -53,7 +53,7 @@ Ariadne 帮你结合自己的经历，理解一个真正关心的岗位。你可
 - **本机启动不再依赖反向 DNS。** 固定回环服务直接绑定本机地址，保留退出、端口冲突和资料保留检查。
 - **每次进入对话先确认。** 六个对话入口统一显示本次范围和模型；切换模型或强度后重新确认。
 
-10 月 3 日[完整 Skill ZIP](https://github.com/orocoa/Ariadne/releases/tag/skill-20261003-card-return)绑定源码 `0994b11`，保留为历史版本；当前 Skill 请使用上方 10 月 14 日 Release。[网页](https://ariadne.kai-nex.com/)当前仍提供 10 月 13 日包，官网/API 与新版安装清单等待 Cloudflare 授权后同步。ZIP 包含启动器、页面、运行代码、契约和文件哈希清单；仓库中的 `skills/ariadne` 子目录本身不是完整安装包。当前升级请退出 Ariadne，让 Codex 从上方 10 月 14 日 GitHub Release 安装完整 ZIP、核对公布的 SHA-256、备份旧 Skill，并保留既有资料目录与工作区绑定。网页和 Skill 的用户资料不自动同步。
+10 月 3 日[完整 Skill ZIP](https://github.com/orocoa/Ariadne/releases/tag/skill-20261003-card-return)绑定源码 `0994b11`，保留为历史版本；当前 Skill 请使用上方 10 月 14 日 Release。[网页](https://ariadne.kai-nex.com/)与安装入口均已同步 10 月 14 日版本。ZIP 包含启动器、页面、运行代码、契约和文件哈希清单；仓库中的 `skills/ariadne` 子目录本身不是完整安装包。当前升级请退出 Ariadne，让 Codex 从上方 10 月 14 日 GitHub Release 安装完整 ZIP、核对公布的 SHA-256、备份旧 Skill，并保留既有资料目录与工作区绑定。网页和 Skill 的用户资料不自动同步。
 
 [整组变更架构与验收范围](docs/current/JOB_WORKSPACE_CHANGE_SETS.md) · [模型选择契约](docs/current/MODEL_SELECTION_AND_TUNING_ARCHITECTURE.md)
 
@@ -77,7 +77,7 @@ Mac 默认由 Skill 打开独立窗口，关闭最后窗口即停止服务，保
 
 在官网打开「通过本地 Agent 使用」，直接点击「复制安装指令」并粘贴给 Codex，等待安装与依赖检查完成；再发送 `$ariadne 打开 Ariadne`，直接进入工作空间。Skill 使用本机 Codex，网页版使用 API；两端不配对，资料不自动同步。资料来源和人工保存边界保持。
 
-[安装与构建说明](docs/current/ARIADNE_SKILL.md) · [Skill 源码](skills/ariadne/SKILL.md)。完整 ZIP 可独立构建并从 GitHub Releases 分发；官网安装窗口已指向 10 月 13 日完整 Release；安装代码升级不等于跨端资料同步。需要 Python 3.9+、兼容 Codex CLI 和 Poppler；不会因安装 Skill 自动支持任意 Agent 或所有操作系统。
+[安装与构建说明](docs/current/ARIADNE_SKILL.md) · [Skill 源码](skills/ariadne/SKILL.md)。完整 ZIP 可独立构建并从 GitHub Releases 分发；官网安装窗口已指向 10 月 14 日完整 Release；两端资料仍各自保存。需要 Python 3.9+、兼容 Codex CLI 和 Poppler；不会因安装 Skill 自动支持任意 Agent 或所有操作系统。
 
 旧 Mac App 的历史构建和资料说明保留在[本地分发记录](docs/current/LOCAL_DISTRIBUTION.md)，当前本地入口统一为 Skill。
 
@@ -89,7 +89,7 @@ Mac 默认由 Skill 打开独立窗口，关闭最后窗口即停止服务，保
 
 [![Ariadne 9 月 29 日源码架构：完整材料、受控执行与人工保存](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.png)](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.html)
 
-[中文交互架构图](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.html) · [可编辑架构规格](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.architecture.json) · [图示验收记录](docs/architecture/archify/2026-09-29-optimized/review.json) · [架构分析](docs/current/ARCHITECTURE_REVIEW_20260929.md) · [双端边界](docs/current/TWO_PRODUCT_ARCHITECTURE.md)。新图描述的 9 月 29 日源码优化现已纳入 Skill，公网 Web/API 运行尚未升级到该状态；下载 HTML 后本地打开可交互查看，GitHub 会把 HTML 显示为源码。[9 月 20 日英文图](docs/architecture/archify/2026-09-20-web-skill/ariadne-en.html)、[9 月 20 日中文图](docs/architecture/archify/2026-09-20-web-skill/ariadne-zh.html)及更早的 [Web/Mac App 图](docs/architecture/archify/2026-09-19-current/ariadne.html)保留为历史快照。
+[中文交互架构图](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.html) · [可编辑架构规格](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.architecture.json) · [图示验收记录](docs/architecture/archify/2026-09-29-optimized/review.json) · [架构分析](docs/current/ARCHITECTURE_REVIEW_20260929.md) · [双端边界](docs/current/TWO_PRODUCT_ARCHITECTURE.md)。图示为 9 月 29 日架构快照，其中优化现已纳入网页与 Skill，当前发布行为以上方记录为准；下载 HTML 后本地打开可交互查看，GitHub 会把 HTML 显示为源码。[9 月 20 日英文图](docs/architecture/archify/2026-09-20-web-skill/ariadne-en.html)、[9 月 20 日中文图](docs/architecture/archify/2026-09-20-web-skill/ariadne-zh.html)及更早的 [Web/Mac App 图](docs/architecture/archify/2026-09-19-current/ariadne.html)保留为历史快照。
 
 ## 为什么从网页走到安装包，再到 Skill？
 

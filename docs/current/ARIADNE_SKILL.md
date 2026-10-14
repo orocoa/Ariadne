@@ -4,7 +4,7 @@
 
 ## 首次安装
 
-1. 当前新版为[2026-10-14 完整 GitHub Release](https://github.com/orocoa/Ariadne/releases/tag/skill-20261014-continuity)。官网下载/安装入口仍指向 10 月 13 日包，等待 Cloudflare 授权后同步；目前请从该 Release 下载完整 ZIP 与校验文件，让 Codex 核验并更新。
+1. 当前新版为[2026-10-14 完整 GitHub Release](https://github.com/orocoa/Ariadne/releases/tag/skill-20261014-continuity)。[官网安装窗口](https://ariadne.kai-nex.com/#skill)已同步此版；也可从该 Release 下载完整 ZIP 与校验文件，让 Codex 核验并更新。
 2. 将指令粘贴到 Codex 对话中并发送，等待包校验、安装和依赖检查完成。已有同名 Skill 先备份，资料目录不删除。
 3. 安装完成后，在 Codex 中发送 `$ariadne 打开 Ariadne`。独立窗口直接进入工作空间，不需要模型选择首页。
 4. 在窗口添加个人资料或职位材料，再围绕材料提问；发送需确认，结果由用户审阅保存。关闭最后窗口或 ⌘Q 停止本次服务，已保存资料保留。
@@ -17,7 +17,7 @@
 
 [本次完整包](https://github.com/orocoa/Ariadne/releases/tag/skill-20261014-continuity)绑定干净源码 `d18feb127ca9594930e131110c06f3b950fc1255`；245 个运行文件，2,983,221 bytes，SHA-256 `156b3be872ac6b225ad1f03c2426a4fe2ebe819155d33b95da4b33aefd5da9f7`。包含长对话连续性、资料更新后完整前稿续改、本地卡片/对话/求职记录查找，以及已完成的更正和 PDF 修复；不增加新的产品模块。
 
-本机 Skill 已完整备份更新并通过逐文件校验和 doctor。先退出再重新打开 Ariadne 以加载完整新版；职业资料目录、工作区绑定、独立登录和模型选择保留。官网/API 候选包已构建验收，发布因 Cloudflare OAuth 缺少 `workers_scripts:write` 等待本人授权，网站安装指令仍为旧包。仅推送 GitHub main 不会自动更新固定 Release URL 与 SHA-256；官网正式发布时须同步下载清单及同源包。详见[发布回执](RELEASE_20261014_CONTINUITY.md)。
+本机 Skill 已完整备份更新并通过逐文件校验和 doctor。先退出再重新打开 Ariadne 以加载完整新版；职业资料目录、工作区绑定、独立登录和模型选择保留。本人完成 Cloudflare 授权后，官网/API 已发布同一源码：Pages `38f2288b`，API `d7690df9-e5ba-442e-87fd-a67ded9ced18`；官网清单中的固定 Release URL、SHA-256 与同源包均已同步，正式下载与 GitHub/本机构建字节一致。仅推送 GitHub main 不会自动更新旧指令；已复制的旧安装文字需从官网重新复制。详见[发布回执](RELEASE_20261014_CONTINUITY.md)。
 
 以下版本段落保留当时发布状态，当前 Skill 下载以上方 10 月 14 日版本为准。
 

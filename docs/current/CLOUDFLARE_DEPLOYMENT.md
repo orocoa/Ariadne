@@ -1,5 +1,7 @@
 # Ariadne：免费托管与腾讯域名部署
 
+2026-10-14 已完成：官网 Pages `38f2288b-9586-4307-89d6-1f1b060c0e41` 与 API `d7690df9-e5ba-442e-87fd-a67ded9ced18` 同步干净源码 `d18feb1`，本机及[完整 Skill](https://github.com/orocoa/Ariadne/releases/tag/skill-20261014-continuity)使用同一运行代码。官网下载清单、安装指令及 ZIP/校验值已更新；公开下载与 GitHub/本机构建逐字节一致。正式域名健康/API/七项关键资源 hash 和安装复制通过，未新增 Provider 调用。下方等待授权及旧版记录保留为历史，当前状态以本条及[发布回执](RELEASE_20261014_CONTINUITY.md)为准。未来 `--previous-pages` 可使用本轮保留的 `work/release-20261014-continuity/cloudflare/pages`，构建器会核验 manifest 与资源 hash。
+
 2026-10-14 待发布：源码 `d18feb1` 的完整 Pages/API 与新版 Skill 安装清单已构建并完成本地验收，完整 Skill 已发布 GitHub 并更新本机。官网尚未升级：当前 OAuth 缺少 `workers_scripts:write`，设备授权等待超时，需要本人完成官方授权后继续部署 API、Pages 并核验公网下载。现网仍以下方 10 月 13 日回执为准；不得把源码推送或候选包当作已部署。见[发布回执](RELEASE_20261014_CONTINUITY.md)。
 
 更新：2026-10-13。Pages `b0c3e85f` 已同步[完整 Skill](https://github.com/orocoa/Ariadne/releases/tag/skill-20261013-source-icons)的下载包、校验文件及安装清单；源码 `3e5cec9`，2,918,838 bytes，SHA-256 `452e22f16946332d14809d47487b6b7f7dbd43dea4a54862a9ce989efb611aad`。本次 367 文件中仅三个下载资产改变，Web/API 产品运行保持 9 月 28 日源码 `126c775`；API Worker 未重新部署。官网安装按钮、公开 ZIP 与 GitHub 包一致，`/healthz` 正常。下方早期记录保留；当前 Skill 版本以上述链接为准。详见[本次发布回执](../../PROJECT_STATUS.md)。

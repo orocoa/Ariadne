@@ -1,5 +1,9 @@
 # Ariadne 项目上下文
 
+## 2026-10-14：官网、API 与完整 Skill 已同步
+
+本人完成 Cloudflare 官方授权后，已将同一干净源码 `d18feb1` 的 API 与 Pages 发布生产，分别为 `d7690df9-e5ba-442e-87fd-a67ded9ced18` 和 `38f2288b-9586-4307-89d6-1f1b060c0e41`。正式域名安装窗口已引用[新版完整 Skill](https://github.com/orocoa/Ariadne/releases/tag/skill-20261014-continuity)及准确 SHA-256；官网下载 ZIP 与 GitHub/本机构建逐字节相同，健康/API 契约、七项关键资源 hash、安装复制及浏览器显示通过。本机 Skill 已更新，旧窗口需重开；资料、登录、模型选择和原有未提交内容保留。未新增功能或真实业务模型质量评测；初次授权失败历史保留，见[完整回执](docs/current/RELEASE_20261014_CONTINUITY.md)。
+
 ## 2026-10-14：完整 Skill 已发布并更新本机，官网等待授权
 
 按用户要求冻结新功能，以已通过 GitHub CI 的干净源码 `d18feb1` 构建[完整 Skill](https://github.com/orocoa/Ariadne/releases/tag/skill-20261014-continuity)；245 个运行文件，本机旧安装已备份，覆盖后逐文件 hash 和 doctor ready，工作区、登录及模型选择不变，旧窗口需重开。GitHub 下载与构建 ZIP 的大小/hash 一致；新版官网 Pages/API 包、安装指令及本地 Workerd 验证通过。Cloudflare 当前 OAuth 缺少 `workers_scripts:write`，API 拒绝访问，官方设备授权等待超时；官网仍为旧版，待本人完成授权后继续发布，不把 GitHub 源码推送视为官网更新。见[发布回执](docs/current/RELEASE_20261014_CONTINUITY.md)。

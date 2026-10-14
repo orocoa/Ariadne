@@ -1,5 +1,13 @@
 # AI Job Radar｜Phase 4 Status
 
+## 2026-10-14 — 官网 / API / 完整 Skill 同步完成
+
+- 用户本人完成 Cloudflare 官方设备授权后，现有同一账号成功发布 API `ariadne-api`：`d7690df9-e5ba-442e-87fd-a67ded9ced18`，部署查询确认 100%；Pages 生产部署 `38f2288b-9586-4307-89d6-1f1b060c0e41`，来源 `d18feb1`。服务绑定、正式域名来源限制、已有 DO migration 和用户模型选择保持。
+- 官网安装清单、同源 ZIP/校验文件与[GitHub 完整包](https://github.com/orocoa/Ariadne/releases/tag/skill-20261014-continuity)同步。正式域名实取 ZIP 2,983,221 bytes，SHA-256 `156b3be872ac6b225ad1f03c2426a4fe2ebe819155d33b95da4b33aefd5da9f7`，与 GitHub/本机构建逐字节一致；本机原安装已备份更新，245 个 runtime hash 和 doctor ready。原窗口重开后生效，没有读取或迁移职业资料。
+- egolite 正式 HTTPS 实测安装窗口就绪、复制成功、新 tag/hash、无横向溢出；截图可读。`/healthz`、web runtime、Candidate/Job signature GET 200；空合成对话请求经生产 DO/WSGI 返回 400、`network_call_made=false`，未调用 Provider。公开 asset manifest 与候选包完全一致，七个关键指纹资源 HTTP 200/hash 一致并返回 immutable 缓存。
+- 发布沿用源码 GitHub 全绿及已完成发布包回归；本轮未重跑无关全量测试、调用真实模型或声明新机器安装/整体语义质量通过。最初核验脚本用了两个不存在的资源名，保留原结果，按实际源码文件名完成七项核验，没有修改产品掩盖问题。
+- 证据、原失败及备份在 `work/release-20261014-continuity/`；下方首次等待授权记录保留为历史，已由本条完成。详见[发布回执](docs/current/RELEASE_20261014_CONTINUITY.md)。项目继续冻结新功能，用户先实际使用再决定优化。
+
 ## 2026-10-14 — 完整 Skill 发布与本机更新；官网待 Cloudflare 授权
 
 - 以干净独立 checkout `d18feb127ca9594930e131110c06f3b950fc1255` 构建，`includes_working_changes=false`；公开[Release](https://github.com/orocoa/Ariadne/releases/tag/skill-20261014-continuity)含完整 ZIP 和校验文件。2,983,221 bytes，SHA-256 `156b3be872ac6b225ad1f03c2426a4fe2ebe819155d33b95da4b33aefd5da9f7`，245 个 runtime 文件。GitHub 下载逐字节大小/hash 与候选包一致，原发布保留。
