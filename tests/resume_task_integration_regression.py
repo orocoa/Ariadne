@@ -13,6 +13,7 @@ import json
 import os
 from pathlib import Path
 import runpy
+import shutil
 import subprocess
 import sys
 import unittest
@@ -25,7 +26,8 @@ from src import local_attachment_delivery as CurrentAttachment
 from src.conversation_delivery import REVIEWED_VERSION, VERSION, conversation_delivery, domain_payload
 from src.personal_understanding_runtime import execute as personal_execute
 
-NODE = os.environ.get("ARIADNE_NODE_BINARY", "/Users/kai/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node")
+NODE = os.environ.get("ARIADNE_NODE_BINARY") or shutil.which("node") or str(Path(sys.executable).resolve().parents[2] / "node" / "bin" / "node")
+assert Path(NODE).is_file(), "node_required_for_resume_task_frontend_request_serializer"
 
 
 def read_fixture(name):

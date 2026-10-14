@@ -1,5 +1,11 @@
 # AI Job Radar｜Phase 4 Status
 
+## 2026-10-14 — GitHub 源码同步与 CI 契约测试适配
+
+- 用户本轮明确授权同步 GitHub。五个已完成提交 `830a2e6`、`a952423`、`2bb9799`、`8211cc6`、`606a609` 已推送 main，远端 hash 与本地核对一致。原有未提交记录、私人文件及 QA/历史产物原地保留。
+- 首轮 [CI 38522489380](https://github.com/orocoa/Ariadne/actions/runs/38522489380) 142/150，通过公开文件检查；八项失败定位为 Node 测试路径仅适配本机、HTML 缓存 tag 旧 pin、领域模型路由新增元数据/assistant proof 后的旧断言以及 DB_VERSION 19 旧 pin。更新测试适配当前真实契约并保持原行为门禁，三个 agent 分工修复与交叉复核；产品实现、Provider 和本机运行文件不变。
+- 修复后对失败套件分别验证 Node PATH、显式 Node override、Python/schema/JS v20 一致、精确四条模型消息/metadata-only routing、共用入口与 Job 审核 proof。完整远端复验回执与原失败日志保留 `work/resume-stage1-20261014/github-sync/`；本次为源码同步，完整 Skill Release 与官网发布仍需按具体请求执行。
+
 ## 2026-10-14 — 完整简历任务、逐条依据与模板连续性（第一阶段）
 
 - 按用户本轮批准完成第一阶段。新增 `resume_tasks` CAS head 和 append-only `resume_document_versions`；真值/文件/演示库 schema 同步 v20。完整当前有效个人字段、补充、本对话先前真实用户原话、真实任务原话与最新完整稿进入独立任务，256,000 UTF-8 bytes / 500 条超限明确失败，普通聊天仍使用原有范围。Job 只绑定明确当前修订全文，不把要求当个人事实或替用户选职位。

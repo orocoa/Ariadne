@@ -7,6 +7,23 @@ import { fileURLToPath } from "node:url";
 const require = createRequire(import.meta.url);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
+function assertCurrentConversationScripts(html) {
+  const scripts = [...html.replace(/<!--[\s\S]*?-->/g, "").matchAll(/<script\s+src="([^"]+)"\s*>\s*<\/script>/g)]
+    .map(match => new URL(match[1].replaceAll("&amp;", "&"), "https://ariadne.test"));
+  const loaded = pathname => {
+    const matches = scripts.map((url, index) => ({ url, index })).filter(item => item.url.pathname === pathname);
+    assert.equal(matches.length, 1, `${pathname} must be loaded once as an executable script`);
+    assert.equal(matches[0].url.origin, "https://ariadne.test", `${pathname} must use the local module`);
+    return matches[0];
+  };
+  const pages = loaded("/v1-pages.js"), ui = loaded("/conversation-ui-domain.js"), shell = loaded("/product-shell-domain.js");
+  for (const { url } of [pages, ui]) {
+    assert.deepEqual(url.searchParams.getAll("v"), ["chat-history-20261014"]);
+    assert.deepEqual(url.searchParams.getAll("resume-stage"), ["1"]);
+  }
+  assert(ui.index < pages.index, "shared conversation UI must load before the page binding");
+  assert(shell.index < pages.index, "shared product shell must load before the page binding");
+}
 const ProductShell = require("../public/product-shell-domain.js");
 const shell = read("public/product-shell-domain.js");
 const pages = read("public/v1-pages.js");
@@ -42,9 +59,8 @@ assert.match(jobConversation, /Changes\.validate\(value\.changes, compiledContex
 
 for (const html of [candidateDetail, jobDetail]) {
   assert.match(html, /product-shell-domain\.js\?v=detail-behavior-v1/);
+  assertCurrentConversationScripts(html);
 }
-assert.match(candidateDetail, /v1-pages\.js\?v=computer-use-e2e-v3/);
-assert.match(jobDetail, /v1-pages\.js\?v=job-workspace-changes-v1/);
 for (const dependency of ["model-import-lifecycle-domain", "candidate-context-domain", "candidate-model-runtime-domain"]) {
   assert.match(candidateDetail, new RegExp(`${dependency}\\.js\\?v=computer-use-e2e-v1`));
 }

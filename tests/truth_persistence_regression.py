@@ -2,6 +2,9 @@
 
 from pathlib import Path
 import json
+import os
+import shutil
+import subprocess
 import sys
 
 
@@ -52,9 +55,30 @@ from src.truth_persistence import (  # noqa: E402
 
 assert CONTRACT_ID == SCHEMA["x-contract-id"]
 assert DB_NAME == SCHEMA["x-indexeddb-name"]
-assert DB_VERSION == SCHEMA["x-indexeddb-version"] == 19
+assert DB_VERSION == SCHEMA["x-indexeddb-version"] == 20
 assert STORE_SPECS == tuple((item["name"], item["keyPath"], item["lifecycle"]) for item in SCHEMA["x-stores"])
 assert NEW_STORE_SPECS == tuple(item for item in STORE_SPECS if item[2] == "new")
+NODE = os.environ.get("ARIADNE_NODE_BINARY") or shutil.which("node") or str(Path(sys.executable).resolve().parents[2] / "node" / "bin" / "node")
+assert Path(NODE).is_file(), "node_required_for_cross_language_storage_contract"
+javascript_storage = json.loads(subprocess.run([NODE, "-e", """
+const Truth = require('./public/truth-persistence-domain.js');
+process.stdout.write(JSON.stringify({contract_id:Truth.CONTRACT_ID, db_name:Truth.DB_NAME, db_version:Truth.DB_VERSION,
+  store_specs:Truth.STORE_SPECS, new_store_specs:Truth.NEW_STORE_SPECS, append_only_stores:Truth.APPEND_ONLY_STORES}));
+"""], cwd=ROOT, check=True, capture_output=True, text=True).stdout)
+assert javascript_storage["contract_id"] == CONTRACT_ID
+assert javascript_storage["db_name"] == DB_NAME
+assert javascript_storage["db_version"] == DB_VERSION == 20
+assert tuple((item["name"], item["keyPath"], item["lifecycle"]) for item in javascript_storage["store_specs"]) == STORE_SPECS
+assert tuple((item["name"], item["keyPath"], item["lifecycle"]) for item in javascript_storage["new_store_specs"]) == NEW_STORE_SPECS
+resume_contract = json.loads((ROOT / "data" / "resume_task_contract_v1.json").read_text(encoding="utf-8"))
+store_by_name = {name: (key_path, lifecycle) for name, key_path, lifecycle in STORE_SPECS}
+for name, key_path, kind in [("resume_tasks", "task_id", "tasks"), ("resume_document_versions", "version_id", "documents")]:
+    assert store_by_name[name] == (key_path, "new")
+    assert resume_contract["stores"][kind]["name"] == name
+    assert resume_contract["stores"][kind]["keyPath"] == key_path
+assert resume_contract["stores"]["documents"]["append_only"] is True
+assert "resume_document_versions" in javascript_storage["append_only_stores"]
+assert "resume_tasks" not in javascript_storage["append_only_stores"]
 assert SOURCE_TYPES == tuple(SCHEMA["$defs"]["sourceDocument"]["properties"]["source_type"]["enum"])
 assert MATERIAL_TYPES == tuple(SCHEMA["$defs"]["sourceDocument"]["properties"]["material_type"]["enum"])
 assert PROCESSING_STATUSES == tuple(SCHEMA["$defs"]["processingRun"]["properties"]["status"]["enum"])

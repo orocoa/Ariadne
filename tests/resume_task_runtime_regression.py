@@ -8,6 +8,7 @@ import json
 import math
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import unittest
@@ -17,7 +18,8 @@ sys.path.insert(0, str(ROOT))
 from src import resume_task_runtime as Runtime
 from src import conversation_search as Search
 
-NODE = os.environ.get("ARIADNE_NODE_BINARY", "/Users/kai/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node")
+NODE = os.environ.get("ARIADNE_NODE_BINARY") or shutil.which("node") or str(Path(sys.executable).resolve().parents[2] / "node" / "bin" / "node")
+assert Path(NODE).is_file(), "node_required_for_resume_task_fixtures_and_canonical_hash_tests"
 
 
 def node_fixture(*args):

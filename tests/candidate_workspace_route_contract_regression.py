@@ -17,7 +17,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 import app  # noqa: E402
-from src.candidate_conversation_runtime import ACTION_SCHEMA_VERSION, CONTRACT_MANIFEST, MODEL_ID, RUNTIME_RESULT_CONTRACT_VERSION  # noqa: E402
+from src.candidate_conversation_runtime import (  # noqa: E402
+    ACTION_SCHEMA_VERSION, CONTRACT_MANIFEST, MODEL_ID, RUNTIME_RESULT_CONTRACT_VERSION,
+    build_candidate_conversation_payload, validate_candidate_conversation_request,
+)
 
 
 NODE = os.environ.get("ARIADNE_NODE_BINARY") or shutil.which("node") or str(Path(sys.executable).resolve().parents[2] / "node" / "bin" / "node")
@@ -30,6 +33,9 @@ serializer = subprocess.run(
     text=True,
 )
 payload = json.loads(serializer.stdout)
+original_scoped_message = build_candidate_conversation_payload(validate_candidate_conversation_request(payload))["messages"][1]
+expected_routing = {"prior_task_available": False, "prior_template_name": "", "template_reuse_confirmed": False, "full_context_available": False}
+private_resume_marker = "SYNTHETIC_FULL_RESUME_PACKET_MUST_NOT_REACH_ORDINARY_PROVIDER"
 
 provider_calls = []
 provider_fixture = {"mode": "valid"}
@@ -41,6 +47,7 @@ def fake_deepseek_transport(_credential: str, provider_payload: dict, *, respons
     assert "ariadne-semantic-candidate-action-v5" in provider_payload["messages"][0]["content"]
     assert "final USER message is the current turn intent" in provider_payload["messages"][0]["content"]
     compiled_context = provider_payload["messages"][1]["content"]
+    assert provider_payload["messages"][1] == original_scoped_message
     assert compiled_context.startswith("# Ariadne scoped context\n")
     assert '- title: "Royal College of Art RCA"' in compiled_context
     assert '- card_ref: "card-1"' in compiled_context
@@ -49,7 +56,19 @@ def fake_deepseek_transport(_credential: str, provider_payload: dict, *, respons
     assert "current_user_message" not in compiled_context
     assert "bounded_history" not in compiled_context
     assert provider_payload["messages"][-1] == {"role": "user", "content": expected_human_message}
-    assert len(provider_payload["messages"]) == 3
+    assert len(provider_payload["messages"]) == 4
+    assert [message["role"] for message in provider_payload["messages"]] == ["system", "user", "user", "user"]
+    routing_message = provider_payload["messages"][2]["content"]
+    routing_prefix = "Resume routing availability (metadata only): "
+    assert routing_message.startswith(routing_prefix)
+    assert json.loads(routing_message[len(routing_prefix):]) == expected_routing
+    provider_messages = json.dumps(provider_payload["messages"], ensure_ascii=False)
+    assert private_resume_marker not in provider_messages
+    for private_identity in [payload["working_model"]["working_model_id"], payload["working_model"]["source_document_id"],
+                             payload["working_model"]["processing_run_id"], payload["working_model"]["proposal_ids"][0],
+                             payload["working_model"]["payload"]["items"][0]["item_id"], payload["working_model"]["fingerprint"],
+                             payload["conversation"]["conversation_id"], payload["turn"]["execution_id"]]:
+        assert private_identity not in provider_messages
     assert all(message.get("content") != expected_human_message for message in provider_payload["messages"][:-1])
     action = {
         "action": "PATCH_ITEM",
@@ -126,6 +145,25 @@ try:
     assert rejected["action"]["patches"] == []
     provider_fixture["mode"] = "valid"
 
+    # Even when the transport has prepared a resume packet, an ordinary domain
+    # action receives only availability metadata, never full records/old drafts.
+    ordinary_with_resume_packet = deepcopy(payload)
+    ordinary_with_resume_packet["resume_context"] = {
+        "prior_task": {"private_material": private_resume_marker},
+        "prior_version": {"deliverable": private_resume_marker},
+        "evidence": [{"content": {"text": private_resume_marker}}],
+        "template": {"name": "synthetic-reference.pdf"},
+        "consent": {"template_reuse_confirmed": True},
+    }
+    expected_routing = {"prior_task_available": True, "prior_template_name": "synthetic-reference.pdf", "template_reuse_confirmed": True, "full_context_available": True}
+    status, ordinary, _ = post(port, ordinary_with_resume_packet)
+    assert status == HTTPStatus.OK
+    assert ordinary["action"]["action"] == "PATCH_ITEM"
+    assert ordinary["persistence"] == "not_written"
+    assert "resume_task" not in ordinary
+    assert len(provider_calls) == 3
+    expected_routing = {"prior_task_available": False, "prior_template_name": "", "template_reuse_confirmed": False, "full_context_available": False}
+
     unknown = deepcopy(payload)
     unknown["unexpected"] = "synthetic"
     status, rejected, _ = post(port, unknown)
@@ -133,7 +171,7 @@ try:
     assert rejected["error"] == "EXACT_SCHEMA_FAILURE"
     assert rejected["failure_layer"] == "contract_validation"
     assert rejected["network_call_made"] is False
-    assert len(provider_calls) == 2
+    assert len(provider_calls) == 3
 
     missing = deepcopy(payload)
     missing.pop("turn")
@@ -141,7 +179,7 @@ try:
     assert status == HTTPStatus.UNPROCESSABLE_ENTITY
     assert rejected["error"] == "EXACT_SCHEMA_FAILURE"
     assert rejected["network_call_made"] is False
-    assert len(provider_calls) == 2
+    assert len(provider_calls) == 3
 finally:
     if server is not None:
         server.shutdown()

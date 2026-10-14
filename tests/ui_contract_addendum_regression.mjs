@@ -8,6 +8,23 @@ import { fileURLToPath } from "node:url";
 const require = createRequire(import.meta.url);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
+function assertCurrentConversationScripts(html) {
+  const scripts = [...html.replace(/<!--[\s\S]*?-->/g, "").matchAll(/<script\s+src="([^"]+)"\s*>\s*<\/script>/g)]
+    .map(match => new URL(match[1].replaceAll("&amp;", "&"), "https://ariadne.test"));
+  const loaded = pathname => {
+    const matches = scripts.map((url, index) => ({ url, index })).filter(item => item.url.pathname === pathname);
+    assert.equal(matches.length, 1, `${pathname} must be loaded once as an executable script`);
+    assert.equal(matches[0].url.origin, "https://ariadne.test", `${pathname} must use the local module`);
+    return matches[0];
+  };
+  const pages = loaded("/v1-pages.js"), ui = loaded("/conversation-ui-domain.js"), shell = loaded("/product-shell-domain.js");
+  for (const { url } of [pages, ui]) {
+    assert.deepEqual(url.searchParams.getAll("v"), ["chat-history-20261014"]);
+    assert.deepEqual(url.searchParams.getAll("resume-stage"), ["1"]);
+  }
+  assert(ui.index < pages.index, "shared conversation UI must load before the page binding");
+  assert(shell.index < pages.index, "shared product shell must load before the page binding");
+}
 const ProcessingIndicator = require("../public/processing-indicator-domain.js");
 const ProductShell = require("../public/product-shell-domain.js");
 const ConversationUI = require("../public/conversation-ui-domain.js");
@@ -51,13 +68,11 @@ assert.match(styles, /\.v1-conversation-form button\.is-loading:disabled \{[^}]*
 for (const html of productSurfaces) {
   assert.match(html, /class="v1-composer-field"><textarea/);
   assert.match(html, /processing-indicator-domain\.js\?v=ui-contract-addendum-v5/);
-  assert.match(html, /conversation-ui-domain\.js\?v=shared-conversation-ui-v5/);
+  assertCurrentConversationScripts(html);
   assert.match(html, /styles\.css\?v=candidate-job-parity-v1/);
 }
 for (const html of [candidateImport, jobImport]) assert.match(html, /product-shell-domain\.js\?v=shared-product-shell-v4/);
 for (const html of [candidateDetail, jobDetail]) assert.match(html, /product-shell-domain\.js\?v=detail-behavior-v1/);
-assert.match(candidateDetail, /v1-pages\.js\?v=computer-use-e2e-v3/);
-assert.match(jobDetail, /v1-pages\.js\?v=job-workspace-changes-v1/);
 assert.equal((styles.match(/^\.v1-composer-field \{/gm) || []).length, 1);
 assert.match(styles, /\.has-integrated-composer \.v1-composer-field > textarea \{[^}]*min-height: 64px/);
 assert.match(styles, /\.has-integrated-composer \.v1-composer-field > button\[type="submit"\] \{[^}]*grid-column: 3;[^}]*grid-row: 3/);

@@ -9,6 +9,23 @@ import vm from "node:vm";
 const require = createRequire(import.meta.url);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
+function assertCurrentConversationScripts(html) {
+  const scripts = [...html.replace(/<!--[\s\S]*?-->/g, "").matchAll(/<script\s+src="([^"]+)"\s*>\s*<\/script>/g)]
+    .map(match => new URL(match[1].replaceAll("&amp;", "&"), "https://ariadne.test"));
+  const loaded = pathname => {
+    const matches = scripts.map((url, index) => ({ url, index })).filter(item => item.url.pathname === pathname);
+    assert.equal(matches.length, 1, `${pathname} must be loaded once as an executable script`);
+    assert.equal(matches[0].url.origin, "https://ariadne.test", `${pathname} must use the local module`);
+    return matches[0];
+  };
+  const pages = loaded("/v1-pages.js"), ui = loaded("/conversation-ui-domain.js"), shell = loaded("/product-shell-domain.js");
+  for (const { url } of [pages, ui]) {
+    assert.deepEqual(url.searchParams.getAll("v"), ["chat-history-20261014"]);
+    assert.deepEqual(url.searchParams.getAll("resume-stage"), ["1"]);
+  }
+  assert(ui.index < pages.index, "shared conversation UI must load before the page binding");
+  assert(shell.index < pages.index, "shared product shell must load before the page binding");
+}
 const ProductShell = require("../public/product-shell-domain.js");
 const pages = read("public/v1-pages.js");
 const styles = resolveVICSS(read("public/styles.css"));
@@ -42,8 +59,18 @@ for (const symbol of ["bindImportShell", "dispatchRuntimeImport", "setFeedback",
 
 for (const html of [candidateImport, jobImport]) assert.match(html, /product-shell-domain\.js\?v=shared-product-shell-v4/);
 for (const html of [candidateDetail, jobDetail]) assert.match(html, /product-shell-domain\.js\?v=detail-behavior-v1/);
-assert.match(candidateDetail, /v1-pages\.js\?v=computer-use-e2e-v3/);
-assert.match(jobDetail, /v1-pages\.js\?v=job-workspace-changes-v1/);
+for (const html of [candidateImport, jobImport, candidateDetail, jobDetail]) assertCurrentConversationScripts(html);
+const pageTag = candidateDetail.match(/<script src="\/v1-pages\.js[^\"]*"><\/script>/)?.[0];
+const shellTag = candidateDetail.match(/<script src="\/product-shell-domain\.js[^\"]*"><\/script>/)?.[0];
+assert(pageTag && shellTag, "negative load checks must target the actual script tags");
+for (const changed of [
+  candidateDetail.replace(pageTag, `<!-- ${pageTag} -->`),
+  candidateDetail.replace(pageTag, `${pageTag}\n${pageTag}`),
+  candidateDetail.replace(pageTag, pageTag.replace("chat-history-20261014", "computer-use-e2e-v3")),
+  candidateDetail.replace(pageTag, pageTag.replace("&amp;resume-stage=1", "")),
+  candidateDetail.replace(pageTag, pageTag.replace('src="/', 'src="https://other.invalid/')),
+  candidateDetail.replace(shellTag, "").replace(pageTag, `${pageTag}\n${shellTag}`),
+]) assert.throws(() => assertCurrentConversationScripts(changed), assert.AssertionError);
 for (const html of [candidateImport, jobImport]) {
   assert.match(html, /class="v1-page-shell v1-import-shell"/);
   assert.match(html, /class="v1-workspace-layer hidden"/);

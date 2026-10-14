@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
+import vm from "node:vm";
 
 const require = createRequire(import.meta.url);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -13,6 +14,9 @@ const JobModel = require("../public/job-model-runtime-domain.js");
 const JobContext = require("../public/job-context-domain.js");
 const ImportLifecycle = require("../public/model-import-lifecycle-domain.js");
 const ModelWorkspaceUI = require("../public/model-workspace-ui-domain.js");
+const JobConversation = require("../public/job-conversation-domain.js");
+const ConversationOutput = require("../public/conversation-output.js");
+const ResumeTaskSupport = require("../public/resume-task-support.js");
 
 function memoryDatabase() {
   const specs = new Map(Truth.STORE_SPECS.map((spec) => [spec.name, spec]));
@@ -188,7 +192,68 @@ assert.match(modelFailure, /id="job-ai-workspace" class="v1-workspace-layer hidd
 assert.match(modelFailure, /NON_AUTHORITATIVE WORKING JOB/);
 assert.match(modelFailure, /id="job-workspace-save"[^>]*>保存职位</);
 assert.match(pages, /原件已安全保存在本机；长文本或图片可能需要几分钟/);
-assert.match(pages, /const assistantMessage = \{ \.\.\.JobConversation\.createMessage\(session, "ASSISTANT", result\.output\.message\), deliverable: globalThis\.AriadneConversationOutput\.fromResult\(result\), web_search: globalThis\.AriadneConversationOutput\.searchFromResult\(result\) \};/);
+// Execute the actual Job projection rather than freezing its object spelling.
+// Reviewed proof is an addition to the original message/deliverable/search fields.
+const submitStart = pages.indexOf("  async function submitJobConversation(");
+const submitEnd = pages.indexOf("  async function initJobDetail(", submitStart);
+assert(submitStart >= 0 && submitEnd > submitStart, "target the real Job submit flow");
+const jobSubmit = pages.slice(submitStart, submitEnd);
+const assistantAssignments = [...jobSubmit.matchAll(/\bconst assistantMessage\s*=\s*(\{[^\n]+\});/g)];
+assert.equal(assistantAssignments.length, 1, "the Job flow has one assistant projection");
+const session = JobConversation.createSession("job-model-import-projection", "2026-10-14T00:00:00Z");
+const projectAssistant = (conversationResult, resumeMetadata) => vm.runInNewContext(`(${assistantAssignments[0][1]})`, {
+  JobConversation, session, result: conversationResult, resumeMetadata,
+  globalThis: { AriadneConversationOutput: ConversationOutput },
+});
+const search = { version: "ariadne-public-search-v1", authority: "EXTERNAL_WEB_NON_AUTHORITATIVE",
+  personal_data_written: false, source_verification: "MODEL_CITED", calls: 1, searched_at: "2026-10-14T00:00:00Z",
+  sources: [{ title: "Synthetic public source", url: "https://example.test/job" }] };
+const ordinaryResult = { output: { message: "Current Job discussion answer." }, deliverable: null, web_search: search };
+const ordinaryAssistant = projectAssistant(ordinaryResult, null);
+assert.equal(ordinaryAssistant.contract_id, JobConversation.createMessage(session, "ASSISTANT", "Baseline").contract_id);
+assert.equal(ordinaryAssistant.conversation_id, session.conversation_id);
+assert.equal(ordinaryAssistant.role, "ASSISTANT");
+assert.equal(ordinaryAssistant.authority, "NON_AUTHORITATIVE_MODEL_OUTPUT");
+assert.equal(ordinaryAssistant.content, ordinaryResult.output.message);
+assert.match(ordinaryAssistant.message_id, /^job-message-assistant-/);
+assert(Number.isFinite(Date.parse(ordinaryAssistant.created_at)));
+assert.equal(ordinaryAssistant.deliverable, null);
+assert.deepEqual(ordinaryAssistant.web_search, search);
+assert.equal(Object.hasOwn(ordinaryAssistant, "resume_task"), false, "ordinary discussion cannot gain reviewed proof");
+const resume = { kind: "RESUME", title: "Synthetic Resume", body: "", nodes: [], edges: [], resume: {
+  template_name: "", review_notes: [], layout: { margin_mm: 15, body_pt: 10.5, line_height: 1.3, name_pt: 21, section_pt: 13, section_gap_pt: 12 },
+  blocks: [{ type: "NAME", text: "Synthetic Name", right: "", emphasis: "REGULAR" },
+    { type: "SECTION", text: "EXPERIENCE", right: "", emphasis: "REGULAR" },
+    { type: "BULLET", text: "Current supported contribution.", right: "", emphasis: "REGULAR" }],
+} };
+const prepared = { status: "READY", task: { task_id: "synthetic-resume-task", scope: {
+  workspace: "synthetic-workspace", domain: "JOB", conversation_id: session.conversation_id } },
+  document_version: { version_id: "synthetic-resume-version", document_hash: `sha256:${"a".repeat(64)}`, evidence_hash: `sha256:${"b".repeat(64)}` } };
+const proof = ResumeTaskSupport.metadata(prepared);
+assert.deepEqual(ResumeTaskSupport.validateMetadata(proof), proof);
+const reviewedResult = { output: { message: "The reviewed resume is ready." }, deliverable: resume,
+  delivery_version: "ariadne-conversation-delivery-v3", resume_task: { status: "READY", deliverable: resume }, web_search: search };
+const reviewedAssistant = projectAssistant(reviewedResult, proof);
+assert.equal(reviewedAssistant.content, reviewedResult.output.message);
+assert.equal(reviewedAssistant.conversation_id, session.conversation_id);
+assert.equal(reviewedAssistant.role, "ASSISTANT");
+assert.equal(reviewedAssistant.authority, "NON_AUTHORITATIVE_MODEL_OUTPUT");
+assert.deepEqual(reviewedAssistant.deliverable, resume);
+assert.deepEqual(reviewedAssistant.web_search, search);
+assert.equal(reviewedAssistant.resume_task, proof, "retain the exact checked task/version/scope/document/evidence proof");
+for (const status of ["NEEDS_FACTS", "REVISION_REQUIRED"]) {
+  const blockedProof = ResumeTaskSupport.metadata({ ...prepared, status });
+  assert.equal(blockedProof, null);
+  assert.equal(Object.hasOwn(projectAssistant(ordinaryResult, blockedProof), "resume_task"), false);
+  assert.throws(() => projectAssistant({ ...reviewedResult, resume_task: { status, deliverable: resume } }, blockedProof), /简历尚未通过事实审核/);
+}
+assert.match(jobSubmit, /const resumePrepared = await window\.AriadneResumeTaskSupport\.prepareResult\(database, request, result\);/);
+assert.match(jobSubmit, /const resumeMetadata = window\.AriadneResumeTaskSupport\.metadata\(resumePrepared\);/);
+assert.match(jobSubmit, /JobConversationPersistence\.persistSuccessfulTurn\(database, \{ execution, analysis, assistant_message: assistantMessage, change_proposal: proposal, resume_task: resumePrepared \}\)/);
+const prepareIndex = jobSubmit.indexOf("const resumePrepared ="), proofIndex = jobSubmit.indexOf("const resumeMetadata =");
+const assistantIndex = jobSubmit.indexOf("const assistantMessage ="), persistIndex = jobSubmit.indexOf("JobConversationPersistence.persistSuccessfulTurn(");
+assert(prepareIndex >= 0 && prepareIndex < proofIndex && proofIndex < assistantIndex && assistantIndex < persistIndex,
+  "checked proof and assistant stay in the domain-owned successful-turn save");
 assert.match(pages, /const visible = JobConversation\.connectedHistory\(messages\)/);
 assert.match(pages, /include_pending_user: true/);
 assert.doesNotMatch(modelFailure, /确认并创建职位版本[^<]*<\/button>[\s\S]*model_generated_non_authoritative/);
