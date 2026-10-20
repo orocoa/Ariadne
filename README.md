@@ -1,8 +1,10 @@
-# Ariadne · 衡
+# Ariadne · 衡 — AI Career Workspace
 
 > **Understand your experience. Make sense of your next role.**
 >
-> Ariadne is an open-source AI career workspace for organizing personal materials, understanding target roles, and discussing both with reference to original sources. It preserves sources and version history; AI-proposed changes require your review and explicit save.
+> Ariadne is an open-source AI career workspace for organizing résumés and project materials, understanding job descriptions, and discussing both with reference to original sources. It preserves sources and version history; AI-proposed changes require your review and explicit save.
+
+[Try the web app](https://ariadne.kai-nex.com/) · [Skill setup](docs/current/ARIADNE_SKILL.md)
 
 2026-10-14: The latest [complete Skill release](https://github.com/orocoa/Ariadne/releases/tag/skill-20261014-continuity), built from `d18feb1`, retains scoped conversation requirements and full prior résumés after profile updates, adds local text finding, and includes the completed correction and PDF fixes. The local Skill, production website/API, and website installation metadata now use this release; original data, authentication, and model choices are preserved. [Publication status](docs/current/RELEASE_20261014_CONTINUITY.md).
 
@@ -12,13 +14,11 @@ Historical release status recorded on 2026-10-03: The [complete Skill release](h
 
 [中文说明](README.zh-CN.md) · [Current architecture map (Chinese)](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.html) · [Architecture evolution](docs/architecture/archify/2026-09-12-project-evolution/07-architecture-evolution-six-stages.en.html) · [Project history](PROJECT_HISTORY.md) · [Runtime contract](docs/current/ARIADNE_RUNTIME_EXECUTION_CONTRACT.md) · [Skill guide](docs/current/ARIADNE_SKILL.md)
 
-[Try the web app](https://ariadne.kai-nex.com/) · [Skill setup](docs/current/ARIADNE_SKILL.md)
-
 [![Ariadne · 衡 — Web + macOS App](public/social/ariadne-preview.png)](https://ariadne.kai-nex.com/)
 
 ## Product case & ownership
 
-**An independent project by [KAI](https://github.com/KAI-NEX), built with AI-assisted development.** I own the product definition, architecture decisions, interaction design, implementation process, validation, and release. Independent ownership describes how I delivered the project; it does not mean every line was written without AI tools.
+**An independent project by [KAI / orocoa](https://github.com/orocoa), built with AI-assisted development.** I own the product definition, architecture decisions, interaction design, implementation process, validation, and release. Independent ownership describes how I delivered the project; it does not mean every line was written without AI tools.
 
 The product question is whether people can understand the relationship between their experience and a target role without losing the distinction between source facts, model suggestions, and their own decisions. My main design choices are separate Candidate/Job contexts, reviewable proposals, and explicit human save.
 

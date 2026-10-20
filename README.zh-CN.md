@@ -1,8 +1,10 @@
-# Ariadne · 衡
+# Ariadne · 衡 — AI 求职工作空间
 
 > **看懂自己的经历，理解想去的岗位。**
 >
-> Ariadne · 衡是一个开源 AI 职业工作空间，用于整理个人资料、理解目标职位，并基于原始材料开展分析与讨论。项目保留来源与历史版本；AI 提出的修改须经用户审阅并明确保存。
+> Ariadne · 衡是一个开源 AI 求职工作空间，用于整理简历与项目材料、理解职位描述，并基于原始材料开展分析与讨论。项目保留来源与历史版本；AI 提出的修改须经用户审阅并明确保存。
+
+[打开网页版](https://ariadne.kai-nex.com/) · [Skill 安装说明](docs/current/ARIADNE_SKILL.md)
 
 2026-10-14：最新[完整 Skill](https://github.com/orocoa/Ariadne/releases/tag/skill-20261014-continuity)绑定源码 `d18feb1`，包含对话要求保留、资料更新后完整前稿续改、本地文字查找及已完成的更正一致性/PDF 修复。本机 Skill、官网/API 与安装清单均已同步此版；原资料、登录与已有模型选择保留。[发布状态](docs/current/RELEASE_20261014_CONTINUITY.md)。
 
@@ -12,13 +14,11 @@
 
 [English README](README.md) · [当前架构图](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.html) · [架构演进图](docs/architecture/archify/2026-09-12-project-evolution/07-architecture-evolution-six-stages.html) · [完整项目经历](PROJECT_HISTORY.md) · [运行时契约](docs/current/ARIADNE_RUNTIME_EXECUTION_CONTRACT.md) · [Skill 使用指南](docs/current/ARIADNE_SKILL.md)
 
-[打开网页版](https://ariadne.kai-nex.com/) · [Skill 安装说明](docs/current/ARIADNE_SKILL.md)
-
 [![Ariadne · 衡 — Web + macOS App](public/social/ariadne-preview.png)](https://ariadne.kai-nex.com/)
 
 ## 产品案例与个人贡献
 
-**由 [KAI](https://github.com/KAI-NEX) 独立完成的项目，使用 AI 工具辅助开发。** 我负责产品定义、架构取舍、交互设计、实现推进、验证与发布。这里的独立完成指项目整体由我负责，不代表每一行代码都未经 AI 辅助。
+**由 [KAI / orocoa](https://github.com/orocoa) 独立完成的项目，使用 AI 工具辅助开发。** 我负责产品定义、架构取舍、交互设计、实现推进、验证与发布。这里的独立完成指项目整体由我负责，不代表每一行代码都未经 AI 辅助。
 
 核心问题：怎样帮助求职者理解经历与岗位的关系，同时分清原文事实、模型建议和个人决定？我的主要设计取舍是个人资料与岗位分域、模型修改先形成待审阅提案、用户明确保存后才更新确认版本。
 

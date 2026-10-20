@@ -1,5 +1,11 @@
 # AI Job Radar｜Phase 4 Status
 
+## 2026-10-21 — GitHub 项目介绍与入口优化
+
+- 双语 README 标题明确 AI 求职工作空间、简历/项目材料与职位描述；将既有 Web 体验和 Skill 安装入口前置，作者账号链接统一为 orocoa，保留 KAI 署名及 AI 辅助开发说明。
+- 仓库 Description 与 Topics 按现有产品范围整理。README 的 GitHub Markdown 渲染、相对路径和主要体验入口 HTTP 检查通过，原有运行命令、发布状态与历史说明保留。
+- 本次仅发布仓库文档与公开元数据；未改运行代码、部署官网/API、更新已安装 Skill、调用业务模型或宣称收录、排名及求职效果提升。
+
 ## 2026-10-14 — 官网 / API / 完整 Skill 同步完成
 
 - 用户本人完成 Cloudflare 官方设备授权后，现有同一账号成功发布 API `ariadne-api`：`d7690df9-e5ba-442e-87fd-a67ded9ced18`，部署查询确认 100%；Pages 生产部署 `38f2288b-9586-4307-89d6-1f1b060c0e41`，来源 `d18feb1`。服务绑定、正式域名来源限制、已有 DO migration 和用户模型选择保持。
