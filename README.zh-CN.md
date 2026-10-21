@@ -4,17 +4,43 @@
 >
 > Ariadne · 衡是由 [orocoa](https://github.com/orocoa) 维护的开源 AI 求职工作空间，用于整理简历与项目材料、理解职位描述，并基于原始材料开展分析与讨论。项目保留来源与历史版本；AI 提出的修改须经用户审阅并明确保存。
 
-[打开网页版](https://ariadne.kai-nex.com/) · [Skill 安装说明](docs/current/ARIADNE_SKILL.md)
+[打开网页版](https://ariadne.kai-nex.com/) · [安装 Skill（官网）](https://ariadne.kai-nex.com/#skill) · [Skill 安装说明](docs/current/ARIADNE_SKILL.md)
 
-2026-10-14：最新[完整 Skill](https://github.com/orocoa/Ariadne/releases/tag/skill-20261014-continuity)绑定源码 `d18feb1`，包含对话要求保留、资料更新后完整前稿续改、本地文字查找及已完成的更正一致性/PDF 修复。本机 Skill、官网/API 与安装清单均已同步此版；原资料、登录与已有模型选择保留。[发布状态](docs/current/RELEASE_20261014_CONTINUITY.md)。
-
-以下为 2026-10-13 当时的发布状态：[完整 Skill](https://github.com/orocoa/Ariadne/releases/tag/skill-20261013-source-icons)包含 Codex 新型号自动资格验证、Enter 发送 / Shift+Enter 换行、职位原件命名与下载及无底色操作图标，并修复切换原件时误操作旧来源、Model 直接导入遗漏名称的问题。官网安装入口已同步此包；Web/API 产品运行仍为 9 月 28 日源码 `126c775`。已有模型选择和导入默认不自动改变。[更新记录](CHANGELOG.md)。
-
-以下为 2026-10-03 当时的发布状态：[完整 Skill 新版](https://github.com/orocoa/Ariadne/releases/tag/skill-20261003-card-return)已包含卡片收回动效修复及此前已提交的可靠性与负载优化；官网及其安装窗口仍为 9 月 28 日版本。[更新记录](CHANGELOG.md)。
-
-[English README](README.md) · [当前架构图](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.html) · [架构演进图](docs/architecture/archify/2026-09-12-project-evolution/07-architecture-evolution-six-stages.html) · [完整项目经历](PROJECT_HISTORY.md) · [运行时契约](docs/current/ARIADNE_RUNTIME_EXECUTION_CONTRACT.md) · [Skill 使用指南](docs/current/ARIADNE_SKILL.md)
+[English README](README.md) · [Releases](https://github.com/orocoa/Ariadne/releases) · [更新记录](CHANGELOG.md) · [当前架构图](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.html)
 
 [![Ariadne · 衡 — Web + macOS App](public/social/ariadne-preview.png)](https://ariadne.kai-nex.com/)
+
+## 能做什么（一眼看懂）
+
+- 把**简历 / 项目材料**和**职位描述**分开放，再对照原文讨论匹配与缺口。
+- **保留原件与版本**；模型建议须你审阅并**明确保存**后才写入确认资料。
+- 可用**公开网页**（API Key）或本机 **Codex Skill**（Mac）——产品思路一致，资料不自动同步。
+
+## 开始使用
+
+[打开网页版](https://ariadne.kai-nex.com/) · [安装 Ariadne Skill](https://ariadne.kai-nex.com/#skill)
+
+### 网页 + Ariadne Skill（默认方向）
+
+Mac 默认由 Skill 打开独立窗口，关闭最后窗口即停止服务，保留资料；不使用 Codex 内置浏览器。首次需要 macOS 14+ 与 Apple Command Line Tools，窗口程序在本机按芯片编译。
+
+在官网打开「通过本地 Agent 使用」，直接点击「复制安装指令」并粘贴给 Codex，等待安装与依赖检查完成；再发送 `$ariadne 打开 Ariadne`，直接进入工作空间。Skill 使用本机 Codex，网页版使用 API；两端不配对，资料不自动同步。资料来源和人工保存边界保持。
+
+[安装与构建说明](docs/current/ARIADNE_SKILL.md) · [Skill 源码](skills/ariadne/SKILL.md)。完整 ZIP 可独立构建并从 GitHub Releases 分发；官网安装窗口已指向 10 月 14 日完整 Release；两端资料仍各自保存。需要 Python 3.9+、兼容 Codex CLI 和 Poppler；不会因安装 Skill 自动支持任意 Agent 或所有操作系统。
+
+旧 Mac App 的历史构建和资料说明保留在[本地分发记录](docs/current/LOCAL_DISTRIBUTION.md)，当前本地入口统一为 Skill。
+
+## 第一次怎么用
+
+1. **选择入口。** 网页版使用自己的 API Key，也可选「暂不连接 AI」先保存原件；使用本机 Codex 则先安装 Skill，调用后直接进入独立工作空间。
+2. **加入个人资料。** 打开「个人资料」，导入简历、作品集或项目文件。需要 AI 理解时，确认页面说明的材料传输；网页使用已验证的 API 模型，Skill 使用本机 Codex。
+3. **核对理解结果。** 对照原件检查待审阅内容，纠正或拒绝没有依据的陈述；明确点击保存后，才成为确认资料。
+4. **加入目标岗位。** 打开「职位描述」，导入想了解的岗位要求，单独检查它的理解结果，不把岗位要求写成自己的经历。
+5. **围绕岗位讨论。** 在该职位详情里问：“哪些要求已有我的资料支持？哪里需要补充证据或讲得更清楚？”核对回答，再决定下一步；普通讨论不会自动改写确认资料。
+
+还没连接模型也可以先归档原件，之后再分析。模型输出仍需审阅；缺少材料支持，不等于你没有这项能力。
+
+---
 
 ## 产品案例与个人贡献
 
@@ -32,7 +58,19 @@ Ariadne 帮你结合自己的经历，理解一个真正关心的岗位。你可
 
 原始材料会保留；模型提出的内容先供你审阅，只有你明确保存后才生成新的确认版本。目标岗位和下一步行动由你决定，Ariadne 不会自动替你投递。
 
-## 9 月 29 日源码优化——已纳入网页与 Skill
+## 发布说明
+
+<details>
+<summary><strong>当前 Skill（2026-10-14）与历史发布状态</strong>（点击展开）</summary>
+
+2026-10-14：最新[完整 Skill](https://github.com/orocoa/Ariadne/releases/tag/skill-20261014-continuity)绑定源码 `d18feb1`，包含对话要求保留、资料更新后完整前稿续改、本地文字查找及已完成的更正一致性/PDF 修复。本机 Skill、官网/API 与安装清单均已同步此版；原资料、登录与已有模型选择保留。[发布状态](docs/current/RELEASE_20261014_CONTINUITY.md)。
+
+以下为 2026-10-13 当时的发布状态：[完整 Skill](https://github.com/orocoa/Ariadne/releases/tag/skill-20261013-source-icons)包含 Codex 新型号自动资格验证、Enter 发送 / Shift+Enter 换行、职位原件命名与下载及无底色操作图标，并修复切换原件时误操作旧来源、Model 直接导入遗漏名称的问题。官网安装入口已同步此包；Web/API 产品运行仍为 9 月 28 日源码 `126c775`。已有模型选择和导入默认不自动改变。[更新记录](CHANGELOG.md)。
+
+以下为 2026-10-03 当时的发布状态：[完整 Skill 新版](https://github.com/orocoa/Ariadne/releases/tag/skill-20261003-card-return)已包含卡片收回动效修复及此前已提交的可靠性与负载优化；官网及其安装窗口仍为 9 月 28 日版本。[更新记录](CHANGELOG.md)。
+
+### 9 月 29 日源码优化——已纳入网页与 Skill
+
 
 - **完整材料在预算内处理。** PDF 在昂贵转图前检查整组预算，同一请求复用准备结果；无法完整交付时明确失败。本机对话附件经身份、同意和哈希校验后复用已保存原件。
 - **减少重复工作。** 公开回复流、预览、历史渲染与 PDF 导出减少全文反复处理；求职记录按当前职位读取一次，再批量读取所属图片。独立读取走定点接口，写事务仍保留完整读集、版本校验和原子保存。
@@ -45,7 +83,8 @@ Ariadne 帮你结合自己的经历，理解一个真正关心的岗位。你可
 
 [优化细节与限制](docs/current/RUNTIME_OPTIMIZATION_20260929.md) · [架构分析](docs/current/ARCHITECTURE_REVIEW_20260929.md) · [验收记录](PROJECT_STATUS.md)
 
-## 已发布的 9 月 28 日版本
+### 已发布的 9 月 28 日版本
+
 
 - **一次同步完整信息。** 职位对话可以成组修改标题、公司、地点、简介、要求、投递阶段/结果、备注，以及新增、纠正、移除求职记录。例如“HR 让我加老板微信但一直没通过，结束这次投递并记下经过”，会同时提出状态和经过两项变化；未回应不会被自动认定为明确拒绝。
 - **统一审阅、一次保存。** 展示全部修改前后值，接受后整组保存，失败则整组不写入。期间数据变化会使旧建议失效；原件与历史保留。当前读取求职记录文字，记录附件图片仅提供数量，不解析图片内容；职位对话不能修改个人资料。
@@ -57,29 +96,7 @@ Ariadne 帮你结合自己的经历，理解一个真正关心的岗位。你可
 
 [整组变更架构与验收范围](docs/current/JOB_WORKSPACE_CHANGE_SETS.md) · [模型选择契约](docs/current/MODEL_SELECTION_AND_TUNING_ARCHITECTURE.md)
 
-## 第一次怎么用
-
-1. **选择入口。** 网页版使用自己的 API Key，也可选「暂不连接 AI」先保存原件；使用本机 Codex 则先安装 Skill，调用后直接进入独立工作空间。
-2. **加入个人资料。** 打开「个人资料」，导入简历、作品集或项目文件。需要 AI 理解时，确认页面说明的材料传输；网页使用已验证的 API 模型，Skill 使用本机 Codex。
-3. **核对理解结果。** 对照原件检查待审阅内容，纠正或拒绝没有依据的陈述；明确点击保存后，才成为确认资料。
-4. **加入目标岗位。** 打开「职位描述」，导入想了解的岗位要求，单独检查它的理解结果，不把岗位要求写成自己的经历。
-5. **围绕岗位讨论。** 在该职位详情里问：“哪些要求已有我的资料支持？哪里需要补充证据或讲得更清楚？”核对回答，再决定下一步；普通讨论不会自动改写确认资料。
-
-还没连接模型也可以先归档原件，之后再分析。模型输出仍需审阅；缺少材料支持，不等于你没有这项能力。
-
-## 开始使用
-
-[打开网页版](https://ariadne.kai-nex.com/) · [安装 Ariadne Skill](https://ariadne.kai-nex.com/#skill)
-
-### 网页 + Ariadne Skill（默认方向）
-
-Mac 默认由 Skill 打开独立窗口，关闭最后窗口即停止服务，保留资料；不使用 Codex 内置浏览器。首次需要 macOS 14+ 与 Apple Command Line Tools，窗口程序在本机按芯片编译。
-
-在官网打开「通过本地 Agent 使用」，直接点击「复制安装指令」并粘贴给 Codex，等待安装与依赖检查完成；再发送 `$ariadne 打开 Ariadne`，直接进入工作空间。Skill 使用本机 Codex，网页版使用 API；两端不配对，资料不自动同步。资料来源和人工保存边界保持。
-
-[安装与构建说明](docs/current/ARIADNE_SKILL.md) · [Skill 源码](skills/ariadne/SKILL.md)。完整 ZIP 可独立构建并从 GitHub Releases 分发；官网安装窗口已指向 10 月 14 日完整 Release；两端资料仍各自保存。需要 Python 3.9+、兼容 Codex CLI 和 Poppler；不会因安装 Skill 自动支持任意 Agent 或所有操作系统。
-
-旧 Mac App 的历史构建和资料说明保留在[本地分发记录](docs/current/LOCAL_DISTRIBUTION.md)，当前本地入口统一为 Skill。
+</details>
 
 ## 当前架构
 
@@ -262,3 +279,4 @@ python3 scripts/check_public_release.py
 这是早期的开源预览版，现已提供[公开网页版](https://ariadne.kai-nex.com/)和 macOS App 安装包。模型输出需要审阅；测试通过不保证所有真实资料都能被正确理解。
 
 [贡献指南](CONTRIBUTING.md) · [安全边界](SECURITY.md) · [发布记录](CHANGELOG.md) · [MIT License](LICENSE) · [当前状态](PROJECT_STATUS.md) · [项目约束](PROJECT_CONTEXT.md)
+
