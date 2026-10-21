@@ -4,17 +4,43 @@
 >
 > Ariadne is an open-source AI career workspace for organizing résumés and project materials, understanding job descriptions, and discussing both with reference to original sources. It preserves sources and version history; AI-proposed changes require your review and explicit save.
 
-[Try the web app](https://ariadne.kai-nex.com/) · [Skill setup](docs/current/ARIADNE_SKILL.md)
+[Try the web app](https://ariadne.kai-nex.com/) · [Install Skill (site)](https://ariadne.kai-nex.com/#skill) · [Skill setup docs](docs/current/ARIADNE_SKILL.md)
 
-2026-10-14: The latest [complete Skill release](https://github.com/orocoa/Ariadne/releases/tag/skill-20261014-continuity), built from `d18feb1`, retains scoped conversation requirements and full prior résumés after profile updates, adds local text finding, and includes the completed correction and PDF fixes. The local Skill, production website/API, and website installation metadata now use this release; original data, authentication, and model choices are preserved. [Publication status](docs/current/RELEASE_20261014_CONTINUITY.md).
-
-Historical release status recorded on 2026-10-13: The [complete Skill release](https://github.com/orocoa/Ariadne/releases/tag/skill-20261013-source-icons) adds automatic qualification of new Codex models, Enter to send / Shift+Enter for a newline, and recognizable Job-source names and original downloads with unfilled icon actions. It also fixes source-switch races and preserves names during direct Model imports. The website installation entry now provides this release; the Web/API product runtime remains on September 28 (`126c775`). Existing model choices and the import default are preserved. [Changes](CHANGELOG.md).
-
-Historical release status recorded on 2026-10-03: The [complete Skill release](https://github.com/orocoa/Ariadne/releases/tag/skill-20261003-card-return) includes the card-return animation fix and the previously committed reliability and load optimizations. The website and its installation dialog remain on the September 28 release. [Changes](CHANGELOG.md).
-
-[中文说明](README.zh-CN.md) · [Current architecture map (Chinese)](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.html) · [Architecture evolution](docs/architecture/archify/2026-09-12-project-evolution/07-architecture-evolution-six-stages.en.html) · [Project history](PROJECT_HISTORY.md) · [Runtime contract](docs/current/ARIADNE_RUNTIME_EXECUTION_CONTRACT.md) · [Skill guide](docs/current/ARIADNE_SKILL.md)
+[中文说明](README.zh-CN.md) · [Releases](https://github.com/orocoa/Ariadne/releases) · [Changelog](CHANGELOG.md) · [Architecture map (zh)](docs/architecture/archify/2026-09-29-optimized/ariadne-zh.html)
 
 [![Ariadne · 衡 — Web + macOS App](public/social/ariadne-preview.png)](https://ariadne.kai-nex.com/)
+
+## What you can do (at a glance)
+
+- Put **résumés / project notes** and **job descriptions** in separate domains, then discuss them with source references.
+- Keep **original files and version history**; model suggestions stay reviewable until you **explicitly save**.
+- Use the **public web app** (API key) or a **local Codex Skill** (Mac) — same product idea, separate data stores.
+
+## Try Ariadne
+
+[Open the web app](https://ariadne.kai-nex.com/) · [Install Ariadne Skill](https://ariadne.kai-nex.com/#skill)
+
+### Web + Ariadne Skill (preferred direction)
+
+On Mac, the Skill opens a standalone window. Closing its last window stops its service and keeps saved data. First use requires macOS 14+ and Apple Command Line Tools to compile the small window host for this Mac; it does not use Codex’s in-app browser.
+
+Open “Use through a local Agent” on the website, click “Copy installation instructions,” paste them into Codex, and wait for installation and dependency checks. Then send `$ariadne 打开 Ariadne` to open the workspace directly. The Skill uses local Codex; the website uses API keys. They do not pair with each other or automatically synchronize data. Source tracking and explicit human save remain in place.
+
+[Setup and build guide](docs/current/ARIADNE_SKILL.md) · [Skill source](skills/ariadne/SKILL.md). Pages builds include the complete Skill ZIP. Local acceptance is complete; the [installation dialog](https://ariadne.kai-nex.com/#skill) provides a prompt to install the complete package from GitHub Releases. Python 3.9+, a compatible Codex CLI and Poppler are required. Other Agents and OS environments require their own verification.
+
+Historical Mac App builds and data notes remain in the [local distribution record](docs/current/LOCAL_DISTRIBUTION.md). The current local entry point is the Skill.
+
+## Your first session
+
+1. **Choose an entry.** Use your API key on the website, or select **暂不连接 AI** to archive originals first. For local Codex, install the Skill and invoke it to open the workspace directly.
+2. **Add your materials.** Open **个人资料** (Personal materials), import a résumé, portfolio, or project document, and retain the source. For AI analysis, confirm the transmission shown by the app; Web uses a verified API model and Skill uses local Codex.
+3. **Review the understanding.** Check the proposed content against your original material. Correct or reject unsupported statements, then explicitly save what you accept.
+4. **Add a target role.** Open **职位描述** (Job descriptions), import the role’s requirements, and review them separately from your personal material.
+5. **Discuss that role.** Open its details and ask: “Which requirements are supported by my materials? Where do I need more evidence or a clearer explanation?” Review the answer and decide what to do next. Discussion alone does not update confirmed data.
+
+No model connection yet? You can still archive original materials in Local mode and return to analyze them later. Model output requires review; a missing piece of evidence does not prove a missing ability.
+
+---
 
 ## Product case & ownership
 
@@ -32,7 +58,19 @@ Ariadne helps you understand your experience in relation to a job you care about
 
 You can keep the original documents, review suggestions, and save the changes you agree with as new versions. The model does not decide your career goal or automatically submit applications.
 
-## September 29 optimizations — included in Web and Skill
+## Release notes
+
+<details>
+<summary><strong>Current Skill (2026-10-14) and historical publication status</strong> — click to expand</summary>
+
+2026-10-14: The latest [complete Skill release](https://github.com/orocoa/Ariadne/releases/tag/skill-20261014-continuity), built from `d18feb1`, retains scoped conversation requirements and full prior résumés after profile updates, adds local text finding, and includes the completed correction and PDF fixes. The local Skill, production website/API, and website installation metadata now use this release; original data, authentication, and model choices are preserved. [Publication status](docs/current/RELEASE_20261014_CONTINUITY.md).
+
+Historical release status recorded on 2026-10-13: The [complete Skill release](https://github.com/orocoa/Ariadne/releases/tag/skill-20261013-source-icons) adds automatic qualification of new Codex models, Enter to send / Shift+Enter for a newline, and recognizable Job-source names and original downloads with unfilled icon actions. It also fixes source-switch races and preserves names during direct Model imports. The website installation entry now provides this release; the Web/API product runtime remains on September 28 (`126c775`). Existing model choices and the import default are preserved. [Changes](CHANGELOG.md).
+
+Historical release status recorded on 2026-10-03: The [complete Skill release](https://github.com/orocoa/Ariadne/releases/tag/skill-20261003-card-return) includes the card-return animation fix and the previously committed reliability and load optimizations. The website and its installation dialog remain on the September 28 release. [Changes](CHANGELOG.md).
+
+### September 29 optimizations — included in Web and Skill
+
 
 - **Bounded work with complete inputs.** PDF preparation checks the full input budget before expensive rendering, reuses preparation within a request, and fails explicitly when complete delivery is not possible. Local conversation attachments reuse the saved original after identity, consent, and hash checks.
 - **Less repeated work.** Public reply streaming, previews, history rendering, and PDF export avoid repeated whole-output work. Job journals fetch the selected Job's records once and batch their images. Independent reads use targeted APIs; write transactions retain their complete read set, version checks, and atomic save.
@@ -45,7 +83,8 @@ Offline regressions, desktop/mobile Chrome flows, real local Workerd/Pyodide sta
 
 [Optimization details and limits](docs/current/RUNTIME_OPTIMIZATION_20260929.md) · [Architecture review (Chinese)](docs/current/ARCHITECTURE_REVIEW_20260929.md) · [Verification record](PROJECT_STATUS.md)
 
-## Published September 28 release
+### Published September 28 release
+
 
 - **Synchronize a whole request.** A Job conversation can propose changes to title, company, location, summary, requirements, application stage/outcome, notes, and journal entries together. For example, “HR asked me to add the founder on WeChat, but the request was never accepted; close this application and record what happened” produces a reviewable group containing both the status and the event. No response is not treated as a confirmed rejection.
 - **Review and save once.** Compare all changes before accepting. They save together or fail together; concurrent edits invalidate stale proposals. Original sources and history remain. Journal text is in context; attached journal images are counted, not read by this feature. Job conversations cannot change personal records.
@@ -57,29 +96,7 @@ The October 3 [full Skill ZIP](https://github.com/orocoa/Ariadne/releases/tag/sk
 
 [Change-set architecture and verification](docs/current/JOB_WORKSPACE_CHANGE_SETS.md) · [Model selection contract](docs/current/MODEL_SELECTION_AND_TUNING_ARCHITECTURE.md)
 
-## Your first session
-
-1. **Choose an entry.** Use your API key on the website, or select **暂不连接 AI** to archive originals first. For local Codex, install the Skill and invoke it to open the workspace directly.
-2. **Add your materials.** Open **个人资料** (Personal materials), import a résumé, portfolio, or project document, and retain the source. For AI analysis, confirm the transmission shown by the app; Web uses a verified API model and Skill uses local Codex.
-3. **Review the understanding.** Check the proposed content against your original material. Correct or reject unsupported statements, then explicitly save what you accept.
-4. **Add a target role.** Open **职位描述** (Job descriptions), import the role’s requirements, and review them separately from your personal material.
-5. **Discuss that role.** Open its details and ask: “Which requirements are supported by my materials? Where do I need more evidence or a clearer explanation?” Review the answer and decide what to do next. Discussion alone does not update confirmed data.
-
-No model connection yet? You can still archive original materials in Local mode and return to analyze them later. Model output requires review; a missing piece of evidence does not prove a missing ability.
-
-## Try Ariadne
-
-[Open the web app](https://ariadne.kai-nex.com/) · [Install Ariadne Skill](https://ariadne.kai-nex.com/#skill)
-
-### Web + Ariadne Skill (preferred direction)
-
-On Mac, the Skill opens a standalone window. Closing its last window stops its service and keeps saved data. First use requires macOS 14+ and Apple Command Line Tools to compile the small window host for this Mac; it does not use Codex’s in-app browser.
-
-Open “Use through a local Agent” on the website, click “Copy installation instructions,” paste them into Codex, and wait for installation and dependency checks. Then send `$ariadne 打开 Ariadne` to open the workspace directly. The Skill uses local Codex; the website uses API keys. They do not pair with each other or automatically synchronize data. Source tracking and explicit human save remain in place.
-
-[Setup and build guide](docs/current/ARIADNE_SKILL.md) · [Skill source](skills/ariadne/SKILL.md). Pages builds include the complete Skill ZIP. Local acceptance is complete; the [installation dialog](https://ariadne.kai-nex.com/#skill) provides a prompt to install the complete package from GitHub Releases. Python 3.9+, a compatible Codex CLI and Poppler are required. Other Agents and OS environments require their own verification.
-
-Historical Mac App builds and data notes remain in the [local distribution record](docs/current/LOCAL_DISTRIBUTION.md). The current local entry point is the Skill.
+</details>
 
 ## Current architecture
 
@@ -277,3 +294,4 @@ python3 scripts/check_public_release.py
 Ariadne is an early open-source preview with a [hosted web app](https://ariadne.kai-nex.com/) and a Codex Skill that opens a standalone Mac window. Model output must be reviewed; passing tests does not guarantee correct interpretation of every real document. Full document-path verification currently focuses on macOS.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), [CHANGELOG.md](CHANGELOG.md), and the [MIT License](LICENSE). For current implementation status, read [PROJECT_STATUS.md](PROJECT_STATUS.md); for stable product constraints, read [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md).
+
