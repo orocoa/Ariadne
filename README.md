@@ -2,7 +2,7 @@
 
 > **Understand your experience. Make sense of your next role.**
 >
-> Ariadne is an open-source AI career workspace for organizing résumés and project materials, understanding job descriptions, and discussing both with reference to original sources. It preserves sources and version history; AI-proposed changes require your review and explicit save.
+> Ariadne is an open-source AI career workspace by [orocoa](https://github.com/orocoa) for organizing résumés and project materials, understanding job descriptions, and discussing both with reference to original sources. It preserves sources and version history; AI-proposed changes require your review and explicit save.
 
 [Try the web app](https://ariadne.kai-nex.com/) · [Skill setup](docs/current/ARIADNE_SKILL.md)
 
